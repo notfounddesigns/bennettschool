@@ -32,6 +32,7 @@
       font-size: 15px;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
     .shell {
@@ -41,6 +42,7 @@
       align-items: center;
       justify-content: center;
       padding: 2rem 1rem;
+      height: calc(100vh - 56px);
     }
 
     .nav-logo {
@@ -90,6 +92,10 @@
       display: none;
       width: clamp(300px, 90vw, 500px);
       animation: up 0.2s ease;
+    }
+
+    .screen.dashboard {
+      height: calc(100vh - 56px);
     }
 
     .screen.active {
@@ -237,7 +243,8 @@
       transition: all 0.15s;
       width: clamp(300px, 90vw, 500px);
       height: auto;
-      margin-top: 2rem;
+      margin-top: auto;
+      margin-bottom: 2rem;
     }
 
     .btn-ghost:hover {
@@ -317,10 +324,11 @@
 
     /* ── dashboard ── */
     .dash-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 16px;
       margin-bottom: 16px;
+      height: calc(100vh - 56px - 2rem);
     }
 
     @media (max-width: 540px) {

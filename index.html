@@ -78,7 +78,7 @@
     </div>
 
     <!-- DASHBOARD -->
-    <div class="screen" id="screen-dashboard">
+    <div class="screen dashboard" id="screen-dashboard">
       <div class="dash-grid">
 
         <div class="panel panel-wide">
@@ -106,23 +106,8 @@
           </ul>
         </div>
 
-        <div class="panel">
-          <p class="panel-label">Account</p>
-          <div class="profile-row">
-            <div class="avatar" id="dash-avatar"></div>
-            <div>
-              <p class="profile-name" id="dash-name"></p>
-              <p class="profile-role" id="dash-role-sub"></p>
-            </div>
-          </div>
-          <div class="info-row"><span class="lbl">Role</span><span class="val" id="dash-role">—</span></div>
-          <div class="info-row"><span class="lbl">Department</span><span class="val" id="dash-dept">—</span></div>
-          <div class="info-row"><span class="lbl">Status</span><span class="val">Active</span></div>
-          <div class="info-row"><span class="lbl">Pay type</span><span class="val" id="dash-wagetype">—</span></div>
-        </div>
-
+        <button class="btn-ghost" onclick="handleLogout()">Sign out</button>
       </div>
-      <button class="btn-ghost" onclick="handleLogout()">Sign out</button>
     </div>
 
   </main>
@@ -291,11 +276,6 @@
       document.getElementById('dash-avatar').textContent = getInitials(displayName);
       document.getElementById('dash-name').textContent = displayName;
       document.getElementById('dash-role-sub').textContent = emp.role || '';
-      document.getElementById('dash-role').textContent = emp.role || '—';
-      document.getElementById('dash-dept').textContent = emp.department || '—';
-      document.getElementById('dash-wagetype').textContent = emp.wage_type
-        ? emp.wage_type.charAt(0).toUpperCase() + emp.wage_type.slice(1)
-        : '—';
 
       document.getElementById('stat-this-week').innerHTML = '—<span class="stat-unit"> h</span>';
       document.getElementById('stat-last-week').innerHTML = '—<span class="stat-unit"> h</span>';
@@ -326,14 +306,6 @@
                 <span class="shift-badge ${t.approved ? 'badge-approved' : 'badge-pending'}">${t.approved ? 'Approved' : 'Pending'}</span>
               </div>
             </li>`).join('');
-
-          const latest = summary.recentShifts[0];
-          if (latest?.role) document.getElementById('dash-role').textContent = latest.role;
-          if (latest?.department) document.getElementById('dash-dept').textContent = latest.department;
-          if (latest?.labor?.wage_type) {
-            const wt = latest.labor.wage_type;
-            document.getElementById('dash-wagetype').textContent = wt.charAt(0).toUpperCase() + wt.slice(1);
-          }
         }
       } catch (err) {
         console.error('Timecard error:', err);
