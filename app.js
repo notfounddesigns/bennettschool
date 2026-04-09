@@ -126,6 +126,135 @@ function handleLogout() {
   showScreen('login');
 }
 
+async function homebaseFetch(path) {
+  const res = await fetch(`${PROXY}/homebase${path}`, { headers: AUTH_HEADERS });
+  if (!res.ok) throw new Error(`Homebase proxy error: ${res.status}`);
+  return res.json();
+}
+
+// ── DASHBOARD RENDER ──────────────────────────────────────────────────────
+async function getDashboardSummary(employeeUserId) {
+  const params = new URLSearchParams({ resource: 'student', homebaseId: employeeUserId});
+  const resp = await homebaseFetch(`?${params}`);
+  console.log({resp})
+  if (resp.result !== 'ok') {
+    console.error('Error fetching dashboard summary...');
+    return;
+  }
+  return {
+    totalHrsAll: fmtFloat(resp.profile.total_hrs),
+    hrsToGrad: fmtFloat(resp.profile.hrs_to_graduate),
+    percentComplete: resp.profile.percent_complete,
+    inPersonHrs: fmtFloat(resp.profile.hours_by_type['In Person Hours'] || 0),
+    deHrs: fmtFloat(resp.profile.hours_by_type['DE Hours'] || 0),
+    inPersonHrsList: resp.profile.in_person_hrs_list,
+    deHrsList: resp.profile.de_hrs_list
+  }
+}
+
+async function renderDashboard(emp) {
+  const displayName = `${emp.first_name} ${emp.last_name}`.replaceAll(/\b\w/g, c => c.toUpperCase());
+  document.getElementById('dash-avatar').textContent = getInitials(displayName);
+
+  const hDash = h => `${h}<span class="stat-unit"> h</span>`;
+  document.getElementById('stat-de-hours').innerHTML = hDash('—');
+  document.getElementById('stat-inperson-hours').innerHTML = hDash('—');
+  document.getElementById('stat-total-hours').innerHTML = hDash('—');
+  document.getElementById('stat-hours-to-grad').textContent = '— h remaining';
+  document.getElementById('progress-grad').style.width = '0%';
+  document.getElementById('de-log-list').innerHTML = '<li class="empty-state">Loading…</li>';
+  document.getElementById('grades-table-wrap').innerHTML = '<p class="empty-state">Loading…</p>';
+
+  const isManager = emp.job.level === 'Manager';
+  document.getElementById('manager-actions').style.display = isManager ? 'inline-flex' : 'none';
+
+  showScreen('dashboard');
+
+  const s = await getDashboardSummary(emp.id);
+
+  // ── Display User Profile Stats ─────────────────────────────────────────────────────────────
+  document.getElementById('stat-inperson-hours').innerHTML = hDash(s.inPersonHrs);
+  document.getElementById('stat-de-hours').innerHTML = hDash(s.deHrs);
+  document.getElementById('stat-total-hours').innerHTML = hDash(s.totalHrsAll);
+  document.getElementById('stat-hours-to-grad').innerHTML = (s.hrsToGrad);
+  document.getElementById('stat-hours-to-grad').textContent = `${s.hrsToGrad-s.totalHrsAll} h remaining`;
+  document.getElementById('progress-grad').style.width = `${s.percentComplete}%`;
+
+  renderHrsLogEntries(s.inPersonHrsList, s.deHrsList);
+}
+
+function renderHrsLogEntries(inPersonList, deList, grades = []) {
+  // ── In Person List
+  const in_person_list = document.getElementById('inperson-log-list');
+  if (inPersonList.length === 0) {
+    in_person_list.innerHTML = '<li class="empty-state">No in person hours recorded yet.</li>';
+  } else {
+    in_person_list.innerHTML = inPersonList.map(e => `
+      <li class="shift-item">
+        <div class="shift-left">
+          <span class="shift-date">${formatSimpleDate(e.date)}</span>
+        </div>
+        <div class="shift-right">
+          <span class="shift-hrs">${e.hours}h</span>
+        </div>
+      </li>`).join('');
+  }
+
+  // ── DE List
+  const de_list = document.getElementById('de-log-list');
+  if (deList.length === 0) {
+    de_list.innerHTML = '<li class="empty-state">No DE hours recorded yet.</li>';
+  } else {
+    de_list.innerHTML = deList.map(e => `
+      <li class="shift-item">
+        <div class="shift-left">
+          <span class="shift-date">${formatSimpleDate(e.date)}</span>
+          <span class="shift-time">${escHtml(e.module)} · ${escHtml(e.platform)}</span>
+        </div>
+        <div class="shift-right">
+          <span class="shift-hrs">${e.hours}h</span>
+          <span class="shift-badge ${e.verified ? 'badge-approved' : 'badge-pending'}">${e.verified ? 'Verified' : 'Unverified'}</span>
+        </div>
+      </li>`).join('');
+  }
+
+  // ── Grades
+  const wrap = document.getElementById('grades-table-wrap');
+  if (grades.length === 0) {
+    wrap.innerHTML = '<p class="empty-state">No grades recorded yet.</p>';
+  } else {
+    wrap.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Project</th>
+            <th>Category</th>
+            <th>Score</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${grades.map(g => {
+            const letter = scoreToLetter(g.score);
+            return `<tr>
+              <td>${formatSimpleDate(g.date)}</td>
+              <td>${escHtml(g.project)}</td>
+              <td>${escHtml(g.category)}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="grade-chip grade-${letter.toLowerCase()}">${letter}</span>
+                  <span style="color:var(--muted);font-size:12px;">${g.score}</span>
+                </div>
+              </td>
+              <td style="color:var(--muted)">${g.notes ? escHtml(g.notes) : '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+}
+
 function closeModal(m) {
   if (m === 'de') closeDEModal()
   if (m === 'grades') closeGradesModal()
@@ -245,135 +374,6 @@ function showAlert(el, m, t) {
 
 function fmtFloat(val, p = 2) {
   return Number.parseFloat(val).toFixed(p);
-}
-
-async function homebaseFetch(path) {
-  const res = await fetch(`${PROXY}/homebase${path}`, { headers: AUTH_HEADERS });
-  if (!res.ok) throw new Error(`Homebase proxy error: ${res.status}`);
-  return res.json();
-}
-
-// ── DASHBOARD RENDER ──────────────────────────────────────────────────────
-async function getDashboardSummary(employeeUserId) {
-  const params = new URLSearchParams({ resource: 'student', homebaseId: employeeUserId});
-  const resp = await homebaseFetch(`?${params}`);
-  console.log({resp})
-  if (resp.result !== 'ok') {
-    console.error('Error fetching dashboard summary...');
-    return;
-  }
-  return {
-    totalHrsAll: fmtFloat(resp.profile.total_hrs),
-    hrsToGrad: fmtFloat(resp.profile.hrs_to_graduate),
-    percentComplete: resp.profile.percent_complete,
-    inPersonHrs: fmtFloat(resp.profile.hours_by_type['In Person Hours'] || 0),
-    deHrs: fmtFloat(resp.profile.hours_by_type['DE Hours'] || 0),
-    inPersonHrsList: resp.profile.in_person_hrs_list,
-    deHrsList: resp.profile.de_hrs_list
-  }
-}
-
-async function renderDashboard(emp) {
-  const displayName = `${emp.first_name} ${emp.last_name}`.replaceAll(/\b\w/g, c => c.toUpperCase());
-  document.getElementById('dash-avatar').textContent = getInitials(displayName);
-
-  const hDash = h => `${h}<span class="stat-unit"> h</span>`;
-  document.getElementById('stat-de-hours').innerHTML = hDash('—');
-  document.getElementById('stat-inperson-hours').innerHTML = hDash('—');
-  document.getElementById('stat-total-hours').innerHTML = hDash('—');
-  document.getElementById('stat-hours-to-grad').textContent = '— h remaining';
-  document.getElementById('progress-grad').style.width = '0%';
-  document.getElementById('de-log-list').innerHTML = '<li class="empty-state">Loading…</li>';
-  document.getElementById('grades-table-wrap').innerHTML = '<p class="empty-state">Loading…</p>';
-
-  const isManager = emp.job.level === 'Manager';
-  document.getElementById('manager-actions').style.display = isManager ? 'inline-flex' : 'none';
-
-  showScreen('dashboard');
-
-  const s = await getDashboardSummary(emp.id);
-
-  // ── Display User Profile Stats ─────────────────────────────────────────────────────────────
-  document.getElementById('stat-inperson-hours').innerHTML = hDash(s.inPersonHrs);
-  document.getElementById('stat-de-hours').innerHTML = hDash(s.deHrs);
-  document.getElementById('stat-total-hours').innerHTML = hDash(s.totalHrsAll);
-  document.getElementById('stat-hours-to-grad').innerHTML = (s.hrsToGrad);
-  document.getElementById('stat-hours-to-grad').textContent = `${s.hrsToGrad} h remaining`;
-  document.getElementById('progress-grad').style.width = `${s.percentComplete}%`;
-
-  renderHrsLogEntries(s.inPersonHrsList, s.deHrsList);
-}
-
-function renderHrsLogEntries(inPersonList, deList, grades = []) {
-  // ── In Person List
-  const in_person_list = document.getElementById('inperson-log-list');
-  if (inPersonList.length === 0) {
-    in_person_list.innerHTML = '<li class="empty-state">No in person hours recorded yet.</li>';
-  } else {
-    in_person_list.innerHTML = inPersonList.map(e => `
-      <li class="shift-item">
-        <div class="shift-left">
-          <span class="shift-date">${formatSimpleDate(e.date)}</span>
-        </div>
-        <div class="shift-right">
-          <span class="shift-hrs">${e.hours}h</span>
-        </div>
-      </li>`).join('');
-  }
-
-  // ── DE List
-  const de_list = document.getElementById('de-log-list');
-  if (deList.length === 0) {
-    de_list.innerHTML = '<li class="empty-state">No DE hours recorded yet.</li>';
-  } else {
-    de_list.innerHTML = deList.map(e => `
-      <li class="shift-item">
-        <div class="shift-left">
-          <span class="shift-date">${formatSimpleDate(e.date)}</span>
-          <span class="shift-time">${escHtml(e.module)} · ${escHtml(e.platform)}</span>
-        </div>
-        <div class="shift-right">
-          <span class="shift-hrs">${e.hours}h</span>
-          <span class="shift-badge ${e.verified ? 'badge-approved' : 'badge-pending'}">${e.verified ? 'Verified' : 'Unverified'}</span>
-        </div>
-      </li>`).join('');
-  }
-
-  // ── Grades
-  const wrap = document.getElementById('grades-table-wrap');
-  if (grades.length === 0) {
-    wrap.innerHTML = '<p class="empty-state">No grades recorded yet.</p>';
-  } else {
-    wrap.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Project</th>
-            <th>Category</th>
-            <th>Score</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${grades.map(g => {
-            const letter = scoreToLetter(g.score);
-            return `<tr>
-              <td>${formatSimpleDate(g.date)}</td>
-              <td>${escHtml(g.project)}</td>
-              <td>${escHtml(g.category)}</td>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <span class="grade-chip grade-${letter.toLowerCase()}">${letter}</span>
-                  <span style="color:var(--muted);font-size:12px;">${g.score}</span>
-                </div>
-              </td>
-              <td style="color:var(--muted)">${g.notes ? escHtml(g.notes) : '—'}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`;
-  }
 }
 
 function scoreToLetter(score) {
