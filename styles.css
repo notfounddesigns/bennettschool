@@ -45,6 +45,7 @@
       align-items: center;
       padding: 2rem 1rem;
       height: calc(100vh - 56px);
+      overflow-y: auto;
     }
 
     .nav-logo {
