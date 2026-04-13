@@ -137,20 +137,18 @@
     </div>
 
     <!-- MANAGEMENT -->
-    <div class="screen mgmt two-col" id="screen-mgmt">
-      <div class="mgmt-actions">
-        <h2>Management Actions</h2>
-        <hr />
-        <button class="btn btn-secondary" onclick="openDEModal()">Enter DE Hours</button>
-        <button class="btn btn-secondary" onclick="openGradesModal()">Enter Grades</button>
-        <button class="btn btn-secondary" onclick="document.getElementById('confirm-dialog').showModal()">Sync
-          Hours</button>
-      </div>
+    <div class="screen mgmt" id="screen-mgmt">
       <div class="mgmt-table-wrap">
-        <div>
-          <h2>Students</h2>
-          <hr />
+        <h2 style="color: var(--cream);">Admin Dashboard</h2>
+        <div class="mgmt-header">
+          <button class="btn btn-secondary" onclick="openDEModal()">Enter DE Hours</button>
+          <button class="btn btn-secondary" style="background-color: var(--blush);" onclick="openGradesModal()">Enter
+            Grades</button>
+          <button class="btn btn-secondary" style="background-color: var(--error);"
+            onclick="document.getElementById('confirm-dialog').showModal()">Sync
+            Hours</button>
         </div>
+        <hr />
         <div class="mgmt-table">
           <table class="mgmt-table">
             <thead>

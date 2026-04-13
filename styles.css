@@ -113,13 +113,8 @@
     }
 
     .screen.mgmt {
+      justify-content: center;
       height: var(--screen-height);
-    }
-
-    .screen.mgmt.two-col {
-      grid-template-columns: 1fr 2fr;
-      width: clamp(300px, 90vw, 1500px);
-      gap: 16px;
     }
 
     .screen.mgmt h2 {
@@ -152,16 +147,6 @@
       display: none;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
-    }
-
-    @media (max-width: 1023px) {
-      .two-col, .screen.mgmt.two-col { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 425px) {
-      #manager-actions {
-        display: none !important;
-      }
     }
 
     .screen.two-col.active {
@@ -886,9 +871,14 @@
       margin: 0;
       height: 38px;
     }
-
-    .mgmt-table-wrap, .mgmt-table {
-      height: calc(var(--screen-height) - 50px);
+    .mgmt-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .mgmt-table {
+      height: calc(var(--screen-height) - 93px);
     }
 
     .mgmt-table-wrap h2 {
@@ -930,4 +920,11 @@
       height: 100%;
       border-radius: 3px;
       background: var(--sage);
+    }
+
+    @media (max-width: 1023px) {
+      .two-col { grid-template-columns: 1fr; }
+      .mgmt-table-wrap, .mgmt-table {
+        width: clamp(300px, 90vw, 1500px);
+      }
     }
