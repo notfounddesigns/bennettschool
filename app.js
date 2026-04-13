@@ -1,42 +1,23 @@
-// ── CONFIG ────────────────────────────────────────────────────────────────
+// ── CONFIG ───────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://wivquwyesxwcysjgtuji.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_inqQrSuwsDxQ3WnPPlxHRA_Lz9UDtA1';
-// ─────────────────────────────────────────────────────────────────────────
-
 const PROXY = `${SUPABASE_URL}/functions/v1`;
 const AUTH_HEADERS = {
   'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
   'Content-Type': 'application/json',
 };
+let _supabaseClient = null;
+let _subscription = null;
+let _currentEmployee = null;
+let snackbarTimer = null
+// ── END CONFIG────────────────────────────────────────────────────────────
 
-// ── APP STATE ─────────────────────────────────────────────────────────────
-let _currentEmployee = null; // Set on successful login, used for timecards + dashboard
+// ── KEYBOARD ─────────────────────────────────────────────────────────────
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+document.getElementById('setpass-confirm').addEventListener('keydown', e => { if (e.key === 'Enter') handleSetPassword(); });
+// ── END KEYBOARD ─────────────────────────────────────────────────────────
 
-// const names = new Set(['Grimes', 'Dame', 'McCaig', 'O\'Neal', 'Cross', 'Lovett', 'Romaro'])
-
-// init();
-
-// async function init() {
-//   const params = new URLSearchParams({ resource: 'employees'});
-//   const students = await homebaseFetch(`?${params}`);
-//   const csv = [
-//     'password_hash, homebase_id, total_hrs, hrs_to_graduate, percent_complete, name',
-//     ...students
-//       .filter(s => !names.has(s.last_name))
-//       .sort((a, b) => a.first_name.localeCompare(b.first_name))
-//       .map(e => `NULL,${e.id},0,1500,0,${e.first_name} ${e.last_name}`)
-//   ].join('\n')
-
-//   const blob = new Blob([csv], { type: 'text/csv' })
-//   const url = URL.createObjectURL(blob)
-//   const a = document.createElement('a')
-//   a.href = url
-//   a.download = 'employees.csv'
-//   a.click()
-//   URL.revokeObjectURL(url)
-// }
-
-// ── LOGIN ─────────────────────────────────────────────────────────────────
+// ── AUTH ─────────────────────────────────────────────────────────────────
 async function handleLogin() {
   const name = document.getElementById('login-name').value.trim();
   const password = document.getElementById('login-password').value;
@@ -63,6 +44,7 @@ async function handleLogin() {
     }
 
     _currentEmployee = data.employee;
+    localStorage.setItem('employee', JSON.stringify(data.employee));
 
     if (data.result === 'first_time') {
       showScreen('setpass');
@@ -76,8 +58,6 @@ async function handleLogin() {
     setLoading('login-btn', false);
   }
 }
-
-// ── SET PASSWORD ──────────────────────────────────────────────────────────
 async function handleSetPassword() {
   const np = document.getElementById('setpass-new').value;
   const cp = document.getElementById('setpass-confirm').value;
@@ -116,88 +96,137 @@ async function handleSetPassword() {
     setLoading('setpass-btn', false);
   }
 }
-
-// ── LOGOUT ────────────────────────────────────────────────────────────────
 function handleLogout() {
   _currentEmployee = null;
+  localStorage.removeItem('employee');
   document.getElementById('login-name').value = '';
   document.getElementById('login-password').value = '';
   setAlert('login-error', '');
   showScreen('login');
 }
+// ── END AUTH ─────────────────────────────────────────────────────────────
 
+// ── DASHBOARD RENDER ─────────────────────────────────────────────────────
 async function homebaseFetch(path) {
   const res = await fetch(`${PROXY}/homebase${path}`, { headers: AUTH_HEADERS });
   if (!res.ok) throw new Error(`Homebase proxy error: ${res.status}`);
   return res.json();
 }
+async function fetchStudentDashboard(employeeUserId) {
+  const daysAgo7 = nDaysAgo(7);
+  const [{ data: profile, error: profileError }, { data: hours, error: hoursError }] = await Promise.all([
+    _supabaseClient
+      .from('profiles')
+      .select(`
+        homebase_id,
+        name,
+        total_hrs,
+        hrs_to_graduate,
+        percent_complete,
+        hours (
+          type_id,
+          hours
+        )
+      `)
+      .eq('homebase_id', employeeUserId)
+      .single(),
+    _supabaseClient
+      .from('hours')
+      .select('type_id, hours, date, module, platform, verified')
+      .eq('homebase_id', employeeUserId)
+      .gte('date', daysAgo7)
+  ])
 
-// ── DASHBOARD RENDER ──────────────────────────────────────────────────────
-async function getDashboardSummary(employeeUserId) {
-  const params = new URLSearchParams({ resource: 'student', homebaseId: employeeUserId});
-  const resp = await homebaseFetch(`?${params}`);
-  console.log({resp})
-  if (resp.result !== 'ok') {
-    console.error('Error fetching dashboard summary...');
-    return;
+  if (profileError || hoursError) {
+    console.error('Error fetching dashboard summary...', profileError || hoursError)
+    return
   }
+
+  const inPersonHrs = profile.hours
+      .filter(h => h.type_id === 1)
+      .reduce((sum, h) => sum + (h.hours ?? 0), 0)
+  const deHrs = profile.hours
+      .filter(h => h.type_id === 2)
+      .reduce((sum, h) => sum + (h.hours ?? 0), 0)
+
+  const inPersonHrsList = (hours ?? [])
+    .filter(h => h.type_id === 1)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .map(({ date, hours }) => ({ date, hours }))
+
+  const deHrsList = (hours ?? [])
+    .filter(h => h.type_id === 2)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .map(({ date, hours, module, platform, verified }) => ({ date, hours, module, platform, verified }))
+
   return {
-    totalHrsAll: fmtFloat(resp.profile.total_hrs),
-    hrsToGrad: fmtFloat(resp.profile.hrs_to_graduate),
-    percentComplete: resp.profile.percent_complete,
-    inPersonHrs: fmtFloat(resp.profile.hours_by_type['In Person Hours'] || 0),
-    deHrs: fmtFloat(resp.profile.hours_by_type['DE Hours'] || 0),
-    inPersonHrsList: resp.profile.in_person_hrs_list,
-    deHrsList: resp.profile.de_hrs_list
+    totalHrsAll:    fmtFloat(profile.total_hrs),
+    hrsToGrad:      fmtFloat(profile.hrs_to_graduate),
+    percentComplete: profile.percent_complete,
+    inPersonHrs:    fmtFloat(inPersonHrs),
+    deHrs:          fmtFloat(deHrs),
+    inPersonHrsList,
+    deHrsList,
   }
 }
-
 async function renderDashboard(emp) {
   const displayName = `${emp.first_name} ${emp.last_name}`.replaceAll(/\b\w/g, c => c.toUpperCase());
   document.getElementById('dash-avatar').textContent = getInitials(displayName);
 
-  const hDash = h => `${h}<span class="stat-unit"> h</span>`;
-  document.getElementById('stat-de-hours').innerHTML = hDash('—');
-  document.getElementById('stat-inperson-hours').innerHTML = hDash('—');
-  document.getElementById('stat-total-hours').innerHTML = hDash('—');
-  document.getElementById('stat-hours-to-grad').textContent = '— h remaining';
-  document.getElementById('progress-grad').style.width = '0%';
-  document.getElementById('de-log-list').innerHTML = '<li class="empty-state">Loading…</li>';
-  document.getElementById('grades-table-wrap').innerHTML = '<p class="empty-state">Loading…</p>';
-
+  // decide which dashboard to show, Student or Admin
   const isManager = emp.job.level === 'Manager';
-  document.getElementById('manager-actions').style.display = isManager ? 'inline-flex' : 'none';
+  if (isManager) await loadEmployeeTable();
+  else {
+    const hDash = h => `${h}<span class="stat-unit"> h</span>`;
+    document.getElementById('stat-de-hours').innerHTML = hDash('—');
+    document.getElementById('stat-inperson-hours').innerHTML = hDash('—');
+    document.getElementById('stat-total-hours').innerHTML = hDash('—');
+    document.getElementById('stat-hours-to-grad').textContent = '— h remaining';
+    document.getElementById('stat-percent-grad-progress').textContent = '0%';
+    document.getElementById('progress-grad').style.width = '0%';
+    document.getElementById('de-log-list').innerHTML = '<li class="empty-state">Loading…</li>';
+    document.getElementById('grades-table-wrap').innerHTML = '<p class="empty-state">Loading…</p>';
 
-  showScreen('dashboard');
+    showScreen('dashboard');
 
-  const s = await getDashboardSummary(emp.id);
+    const s = await fetchStudentDashboard(emp.id);
 
-  // ── Display User Profile Stats ─────────────────────────────────────────────────────────────
-  document.getElementById('stat-inperson-hours').innerHTML = hDash(s.inPersonHrs);
-  document.getElementById('stat-de-hours').innerHTML = hDash(s.deHrs);
-  document.getElementById('stat-total-hours').innerHTML = hDash(s.totalHrsAll);
-  document.getElementById('stat-hours-to-grad').innerHTML = (s.hrsToGrad);
-  document.getElementById('stat-hours-to-grad').textContent = `${s.hrsToGrad-s.totalHrsAll} h remaining`;
-  document.getElementById('progress-grad').style.width = `${s.percentComplete}%`;
+    // ── Display User Profile Stats ─────────────────────────────────────────────────────────────
+    document.getElementById('stat-inperson-hours').innerHTML = hDash(s.inPersonHrs);
+    document.getElementById('stat-de-hours').innerHTML = hDash(s.deHrs);
+    document.getElementById('stat-total-hours').innerHTML = hDash(s.totalHrsAll);
+    document.getElementById('stat-hours-to-grad').innerHTML = (s.hrsToGrad);
+    document.getElementById('stat-hours-to-grad').textContent = `${fmtFloat(s.hrsToGrad-s.totalHrsAll)} h remaining`;
+    document.getElementById('stat-percent-grad-progress').textContent = `${s.percentComplete}%`;
+    if (s.percentComplete >= 80) {
+      document.getElementById('stat-percent-grad-progress').style.color = 'var(--sage)';
+    } else if (s.percentComplete >= 65) {
+      document.getElementById('stat-percent-grad-progress').style.color = 'var(--blush)';
+    } else {
+      document.getElementById('stat-percent-grad-progress').style.color = 'var(--error)';
+    }
+    document.getElementById('progress-grad').style.width = `${s.percentComplete}%`;
 
-  renderHrsLogEntries(s.inPersonHrsList, s.deHrsList);
+    renderHrsLogEntries(s.inPersonHrsList, s.deHrsList);
+  }
 }
-
 function renderHrsLogEntries(inPersonList, deList, grades = []) {
   // ── In Person List
   const in_person_list = document.getElementById('inperson-log-list');
   if (inPersonList.length === 0) {
     in_person_list.innerHTML = '<li class="empty-state">No in person hours recorded yet.</li>';
   } else {
-    in_person_list.innerHTML = inPersonList.map(e => `
-      <li class="shift-item">
-        <div class="shift-left">
-          <span class="shift-date">${formatSimpleDate(e.date)}</span>
-        </div>
-        <div class="shift-right">
-          <span class="shift-hrs">${e.hours}h</span>
-        </div>
-      </li>`).join('');
+    in_person_list.innerHTML = inPersonList
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map(e => `
+        <li class="shift-item">
+          <div class="shift-left">
+            <span class="shift-date">${formatSimpleDate(e.date)}</span>
+          </div>
+          <div class="shift-right">
+            <span class="shift-hrs">${e.hours}h</span>
+          </div>
+        </li>`).join('');
   }
 
   // ── DE List
@@ -254,13 +283,76 @@ function renderHrsLogEntries(inPersonList, deList, grades = []) {
       </table>`;
   }
 }
+// ── END DASHBOARD RENDER ─────────────────────────────────────────────────
 
-function closeModal(m) {
-  if (m === 'de') closeDEModal()
-  if (m === 'grades') closeGradesModal()
+// ── MANAGEMENT RENDER ────────────────────────────────────────────────────
+async function loadEmployeeTable() {
+  const { data, error } = await _supabaseClient
+    .from('profiles')
+    .select(`
+      homebase_id,
+      name,
+      total_hrs,
+      hrs_to_graduate,
+      percent_complete,
+      hours (
+        type_id,
+        hours
+      )
+    `)
+    .order('name')
+
+  if (error) return showSnackbar('Failed to load employees', 'error')
+
+  const employees = data.map(emp => {
+    const inPersonHrs = emp.hours
+      .filter(h => h.type_id === 1)
+      .reduce((sum, h) => sum + (h.hours ?? 0), 0)
+
+    const deHrs = emp.hours
+      .filter(h => h.type_id === 2)
+      .reduce((sum, h) => sum + (h.hours ?? 0), 0)
+
+    return {
+      ...emp,
+      in_person_hrs: fmtFloat(inPersonHrs),
+      de_hrs:        fmtFloat(deHrs),
+    }
+  })
+
+  renderEmployeeTable(employees)
 }
+function renderEmployeeTable(employees) {
+  showScreen('mgmt')
+  const tbody = document.getElementById('mgmt-employee-tbody')
 
-// ── DE HOURS MODAL ───────────────────────────────────────────────────────
+  if (!employees.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No employees found.</td></tr>`
+    return
+  }
+
+  tbody.innerHTML = employees.map(emp => `
+    <tr>
+      <td>${emp.homebase_id}</td>
+      <td>${emp.name ?? '—'}</td>
+      <td>${emp.in_person_hrs} <span style="color:var(--muted);font-size:11px">hrs</span></td>
+      <td>${emp.de_hrs} <span style="color:var(--muted);font-size:11px">hrs</span></td>
+      <td>${emp.total_hrs ?? 0} <span style="color:var(--muted);font-size:11px">hrs</span></td>
+      <td>${emp.hrs_to_graduate ?? 0} <span style="color:var(--muted);font-size:11px">hrs</span></td>
+      <td>
+        <div class="percent-cell">
+          <div class="mini-bar">
+            <div class="mini-fill" style="width:${Math.min(emp.percent_complete ?? 0, 100)}%"></div>
+          </div>
+          <span>${emp.percent_complete ?? 0}%</span>
+        </div>
+      </td>
+    </tr>
+  `).join('')
+}
+// ── END MANAGEMENT RENDER ────────────────────────────────────────────────
+
+// ── MODAL ────────────────────────────────────────────────────────────────
 async function openDEModal() {
   const modal = document.getElementById('de-modal');
   // Reset form
@@ -273,34 +365,28 @@ async function openDEModal() {
   // Default date to today
   document.getElementById('de-date').value = new Date().toISOString().slice(0, 10);
   // Load students
-  await loadStudents('de');
+  loadStudents('de');
   modal.showModal();
 }
-
-function closeDEModal() {
-  document.getElementById('de-modal').close();
+async function openGradesModal() {
+  const modal = document.getElementById('grades-modal');
+  // Reset form
+  document.getElementById('grades-alert').textContent = '';
+  document.getElementById('grades-alert').className = 'alert';
+  document.getElementById('grades-project').value = '';
+  document.getElementById('grades-category').value = '';
+  document.getElementById('grades-score').value = '';
+  document.getElementById('grades-notes').value = '';
+  // Default date to today
+  document.getElementById('grades-date').value = new Date().toISOString().slice(0, 10);
+  // Load students
+  await loadStudents('grades');
+  modal.showModal();
 }
-
-async function loadStudents(m) {
-  const sel = document.getElementById(`${m}-student`);
-  sel.innerHTML = '<option value="">Loading…</option>';
-  try {
-    const params = new URLSearchParams({ resource: 'employees'});
-    const students = await homebaseFetch(`?${params}`);
-    if (students.length === 0) {
-      sel.innerHTML = '<option value="">No students found</option>';
-    } else {
-      sel.innerHTML = '<option value="">Select a student…</option>' +
-        students.map(s => {
-          const name = `${s.first_name} ${s.last_name}`.replaceAll(/\b\w/g, c => c.toUpperCase());
-          return `<option value="${s.id}">${name}</option>`;
-        }).join('');
-    }
-  } catch {
-    sel.innerHTML = '<option value="">Could not load students</option>';
-  }
+function closeModal(m) {
+  if (m === 'de') document.getElementById('de-modal').close();
+  if (m === 'grades') document.getElementById('grades-modal').close();
 }
-
 async function submitDEHours() {
   const studentId = document.getElementById('de-student').value;
   const date = document.getElementById('de-date').value;
@@ -327,7 +413,7 @@ async function submitDEHours() {
         date,
         module,
         platform,
-        hours: Number.parseFloat(hours),
+        hours: fmtFloat(hours),
         verified: verifiedEl.value === 'true',
       }),
     });
@@ -340,49 +426,89 @@ async function submitDEHours() {
     btn.textContent = 'Save';
   }
 }
-
-async function openGradesModal() {
-  const modal = document.getElementById('grades-modal');
-  // Reset form
-  document.getElementById('grades-alert').textContent = '';
-  document.getElementById('grades-alert').className = 'alert';
-  document.getElementById('grades-project').value = '';
-  document.getElementById('grades-category').value = '';
-  document.getElementById('grades-score').value = '';
-  document.getElementById('grades-notes').value = '';
-  // Default date to today
-  document.getElementById('grades-date').value = new Date().toISOString().slice(0, 10);
-  // Load students
-  await loadStudents('grades');
-  modal.showModal();
-}
-
-function closeGradesModal() {
-  document.getElementById('grades-modal').close();
-}
-
 function submitGrades() {
   // TODO: implement submitGrades
   showAlert('grades-alert', 'Could not save. Please try again.', 'error');
 }
+// ── END MODAL ────────────────────────────────────────────────────────────
 
+// ── HELPERS ──────────────────────────────────────────────────────────────
+function nDaysAgo(days) {
+  const daysAgo = new Date();
+  daysAgo.setDate(daysAgo.getDate() - days);
+  return daysAgo.toISOString();
+}
+function showSnackbar(message, type = 'default', duration = 3000) {
+  const snackbar = document.getElementById('snackbar')
+  const msg = document.getElementById('snackbar-msg')
+
+  // Clear any existing timer
+  if (snackbarTimer) clearTimeout(snackbarTimer)
+
+  // Reset classes and set new ones
+  snackbar.className = 'snackbar'
+  if (type !== 'default') snackbar.classList.add(type)
+
+  msg.textContent = message
+  snackbar.classList.add('show')
+
+  snackbarTimer = setTimeout(() => {
+    snackbar.classList.remove('show')
+  }, duration)
+}
+async function loadStudents(m) {
+  const sel = document.getElementById(`${m}-student`);
+  sel.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const params = new URLSearchParams({ resource: 'employees'});
+    const students = await homebaseFetch(`?${params}`);
+    if (students.length === 0) {
+      sel.innerHTML = '<option value="">No students found</option>';
+    } else {
+      sel.innerHTML = '<option value="">Select a student…</option>' +
+        students.map(s => {
+          const name = `${s.first_name} ${s.last_name}`.replaceAll(/\b\w/g, c => c.toUpperCase());
+          return `<option value="${s.id}">${name}</option>`;
+        }).join('');
+    }
+  } catch {
+    sel.innerHTML = '<option value="">Could not load students</option>';
+  }
+}
+async function syncHours() {
+  const date = document.getElementById('sync-date').value;
+  setLoading('sync-btn', true);
+  const res = await fetch(`${PROXY}/sync-hours-by-date`, {
+    method: 'POST',
+    headers: AUTH_HEADERS,
+    body: JSON.stringify({ date }),
+  });
+  const resp = await res.json();
+  setLoading('sync-btn', false);
+  document.getElementById('confirm-dialog').close()
+  if (resp.result !== 'ok') {
+    showSnackbar('Error syncing hours. Please try again...', 'error');
+    throw new Error(`Proxy error: ${res.result.error}`);
+  }
+  showSnackbar(`Success -- ${resp.inserted} timecards synced.`, 'success');
+  setTimeout(() => {
+    if (_currentEmployee?.job?.level === 'Manager') loadEmployeeTable();
+  }, 3500);
+}
 function showAlert(el, m, t) {
   const elem = document.getElementById(el);
   elem.textContent = m;
   elem.className = `alert show alert-${t}`;
 }
-
 function fmtFloat(val, p = 2) {
   return Number.parseFloat(val).toFixed(p);
 }
-
 function scoreToLetter(score) {
   if (score >= 90) return 'A';
   if (score >= 80) return 'B';
   if (score >= 70) return 'C';
   return 'F';
 }
-
 function formatSimpleDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', {
     month: 'short',
@@ -391,26 +517,21 @@ function formatSimpleDate(iso) {
     timeZone: 'UTC',
   });
 }
-
 function escHtml(str) {
   return String(str).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
-
-// ── UI HELPERS ────────────────────────────────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + id).classList.add('active');
-  const isDash = id === 'dashboard';
+  const isDash = id === 'dashboard' || id === 'mgmt';
   document.getElementById('topbar').classList.toggle('visible', isDash);
   document.getElementById('shell').style.paddingTop = isDash ? '2rem' : '';
 }
-
 function setAlert(id, msg, type = 'error') {
   const el = document.getElementById(id);
   el.textContent = msg;
   el.className = `alert alert-${type}` + (msg ? ' show' : '');
 }
-
 function setLoading(btnId, on) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
@@ -422,11 +543,17 @@ function setLoading(btnId, on) {
     btn.innerHTML = btn.dataset.orig || btn.innerHTML;
   }
 }
-
 function getInitials(name) {
   return name.split(' ').slice(0, 2).map(p => p[0]?.toUpperCase() || '').join('') || '??';
 }
+// ── END HELPERS ──────────────────────────────────────────────────────────
 
-// ── KEYBOARD ──────────────────────────────────────────────────────────────
-document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
-document.getElementById('setpass-confirm').addEventListener('keydown', e => { if (e.key === 'Enter') handleSetPassword(); });
+// ── DOMContentLoaded ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  _supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  const cached = localStorage.getItem('employee')
+  if (cached) {
+    _currentEmployee = JSON.parse(cached)
+    await renderDashboard(_currentEmployee)
+  }
+});

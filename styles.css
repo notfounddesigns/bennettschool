@@ -22,6 +22,7 @@
       --shadow-lg: 0 8px 40px rgba(28, 28, 30, 0.12);
       --radius: 14px;
       --radius-sm: 8px;
+      --screen-height: calc(100dvh - 56px - 3rem);
     }
 
     html, body {
@@ -43,8 +44,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2rem 1rem;
-      height: calc(100vh - 56px);
+      padding: 2rem 1rem 0.5rem 1rem;
+      height: calc(100dvh - 56px);
       overflow-y: auto;
     }
 
@@ -106,12 +107,27 @@
     .screen.dashboard {
       flex-direction: column;
       margin-top: 0px;
-      height: calc(100vh - 56px - 2rem);
+      height: var(--screen-height);
       width: 100vw !important;
       padding: 0 10rem;
     }
 
-    .screen.auth.active {
+    .screen.mgmt {
+      height: var(--screen-height);
+    }
+
+    .screen.mgmt.two-col {
+      grid-template-columns: 1fr 2fr;
+      width: clamp(300px, 90vw, 1500px);
+      gap: 16px;
+    }
+
+    .screen.mgmt h2 {
+      text-align: center;
+      color: var(--blush)
+    }
+
+    .screen.auth.active, .screen.mgmt.active {
       display: flex;
     }
 
@@ -138,8 +154,8 @@
       gap: 16px;
     }
 
-    @media (max-width: 768px) {
-      .two-col { grid-template-columns: 1fr; }
+    @media (max-width: 1023px) {
+      .two-col, .screen.mgmt.two-col { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 425px) {
@@ -157,6 +173,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+      max-height: var(--screen-height);
     }
 
     .dash-grid.bottom {
@@ -164,7 +181,6 @@
     }
 
     .panel {
-      flex: 1;
       width: 100%;
       background: white;
       border: 1px solid var(--border);
@@ -172,7 +188,13 @@
       padding: 20px 22px;
       box-shadow: var(--shadow);
     }
-
+    .grad-progress {
+      max-height: 100%;
+    }
+    .panel-logs {
+      max-height: clamp(250px, 100%, 500px);
+      overflow-y: auto;
+    }
     .panel-label {
       font-size: 11px;
       text-transform: uppercase;
@@ -340,7 +362,7 @@
     .stat-val {
       font-family: 'DM Serif Display', serif;
       font-size: 28px;
-      color: var(--charcoal);
+      color: var(--blush);
       line-height: 1;
     }
 
@@ -353,6 +375,7 @@
 
     .shift-list {
       list-style: none;
+      max-height: clamp(250px, 100%, 500px);
     }
 
     .shift-item {
@@ -662,7 +685,7 @@
       align-items: center;
       gap: 6px;
       font-size: 14px;
-      color: var(--charcoal);
+      color: var(--cream);
       cursor: pointer;
     }
 
@@ -670,6 +693,43 @@
       border: none;
       padding: 0;
       margin: 0;
+    }
+
+    /* ── snackbar ── */
+    .snackbar {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--charcoal);
+      color: var(--cream);
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 999;
+      white-space: nowrap;
+    }
+
+    .snackbar.show {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .snackbar.success {
+      background: var(--sage);
+      color: var(--sage-light);
+    }
+
+    .snackbar.error {
+      background: var(--error);
+      color: white;
     }
 
     /* ── modal ── */
@@ -682,7 +742,7 @@
       width: clamp(300px, 92vw, 480px);
       max-height: 90vh;
       overflow-y: auto;
-      background: white;
+      background: #3b3a3a;
       transition:cubic-bezier(0.25, 0.46, 0.45, 0.94) 1.5s;
     }
 
@@ -696,19 +756,20 @@
       justify-content: space-between;
       padding: 18px 22px 14px;
       border-bottom: 1px solid var(--border);
+      color: var(--cream);
     }
 
     .modal-title {
       font-family: 'DM Serif Display', serif;
       font-size: 18px;
-      color: var(--charcoal);
+      color: var(--cream);
     }
 
     .modal-close {
       background: none;
       border: none;
       font-size: 22px;
-      color: var(--muted);
+      color: var(--cream);
       cursor: pointer;
       line-height: 1;
       padding: 0 4px;
@@ -732,6 +793,12 @@
       justify-content: flex-end;
       padding: 14px 22px 18px;
       border-top: 1px solid var(--border);
+    }
+
+    hr {
+      width: 100%;
+      border: none;
+      border-bottom: 0.01px solid var(--blush-light);
     }
 
     .btn {
@@ -773,22 +840,23 @@
       display: inline-flex;
       justify-content: center;
       align-items: center;
-      width: fit-content;
+      width: 100%;
       height: 38px;
       background: var(--sage);
       color: var(--sage-light);
-      font-size: 11px;
+      font-size: clamp(8px, 0.75rem, 16px);
     }
 
     .btn-outline {
       color: var(--blush);
-      margin: auto;
+      /* margin: auto; */
       background: none;
       border: 1px solid var(--blush);
       width: auto;
       height: 38px;
       padding: 0 18px;
       margin-top: 0;
+      margin-bottom: 0;
     }
 
     .btn-outline:hover {
@@ -801,4 +869,65 @@
       height: 38px;
       padding: 0 18px;
       margin-top: 0;
+    }
+
+    .mgmt-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 200px;
+      gap: 10px;
+    }
+
+    .mgmt-actions .btn {
+      flex: 1;
+      min-width: 140px;
+      max-width: 200px;
+      margin: 0;
+      height: 38px;
+    }
+
+    .mgmt-table-wrap, .mgmt-table {
+      height: calc(var(--screen-height) - 50px);
+    }
+
+    .mgmt-table-wrap h2 {
+      margin-bottom: 10px;
+    }
+
+    .mgmt-table {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: auto;
+      margin-top: 10px;
+    }
+
+    .mgmt-table thead {
+      background: var(--cream);
+    }
+
+    .mgmt-table tbody tr:hover {
+      background: #fafafa;
+    }
+
+    .mgmt-table .percent-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mgmt-table .mini-bar {
+      flex: 1;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      min-width: 50px;
+    }
+
+    .mgmt-table .mini-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--sage);
     }
