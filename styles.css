@@ -849,6 +849,26 @@
       color: var(--blush);
     }
 
+    .btn-action {
+      flex: 1;
+      min-width: 120px;
+      height: 40px;
+      margin: 0;
+      margin-bottom: 10px;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 20px;
+      background: #4a4848;
+      color: var(--cream);
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: background 0.15s, transform 0.1s, border-color 0.2s;
+    }
+
+    .btn-action:hover:not(:disabled) {
+      background: #5a5858;
+    }
+
     .modal-footer .btn-primary {
       width: auto;
       height: 38px;
@@ -890,7 +910,17 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       overflow: auto;
-      margin-top: 10px;
+    }
+
+    .mgmt-table tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    .mgmt-table thead th {
+      position: sticky;
+      top: 0;
+      background: var(--cream);
+      z-index: 1;
     }
 
     .mgmt-table thead {
