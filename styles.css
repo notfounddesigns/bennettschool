@@ -22,6 +22,7 @@
       --shadow-lg: 0 8px 40px rgba(28, 28, 30, 0.12);
       --radius: 14px;
       --radius-sm: 8px;
+      --screen-width: clamp(300px, 95vw, 1600px);
       --screen-height: calc(100dvh - 56px - 3rem);
     }
 
@@ -36,6 +37,8 @@
       font-size: 15px;
       display: flex;
       flex-direction: column;
+      justify-content: center;
+      align-items: center;
       overflow: hidden;
     }
 
@@ -71,12 +74,6 @@
       display: flex;
     }
 
-    .topbar-brand {
-      font-family: 'DM Serif Display', serif;
-      font-size: 20px;
-      color: var(--charcoal);
-    }
-
     .logo {
       width: clamp(300px, 90vw, 500px);
       height: auto;
@@ -88,14 +85,9 @@
       gap: 12px;
     }
 
-    .topbar-name {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
     .screen {
       display: none;
-      width: clamp(95vw, 90vw, 1000px);
+      width: var(--screen-width);
       animation: up 0.2s ease;
     }
 
@@ -108,8 +100,8 @@
       flex-direction: column;
       margin-top: 0px;
       height: var(--screen-height);
-      width: 100vw !important;
-      padding: 0 10rem;
+      width: 100%;
+      padding: 0 clamp(1rem, 8vw, 10rem);
     }
 
     .screen.mgmt {
@@ -161,10 +153,6 @@
       max-height: var(--screen-height);
     }
 
-    .dash-grid.bottom {
-      flex: 1;
-    }
-
     .panel {
       width: 100%;
       background: white;
@@ -209,10 +197,6 @@
       text-align: center;
       margin-bottom: 28px;
       line-height: 1.6;
-    }
-
-    .form-row {
-      margin-bottom: 16px;
     }
 
     .form-group {
@@ -292,34 +276,6 @@
       to {
         transform: rotate(360deg);
       }
-    }
-
-    /* Loading overlay on initial fetch */
-    .init-overlay {
-      position: fixed;
-      inset: 0;
-      background: var(--cream);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      z-index: 100;
-      transition: opacity 0.3s;
-    }
-
-    .init-overlay.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .init-overlay .wordmark {
-      margin: 0;
-    }
-
-    .init-msg {
-      font-size: 13px;
-      color: var(--muted);
     }
 
     .stat-row {
@@ -434,13 +390,6 @@
       font-size: 13px;
     }
 
-    .profile-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 16px;
-    }
-
     .avatar {
       width: 44px;
       height: 44px;
@@ -453,37 +402,6 @@
       font-weight: 700;
       font-size: 14px;
       flex-shrink: 0;
-    }
-
-    .profile-name {
-      font-size: 15px;
-      font-weight: 500;
-    }
-
-    .profile-role {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .info-row:last-child {
-      border-bottom: none;
-    }
-
-    .info-row .lbl {
-      color: var(--muted);
-    }
-
-    .info-row .val {
-      font-weight: 500;
     }
 
     .progress-section {
@@ -509,65 +427,6 @@
       height: 100%;
       border-radius: 3px;
       transition: width 0.4s ease;
-    }
-
-    /* ── card ── */
-    .card {
-      background: white;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .card-header {
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .card-title {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .card-body {
-      padding: 12px 20px;
-    }
-
-    /* ── attendance rows ── */
-    .attendance-day-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 9px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .attendance-day-row:last-child {
-      border-bottom: none;
-    }
-
-    .att-date {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--charcoal);
-      min-width: 96px;
-      flex-shrink: 0;
-    }
-
-    .att-bar {
-      flex: 1;
-    }
-
-    .att-hours {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
-      min-width: 52px;
-      text-align: right;
-      flex-shrink: 0;
     }
 
     /* ── grades table ── */
@@ -614,27 +473,6 @@
     .grade-b { background: #DBEAFE; color: #1E40AF; }
     .grade-c { background: #FEF3C7; color: #92400E; }
     .grade-f { background: #FEE2E2; color: #991B1B; }
-
-    /* ── student sign-out button ── */
-    .std-logout-btn {
-      align-self: flex-start;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--muted);
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 8px 16px;
-      cursor: pointer;
-      transition: all 0.15s;
-      margin-bottom: 1rem;
-    }
-
-    .std-logout-btn:hover {
-      color: var(--blush);
-      border-color: var(--blush);
-    }
 
     /* ── form inputs (date, number, select) ── */
     input[type="date"],
@@ -780,12 +618,6 @@
       border-top: 1px solid var(--border);
     }
 
-    hr {
-      width: 100%;
-      border: none;
-      border-bottom: 0.01px solid var(--blush-light);
-    }
-
     .btn {
       display: inline-flex;
       align-items: center;
@@ -821,20 +653,8 @@
       background: #C07050;
     }
 
-    .btn-secondary {
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      height: 38px;
-      background: var(--sage);
-      color: var(--sage-light);
-      font-size: clamp(8px, 0.75rem, 16px);
-    }
-
     .btn-outline {
       color: var(--blush);
-      /* margin: auto; */
       background: none;
       border: 1px solid var(--blush);
       width: auto;
@@ -876,36 +696,18 @@
       margin-top: 0;
     }
 
-    .mgmt-actions {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 200px;
-      gap: 10px;
-    }
-
-    .mgmt-actions .btn {
-      flex: 1;
-      min-width: 140px;
-      max-width: 200px;
-      margin: 0;
-      height: 38px;
-    }
     .mgmt-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
     }
-    .mgmt-table {
-      height: calc(var(--screen-height) - 93px);
-    }
-
     .mgmt-table-wrap h2 {
       margin-bottom: 10px;
     }
 
     .mgmt-table {
+      height: calc(var(--screen-height) - 93px);
       background: white;
       border-radius: var(--radius);
       box-shadow: var(--shadow);
@@ -957,4 +759,9 @@
       .mgmt-table-wrap, .mgmt-table {
         width: clamp(300px, 90vw, 1500px);
       }
+      .stat-row { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .stat-row { grid-template-columns: 1fr; }
     }

@@ -39,7 +39,7 @@
 
         <div class="alert alert-error" id="login-error"></div>
 
-        <div class="form-row">
+        <div class="form-group">
           <div>
             <label class="form-label" for="login-name">First & Last Name</label>
             <input type="text" id="login-name" placeholder="Jane Smith" />
@@ -156,7 +156,7 @@
             </svg>
             Grades
           </button>
-          <button class="btn btn-action btn-action-sync" id="sync-btn-trigger" onclick="handleSyncClick()">
+          <button class="btn btn-action btn-action-sync" id="sync-btn-trigger" onclick="document.getElementById('confirm-dialog').showModal()">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="1 4 1 10 7 10" />
@@ -169,7 +169,6 @@
           <table class="mgmt-table">
             <thead>
               <tr>
-                <th>Homebase ID</th>
                 <th>Name</th>
                 <th>In Person Hrs</th>
                 <th>DE Hrs</th>
@@ -180,7 +179,7 @@
             </thead>
             <tbody id="mgmt-employee-tbody">
               <tr>
-                <td colspan="5" class="empty-state">Loading employees...</td>
+                <td colspan="6" class="empty-state">Loading employees...</td>
               </tr>
             </tbody>
           </table>
@@ -250,7 +249,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal('de')">Cancel</button>
-        <button class="btn btn-primary" id="de-submit-btn" onclick="modalSubmit('de')">Save</button>
+        <button class="btn btn-primary" id="de-submit-btn" onclick="submitDEHours()">Save</button>
       </div>
     </dialog>
 
@@ -291,7 +290,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal('grades')">Cancel</button>
-        <button class="btn btn-primary" id="grades-submit-btn" onclick="modalSubmit('grades')">Save</button>
+        <button class="btn btn-primary" id="grades-submit-btn" onclick="submitGrades()">Save</button>
       </div>
     </dialog>
 
