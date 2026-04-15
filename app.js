@@ -292,25 +292,53 @@ function renderHrsLogEntries(inPersonList, deList, grades = []) {
 // ── END DASHBOARD RENDER ─────────────────────────────────────────────────
 
 // ── MANAGEMENT RENDER ────────────────────────────────────────────────────
+async function loadLastSync() {
+  const { data } = await _supabaseClient
+    .from('sync_log')
+    .select('synced_at, date_synced, inserted, synced_by')
+    .order('synced_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  renderLastSync(data);
+}
+function renderLastSync(record) {
+  const el = document.getElementById('last-sync-info');
+  if (!el) return;
+  if (!record) {
+    el.textContent = 'No syncs recorded yet.';
+    return;
+  }
+  const when = new Date(record.synced_at).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+  const name = record.synced_by
+    ? record.synced_by.replace(/\b\w/g, c => c.toUpperCase())
+    : 'Unknown';
+  el.textContent = `Last sync: ${when} · ${record.inserted ?? 0} records · ${name}`;
+}
 async function loadEmployeeTable() {
   showScreen('mgmt');
   document.getElementById('mgmt-employee-tbody').innerHTML =
     `<tr><td colspan="6" class="empty-state"><span class="spinner" style="display:inline-block;vertical-align:middle;margin-right:8px;"></span>Loading…</td></tr>`;
 
-  const { data, error } = await _supabaseClient
-    .from('profiles')
-    .select(`
-      homebase_id,
-      name,
-      total_hrs,
-      hrs_to_graduate,
-      percent_complete,
-      hours (
-        type_id,
-        hours
-      )
-    `)
-    .order('name')
+  const [{ data, error }] = await Promise.all([
+    _supabaseClient
+      .from('profiles')
+      .select(`
+        homebase_id,
+        name,
+        total_hrs,
+        hrs_to_graduate,
+        percent_complete,
+        hours (
+          type_id,
+          hours
+        )
+      `)
+      .order('name'),
+    loadLastSync(),
+  ]);
 
   if (error) return showSnackbar('Failed to load employees', 'error')
 
@@ -538,6 +566,16 @@ async function syncHours() {
       return;
     }
     showSnackbar(`Success — ${resp.inserted} timecards synced.`, 'success');
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_log`, {
+      method: 'POST',
+      headers: { ...AUTH_HEADERS, 'apikey': SUPABASE_ANON_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        date_synced: date,
+        inserted: resp.inserted ?? 0,
+        synced_by: `${_currentEmployee.first_name} ${_currentEmployee.last_name}`,
+      }),
+    }).catch(() => {});
+    loadLastSync();
     setTimeout(() => {
       if (_currentEmployee?.job?.level === 'Manager') loadEmployeeTable();
     }, 3500);

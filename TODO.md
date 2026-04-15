@@ -58,3 +58,8 @@
 - [x] **Loading skeleton or spinner on the management table** — `loadEmployeeTable()` fetches async but there is no visible loading state while the query runs — the table just appears empty. Show a spinner or skeleton rows.
 
 - [x] **Session validation on page load** — When restoring from `localStorage`, the cached employee object is used as-is with no server check. A revoked employee, or a user whose password changed, can still access the dashboard until they manually log out. Validate the session against the backend before rendering.
+
+- [x] **On the Admin dashboard, add a UI feature that shows when the last "Sync" was ran
+  - Will need a new Supabase DB table to track sync runs
+  - On Sync, insert a record into the new table
+  - UI will display the latest run
