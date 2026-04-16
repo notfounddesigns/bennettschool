@@ -174,11 +174,11 @@
       x-transition:enter="transition ease-out duration-200"
       x-transition:enter-start="opacity-0 translate-y-2.5"
       x-transition:enter-end="opacity-100 translate-y-0"
-      class="grid grid-cols-2 gap-4 w-full h-[calc(100dvh-56px-3rem)] px-[clamp(1rem,8vw,10rem)] max-lg:grid-cols-1"
+      class="grid gap-4 w-full h-full overflow-y-auto px-[clamp(1rem,8vw,10rem)] lg:grid-cols-2"
       style="display: none;">
 
       <!-- Left column -->
-      <div class="flex flex-col gap-4 min-h-0">
+      <div class="flex flex-col gap-4">
 
         <!-- Graduation progress panel -->
         <div class="bg-white border border-app-border rounded-[14px] p-5 shadow-card">
@@ -230,7 +230,7 @@
         </div>
 
         <!-- Grades panel -->
-        <div class="bg-white border border-app-border rounded-[14px] p-5 shadow-card overflow-y-auto max-h-[clamp(250px,100%,500px)]">
+        <div class="bg-white border border-app-border rounded-[14px] p-5 shadow-card overflow-y-auto">
           <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-4">Grades</p>
           <div x-html="gradesHtml"></div>
         </div>
@@ -240,13 +240,13 @@
       <div class="flex flex-col gap-4 min-h-0">
 
         <!-- In-person hours panel -->
-        <div class="bg-white border border-app-border rounded-[14px] p-5 shadow-card overflow-y-auto max-h-[clamp(250px,100%,500px)]">
+        <div class="bg-white border border-app-border rounded-[14px] p-5 shadow-card overflow-y-auto min-h-[158px]">
           <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-4">In Person Hours &#8212; Last 7 Days</p>
           <ul x-html="inPersonRowsHtml"></ul>
         </div>
 
         <!-- DE hours panel -->
-        <div class="bg-white border border-app-border rounded-[14px] p-5 shadow-card overflow-y-auto max-h-[clamp(250px,100%,500px)]">
+        <div class="bg-white border border-app-border rounded-[14px] p-5 shadow-card overflow-y-auto min-h-[158px]">
           <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-4">DE Hours History &#8212; Last 7 Days</p>
           <ul x-html="deRowsHtml"></ul>
         </div>
