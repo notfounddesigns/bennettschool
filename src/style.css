@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand color palette */
+  --color-app-bg: #292728;
+  --color-cream: #F9F5EF;
+  --color-charcoal: #1C1C1E;
+  --color-blush: #D4896A;
+  --color-blush-hover: #C07050;
+  --color-blush-light: #EDD5C8;
+  --color-sage: #7A9E8E;
+  --color-sage-light: #ddeee7;
+  --color-app-error: #C0392B;
+  --color-error-light: #FADBD8;
+  --color-muted: #8A8A8E;
+  --color-app-border: #E5E0D8;
+  --color-topbar: #3b3a3a;
+  --color-modal-bg: #3b3a3a;
+  --color-action-btn: #4a4848;
+  --color-action-btn-hover: #5a5858;
+
+  /* Typography */
+  --font-sans: 'DM Sans', sans-serif;
+  --font-serif: 'DM Serif Display', serif;
+
+  /* Border radius */
+  --radius-card: 14px;
+  --radius-input: 8px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 16px rgba(28, 28, 30, 0.07);
+  --shadow-lg: 0 8px 40px rgba(28, 28, 30, 0.12);
+}
+
+/* ── Global resets ── */
+*::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100dvh;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-app-bg);
+  color: var(--color-blush);
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Input scale trick (mobile zoom prevention) ── */
+input[type="password"],
+input[type="text"] {
+  font-size: 16px;
+  transform: scale(0.875);
+  transform-origin: left center;
+}
+
+/* ── Screen animation ── */
+@keyframes up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.screen-enter {
+  animation: up 0.2s ease;
+}
+
+/* ── Spinner ── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.55s linear infinite;
+  opacity: 0.7;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* ── Snackbar transition ── */
+.snackbar-hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
+  pointer-events: none;
+}
+
+.snackbar-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+/* ── Progress bar transition ── */
+.progress-fill {
+  transition: width 0.4s ease;
+}
+
+/* ── Management table sticky header ── */
+.mgmt-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-cream);
+  z-index: 1;
+}
+
+/* ── Grade chips ── */
+.grade-a { background: #D1FAE5; color: #065F46; }
+.grade-b { background: #DBEAFE; color: #1E40AF; }
+.grade-c { background: #FEF3C7; color: #92400E; }
+.grade-f { background: #FEE2E2; color: #991B1B; }
+
+/* ── Dialog backdrop ── */
+dialog.modal::backdrop {
+  background: rgba(28, 28, 30, 0.55);
+}
+
+/* ── Modal transition ── */
+dialog.modal {
+  transition: cubic-bezier(0.25, 0.46, 0.45, 0.94) 1.5s;
+}

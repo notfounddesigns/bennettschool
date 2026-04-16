@@ -49,6 +49,10 @@
 
 - [x] **`.screen.dashboard` uses `width: 100vw !important` with heavy padding** — The `!important` override makes responsive adjustments brittle. Use a `max-width` or a grid approach instead. (`styles.css:116`)
 
+- [ ] **Find JS table npm package to use. Refactor the Admin dashboard students table.
+
+- [x] Instead of displaying the "Last sync time", store what date was chosen from the dialog and display that date in the UI as "Last Sync Date" or "Hours up to date as of {Date}"
+
 ---
 
 ## New Features
@@ -59,7 +63,18 @@
 
 - [x] **Session validation on page load** — When restoring from `localStorage`, the cached employee object is used as-is with no server check. A revoked employee, or a user whose password changed, can still access the dashboard until they manually log out. Validate the session against the backend before rendering.
 
-- [x] **On the Admin dashboard, add a UI feature that shows when the last "Sync" was ran
+- [x] On the Admin dashboard, add a UI feature that shows when the last "Sync" was ran
   - Will need a new Supabase DB table to track sync runs
   - On Sync, insert a record into the new table
   - UI will display the latest run
+
+- [ ] Instead of the DE Hours Modal for insert DE Hours, add individual row (student) buttons for:
+  - Adding Hours: Can either be In-Person or DE Hours
+  - Editing Row Data
+  - Deleting a Student: not fully removed from DB but updated in the table to 'Removed'
+
+- [ ] Button to add a new student
+
+- [x] Export feature. Exports the students table data into a spreadsheet with row header
+
+- [x] Add feature for Admin to be able to reset a students password back to the 'Welcome123' password

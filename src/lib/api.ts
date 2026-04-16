@@ -1,0 +1,291 @@
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY, PROXY, AUTH_HEADERS } from './supabase';
+import { fmtFloat, nDaysAgo } from './helpers';
+
+// ── Types ─────────────────────────────────────────────────────────────────
+
+export interface Employee {
+  id: number;
+  first_name: string;
+  last_name: string;
+  job: { level: string };
+}
+
+export interface HourEntry {
+  date: string;
+  hours: number;
+}
+
+export interface DeEntry {
+  date: string;
+  hours: number;
+  module: string;
+  platform: string;
+  verified: boolean;
+}
+
+export interface GradeEntry {
+  date: string;
+  project: string;
+  category: string;
+  score: number;
+  notes: string | null;
+}
+
+export interface StudentDashboard {
+  totalHrsAll: number;
+  hrsToGrad: number;
+  percentComplete: number;
+  inPersonHrs: number;
+  deHrs: number;
+  inPersonHrsList: HourEntry[];
+  deHrsList: DeEntry[];
+  grades: GradeEntry[];
+}
+
+export interface MgmtEmployee {
+  homebase_id: number;
+  name: string;
+  in_person_hrs: string;
+  de_hrs: string;
+  total_hrs: number;
+  hrs_to_graduate: number;
+  percent_complete: number;
+}
+
+export interface SyncRecord {
+  synced_at: string;
+  date_synced: string;
+  inserted: number;
+  synced_by: string | null;
+}
+
+export interface HomebaseEmployee {
+  id: number;
+  first_name: string;
+  last_name: string;
+}
+
+// ── API functions ─────────────────────────────────────────────────────────
+
+export async function homebaseFetch(path: string): Promise<HomebaseEmployee[]> {
+  const res = await fetch(`${PROXY}/homebase${path}`, { headers: AUTH_HEADERS });
+  if (!res.ok) throw new Error(`Homebase proxy error: ${res.status}`);
+  return res.json() as Promise<HomebaseEmployee[]>;
+}
+
+export async function fetchStudentDashboard(employeeUserId: number): Promise<StudentDashboard> {
+  const daysAgo7 = nDaysAgo(7);
+
+  const [
+    { data: profile, error: profileError },
+    { data: hours, error: hoursError },
+    { data: gradesData },
+  ] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select(`homebase_id, name, total_hrs, hrs_to_graduate, percent_complete, hours(type_id, hours)`)
+      .eq('homebase_id', employeeUserId)
+      .single(),
+    supabase
+      .from('hours')
+      .select('type_id, hours, date, module, platform, verified')
+      .eq('homebase_id', employeeUserId)
+      .gte('date', daysAgo7),
+    supabase
+      .from('grades')
+      .select('date, project, category, score, notes')
+      .eq('homebase_id', employeeUserId)
+      .order('date', { ascending: false }),
+  ]);
+
+  if (profileError || hoursError) {
+    console.error('Error fetching dashboard summary…', profileError ?? hoursError);
+    throw new Error('Failed to load dashboard');
+  }
+
+  const profileHours = (profile as { hours: Array<{ type_id: number; hours: number }> }).hours ?? [];
+
+  const inPersonHrs = profileHours
+    .filter(h => h.type_id === 1)
+    .reduce((sum, h) => sum + (h.hours ?? 0), 0);
+  const deHrs = profileHours
+    .filter(h => h.type_id === 2)
+    .reduce((sum, h) => sum + (h.hours ?? 0), 0);
+
+  const rawHours = (hours as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
+
+  const inPersonHrsList: HourEntry[] = rawHours
+    .filter(h => h.type_id === 1)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map(({ date, hours: h }) => ({ date, hours: h }));
+
+  const deHrsList: DeEntry[] = rawHours
+    .filter(h => h.type_id === 2)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
+
+  const p = profile as { total_hrs: number; hrs_to_graduate: number; percent_complete: number };
+
+  return {
+    totalHrsAll: p.total_hrs ?? 0,
+    hrsToGrad: p.hrs_to_graduate ?? 0,
+    percentComplete: p.percent_complete ?? 0,
+    inPersonHrs,
+    deHrs,
+    inPersonHrsList,
+    deHrsList,
+    grades: (gradesData as GradeEntry[]) ?? [],
+  };
+}
+
+export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`homebase_id, name, total_hrs, hrs_to_graduate, percent_complete, hours(type_id, hours)`)
+    .order('name');
+
+  if (error) throw new Error('Failed to load employees');
+
+  return (data as Array<{
+    homebase_id: number;
+    name: string;
+    total_hrs: number;
+    hrs_to_graduate: number;
+    percent_complete: number;
+    hours: Array<{ type_id: number; hours: number }>;
+  }>).map(emp => {
+    const inPersonHrs = emp.hours
+      .filter(h => h.type_id === 1)
+      .reduce((sum, h) => sum + (h.hours ?? 0), 0);
+    const deHrs = emp.hours
+      .filter(h => h.type_id === 2)
+      .reduce((sum, h) => sum + (h.hours ?? 0), 0);
+
+    return {
+      homebase_id: emp.homebase_id,
+      name: emp.name,
+      in_person_hrs: fmtFloat(inPersonHrs),
+      de_hrs: fmtFloat(deHrs),
+      total_hrs: emp.total_hrs ?? 0,
+      hrs_to_graduate: emp.hrs_to_graduate ?? 0,
+      percent_complete: emp.percent_complete ?? 0,
+    };
+  });
+}
+
+export async function fetchLastSync(): Promise<SyncRecord | null> {
+  const { data } = await supabase
+    .from('sync_log')
+    .select('synced_at, date_synced, inserted, synced_by')
+    .order('synced_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data as SyncRecord | null;
+}
+
+export async function loadStudents(): Promise<HomebaseEmployee[]> {
+  const params = new URLSearchParams({ resource: 'employees' });
+  return homebaseFetch(`?${params}`);
+}
+
+export async function syncHoursByDate(
+  date: string,
+  synced_by: string,
+): Promise<{ inserted: number }> {
+  const res = await fetch(`${PROXY}/sync-hours-by-date`, {
+    method: 'POST',
+    headers: AUTH_HEADERS,
+    body: JSON.stringify({ date }),
+  });
+  const resp = await res.json() as { result: string; inserted?: number; error?: string };
+  if (!res.ok || resp.result !== 'ok') {
+    throw new Error(resp.error ?? 'Sync failed');
+  }
+
+  // Log the sync
+  await fetch(`${SUPABASE_URL}/rest/v1/sync_log`, {
+    method: 'POST',
+    headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      date_synced: date,
+      inserted: resp.inserted ?? 0,
+      synced_by,
+    }),
+  }).catch(() => {});
+
+  return { inserted: resp.inserted ?? 0 };
+}
+
+export async function submitDeHours(payload: {
+  student_id: number;
+  date: string;
+  module: string;
+  platform: string;
+  hours: string;
+  verified: boolean;
+}): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/de_log`, {
+    method: 'POST',
+    headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
+    body: JSON.stringify({ ...payload, hours: fmtFloat(payload.hours) }),
+  });
+  if (!res.ok) throw new Error('Save failed');
+}
+
+export async function submitGradeEntry(payload: {
+  homebase_id: number;
+  date: string;
+  project: string;
+  category: string;
+  score: number;
+  notes: string | null;
+}): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/grades`, {
+    method: 'POST',
+    headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Save failed');
+}
+
+export async function loginEmployee(
+  first: string,
+  last: string,
+  password: string,
+): Promise<{ result: 'first_time' | 'ok'; employee: Employee }> {
+  const res = await fetch(`${PROXY}/auth-login`, {
+    method: 'POST',
+    headers: AUTH_HEADERS,
+    body: JSON.stringify({
+      first_name: first.toLowerCase(),
+      last_name: last.toLowerCase(),
+      password,
+    }),
+  });
+  const data = await res.json() as { result: 'first_time' | 'ok'; employee: Employee; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Login failed. Please try again.');
+  return data;
+}
+
+export async function setEmployeePassword(
+  homebseId: number,
+  fullName: string,
+  password: string,
+): Promise<void> {
+  const res = await fetch(`${PROXY}/set-password`, {
+    method: 'POST',
+    headers: AUTH_HEADERS,
+    body: JSON.stringify({ homebase_id: String(homebseId), password, name: fullName }),
+  });
+  const data = await res.json() as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Could not save password. Please try again.');
+}
+
+export async function validateCachedEmployee(employeeId: number): Promise<boolean> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('homebase_id')
+    .eq('homebase_id', employeeId)
+    .single();
+  return !!data;
+}
