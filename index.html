@@ -273,7 +273,7 @@
           <div class="flex-1"></div>
           
           <button
-            @click="$dispatch('open-de-modal')"
+            @click="$dispatch('open-hours-modal')"
             class="inline-flex min-w-[120px] items-center justify-center gap-[7px] h-10 rounded-full bg-action-btn text-cream border border-white/[0.08] text-[13px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -397,7 +397,7 @@
       <div class="px-[22px] py-5">
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="sync-date">Date</label>
-          <input id="sync-date" type="date" x-model="date" required
+          <input id="sync-date" type="date" x-model="date"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
         </div>
       </div>
@@ -455,15 +455,15 @@
       <span x-text="$store.app.snackbar.message"></span>
     </div>
 
-    <!-- ── DE HOURS MODAL ──────────────────────────────────────────────── -->
+    <!-- ── HOURS MODAL ──────────────────────────────────────────────── -->
     <dialog
-      id="de-modal"
-      x-data="deModalData"
-      @open-de-modal.window="openModal()"
+      id="hours-modal"
+      x-data="hoursModalData"
+      @open-hours-modal.window="openModal()"
       class="modal border-none rounded-[14px] shadow-[var(--shadow-lg)] p-0 w-[clamp(300px,92vw,480px)] max-h-[90vh] overflow-y-auto bg-modal-bg m-auto"
-      aria-labelledby="de-modal-title">
+      aria-labelledby="hours-modal-title">
       <div class="flex items-center justify-between px-[22px] py-[18px] border-b border-app-border">
-        <span class="font-serif text-lg text-cream" id="de-modal-title">Enter DE Hours</span>
+        <span class="font-serif text-lg text-cream" id="hours-modal-title">Enter Hours</span>
         <button @click="closeModal()" aria-label="Close"
           class="bg-transparent border-none text-[22px] text-cream cursor-pointer leading-none px-1 transition-colors hover:text-charcoal">&times;</button>
       </div>
@@ -474,7 +474,7 @@
 
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-student">Student</label>
-          <select id="de-student" x-model="studentId" required
+          <select id="de-student" x-model="studentId"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none">
             <option value="" x-text="studentsLoading ? 'Loading\u2026' : 'Select a student\u2026'"></option>
             <template x-for="s in students" :key="s.id">
@@ -484,34 +484,45 @@
         </div>
 
         <div class="mb-4">
+          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-type">Type</label>
+          <select id="de-type" x-model="typeId"
+            class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none">
+            <option value="" x-text="'Select a type\u2026'"></option>
+            <template x-for="t in types" :key="t.id">
+              <option :value="t.id" x-text="t.name"></option>
+            </template>
+          </select>
+        </div>
+
+        <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-date">Date</label>
-          <input id="de-date" type="date" x-model="date" required
+          <input id="de-date" type="date" x-model="date"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
-        </div>
-
-        <div class="mb-4">
-          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-module">Module</label>
-          <input id="de-module" type="text" x-model="module" required placeholder="Module name"
-            class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
-        </div>
-
-        <div class="mb-4">
-          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-platform">Platform</label>
-          <input id="de-platform" type="text" x-model="platform" required placeholder="Platform"
-            class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
         </div>
 
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-hours">Hours</label>
-          <input id="de-hours" type="number" x-model="hours" required min="0" step="0.5" placeholder="0"
+          <input id="de-hours" type="number" x-model="hours" min="0" step="0.5" placeholder="0"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
         </div>
+        
+        <div class="mb-4" x-show="typeId === '2'">
+          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-module">Module</label>
+          <input id="de-module" type="text" x-model="module" placeholder="Module name"
+            class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
+        </div>
 
-        <fieldset class="mb-4 border-none p-0 m-0">
+        <div class="mb-4" x-show="typeId === '2'">
+          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-platform">Platform</label>
+          <input id="de-platform" type="text" x-model="platform" placeholder="Platform"
+            class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
+        </div>
+
+        <fieldset class="mb-4 border-none p-0 m-0" x-show="typeId === '2'">
           <legend class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5">Verified</legend>
           <div class="flex gap-5">
             <label class="flex items-center gap-1.5 text-sm text-cream cursor-pointer">
-              <input type="radio" x-model="verified" value="true" required /> Yes
+              <input type="radio" x-model="verified" value="true" /> Yes
             </label>
             <label class="flex items-center gap-1.5 text-sm text-cream cursor-pointer">
               <input type="radio" x-model="verified" value="false" /> No
@@ -552,7 +563,7 @@
 
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="grades-student">Student</label>
-          <select id="grades-student" x-model="studentId" required
+          <select id="grades-student" x-model="studentId"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none">
             <option value="" x-text="studentsLoading ? 'Loading\u2026' : 'Select a student\u2026'"></option>
             <template x-for="s in students" :key="s.id">
@@ -563,25 +574,25 @@
 
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="grades-project">Project</label>
-          <input id="grades-project" type="text" x-model="project" required placeholder="Project"
+          <input id="grades-project" type="text" x-model="project" placeholder="Project"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
         </div>
 
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="grades-category">Category</label>
-          <input id="grades-category" type="text" x-model="category" required placeholder="Category"
+          <input id="grades-category" type="text" x-model="category" placeholder="Category"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
         </div>
 
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="grades-date">Date</label>
-          <input id="grades-date" type="date" x-model="date" required
+          <input id="grades-date" type="date" x-model="date"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
         </div>
 
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="grades-score">Score</label>
-          <input id="grades-score" type="number" x-model="score" required min="0" max="100" step="0.1" placeholder="100"
+          <input id="grades-score" type="number" x-model="score" min="0" max="100" step="0.1" placeholder="100"
             class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
         </div>
 

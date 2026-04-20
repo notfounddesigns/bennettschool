@@ -10,6 +10,11 @@ export interface Employee {
   job: { level: string };
 }
 
+export interface HoursType {
+  id: number;
+  name: string;
+}
+
 export interface HourEntry {
   date: string;
   hours: number;
@@ -140,8 +145,8 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
 
 export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   const { data, error } = await supabase
-    .from('profiles')
-    .select(`homebase_id, name, total_hrs, hrs_to_graduate, percent_complete, hours(type_id, hours)`)
+    .from('profiles_view')
+    .select(`homebase_id, name, calc_total_hrs, calc_hrs_to_graduate, calc_percent_complete, hours`)
     .order('name');
 
   if (error) throw new Error('Failed to load employees');
@@ -149,9 +154,9 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   return (data as Array<{
     homebase_id: number;
     name: string;
-    total_hrs: number;
-    hrs_to_graduate: number;
-    percent_complete: number;
+    calc_total_hrs: number;
+    calc_hrs_to_graduate: number;
+    calc_percent_complete: number;
     hours: Array<{ type_id: number; hours: number }>;
   }>).map(emp => {
     const inPersonHrs = emp.hours
@@ -166,9 +171,9 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       name: emp.name,
       in_person_hrs: fmtFloat(inPersonHrs),
       de_hrs: fmtFloat(deHrs),
-      total_hrs: emp.total_hrs ?? 0,
-      hrs_to_graduate: emp.hrs_to_graduate ?? 0,
-      percent_complete: emp.percent_complete ?? 0,
+      total_hrs: emp.calc_total_hrs ?? 0,
+      hrs_to_graduate: emp.calc_hrs_to_graduate ?? 0,
+      percent_complete: emp.calc_percent_complete ?? 0,
     };
   });
 }
@@ -216,18 +221,19 @@ export async function syncHoursByDate(
   return { inserted: resp.inserted ?? 0 };
 }
 
-export async function submitDeHours(payload: {
-  student_id: number;
+export async function submitHours(payload: {
+  homebase_id: number;
+  type_id: number;
   date: string;
+  hours: string;
   module: string;
   platform: string;
-  hours: string;
   verified: boolean;
 }): Promise<void> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/de_log`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/hours`, {
     method: 'POST',
     headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
-    body: JSON.stringify({ ...payload, hours: fmtFloat(payload.hours) }),
+    body: JSON.stringify({ ...payload}),
   });
   if (!res.ok) throw new Error('Save failed');
 }

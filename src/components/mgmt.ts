@@ -4,12 +4,13 @@ import {
   fetchLastSync,
   loadStudents,
   syncHoursByDate,
-  submitDeHours,
+  submitHours,
   submitGradeEntry,
   setEmployeePassword,
   type MgmtEmployee,
   type SyncRecord,
   type HomebaseEmployee,
+  type HoursType,
 } from '../lib/api';
 import { toTitleCase, todayIso, formatSimpleDate } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
@@ -78,17 +79,19 @@ export function createMgmtStore(): MgmtStore {
   };
 }
 
-// ── DE Hours Modal ────────────────────────────────────────────────────────
+// ── Hours Modal ────────────────────────────────────────────────────────
 
-export function deModalData() {
+export function hoursModalData() {
   return {
     open: false,
     loading: false,
     error: '',
     students: [] as HomebaseEmployee[],
+    types: [ { id: 1, name: 'In Person' }, { id: 2, name: 'DE' } ] as HoursType[],
     studentsLoading: false,
 
     studentId: '',
+    typeId: '',
     date: todayIso(),
     module: '',
     platform: '',
@@ -98,10 +101,11 @@ export function deModalData() {
     async openModal() {
       this.error = '';
       this.studentId = '';
+      this.typeId = this.types[0].id.toString();
       this.module = '';
       this.platform = '';
       this.hours = '';
-      this.verified = '';
+      this.verified = 'true';
       this.date = todayIso();
       this.studentsLoading = true;
       this.open = true;
@@ -114,26 +118,34 @@ export function deModalData() {
         this.studentsLoading = false;
       }
 
-      const dialog = document.getElementById('de-modal') as HTMLDialogElement;
+      const dialog = document.getElementById('hours-modal') as HTMLDialogElement;
       dialog?.showModal();
     },
 
     closeModal() {
       this.open = false;
-      const dialog = document.getElementById('de-modal') as HTMLDialogElement;
+      const dialog = document.getElementById('hours-modal') as HTMLDialogElement;
       dialog?.close();
     },
 
     async submit() {
-      if (!this.studentId || !this.date || !this.module || !this.platform || !this.hours || !this.verified) {
-        this.error = 'All fields are required.';
-        return;
+      // All fields are required, but only enforce platform/module/verified if DE hours
+      if (this.typeId === '2') {
+        if (!this.studentId || !this.typeId || !this.date || !this.module || !this.platform || !this.hours || !this.verified) {
+          this.error = 'All fields are required.';
+          return;
+        }
+      } else {
+        if (!this.studentId || !this.typeId || !this.date || !this.hours) {
+          this.error = 'All fields are required.';
+          return;
+        }
       }
-
       this.loading = true;
-      try {
-        await submitDeHours({
-          student_id: Number(this.studentId),
+    try {
+        await submitHours({
+          homebase_id: Number(this.studentId),
+          type_id: Number(this.typeId),
           date: this.date,
           module: this.module,
           platform: this.platform,
