@@ -1,6 +1,11 @@
 import Alpine from 'alpinejs';
 import { fetchStudentDashboard, type StudentDashboard, type HourEntry, type DeEntry, type GradeEntry } from '../lib/api';
 import { fmtFloat, formatSimpleDate, scoreToLetter } from '../lib/helpers';
+import type { AppStore } from '../lib/store';
+
+function app(): AppStore {
+  return Alpine.store('app') as AppStore;
+}
 
 // ── Store ─────────────────────────────────────────────────────────────────
 
@@ -9,7 +14,6 @@ export interface DashboardStore {
   data: StudentDashboard | null;
   error: string;
   load(employeeId: number): Promise<void>;
-  readonly progressColor: string;
   readonly hrsRemaining: string;
   readonly formattedInPersonHrs: string;
   readonly formattedDeHrs: string;
@@ -23,22 +27,15 @@ export function createDashboardStore(): DashboardStore {
     error: '',
 
     async load(employeeId: number) {
-      this.loading = true;
+      app().showLoading();
       this.error = '';
       try {
         this.data = await fetchStudentDashboard(employeeId);
       } catch {
         this.error = 'Failed to load dashboard data.';
       } finally {
-        this.loading = false;
+        app().hideLoading();
       }
-    },
-
-    get progressColor() {
-      const pct = this.data?.percentComplete ?? 0;
-      if (pct >= 80) return 'var(--color-sage)';
-      if (pct >= 65) return 'var(--color-blush)';
-      return 'var(--color-app-error)';
     },
 
     get hrsRemaining() {

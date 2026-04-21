@@ -27,6 +27,7 @@
         class="inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-9.5 px-4.5 text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover">
         Sign out
       </button>
+      <span class="text-[13px] text-cream/80 font-medium" x-text="$store.app.displayName"></span>
       <div
         class="w-11 h-11 rounded-full bg-blush text-white flex items-center justify-center font-bold text-sm shrink-0"
         x-text="$store.app.avatarInitials">
@@ -186,8 +187,7 @@
             Graduation Progress
             &nbsp;--&nbsp;
             <span
-              class="font-serif text-[28px] leading-none ml-1"
-              :style="'color:' + $store.dashboard.progressColor"
+              class="font-serif text-[28px] leading-none ml-1 text-sage"
               x-text="($store.dashboard.data?.percentComplete ?? 0) + '%'">
             </span>
           </p>
@@ -267,25 +267,41 @@
 
         <!-- Action bar -->
         <div class="flex items-center gap-2 mb-0.5 flex-wrap">
-          <!-- Last sync info -->
-          <p class="text-[12px] text-muted mb-2 tracking-[0.02em]" x-text="$store.mgmt.formatLastSync()"></p>
-          
+          <!-- Last sync info + sync trigger -->
+          <div class="flex items-center gap-2 mb-2">
+            <p class="text-[12px] text-muted tracking-[0.02em]" x-text="$store.mgmt.formatLastSync()"></p>
+            <button
+              @click="$dispatch('open-sync-dialog')"
+              disabled
+              class="inline-flex items-center gap-1 px-2 rounded-full text-[12px] text-sage cursor-pointer bg-transparent border border-sage hover:text-sage-light hover:border-sage-light transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 .49-3.5" />
+              </svg>
+              Sync
+            </button>
+          </div>
+
           <div class="flex-1"></div>
-          
+
           <button
-            @click="$dispatch('open-hours-modal')"
-            class="inline-flex min-w-[120px] items-center justify-center gap-[7px] h-10 rounded-full bg-action-btn text-cream border border-white/[0.08] text-[13px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+            disabled
+            class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5 disabled:opacity-45 disabled:cursor-not-allowed">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 5v14M5 12h14" />
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/>
+              <line x1="22" y1="11" x2="16" y2="11"/>
             </svg>
-            Hours
+            Add Student
           </button>
 
           <button
             @click="$dispatch('open-grades-modal')"
-            class="inline-flex min-w-[120px] items-center justify-center gap-[7px] h-10 rounded-full bg-action-btn text-cream border border-white/[0.08] text-[13px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+            class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 11l3 3L22 4" />
               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
@@ -294,21 +310,10 @@
           </button>
 
           <button
-            @click="$dispatch('open-sync-dialog')"
-            class="inline-flex min-w-[120px] items-center justify-center gap-[7px] h-10 rounded-full bg-action-btn text-cream border border-white/[0.08] text-[13px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="1 4 1 10 7 10" />
-              <path d="M3.51 15a9 9 0 1 0 .49-3.5" />
-            </svg>
-            Sync Hours
-          </button>
-
-          <button
             @click="$store.mgmt.exportCsv()"
             :disabled="$store.mgmt.employees.length === 0"
-            class="inline-flex min-w-[120px] items-center justify-center gap-[7px] h-10 rounded-full bg-action-btn text-cream border border-white/[0.08] text-[13px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5 disabled:opacity-45 disabled:cursor-not-allowed">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+            class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5 disabled:opacity-45 disabled:cursor-not-allowed">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
@@ -350,11 +355,61 @@
               <template x-for="emp in $store.mgmt.employees" :key="emp.homebase_id">
                 <tr class="even:bg-[#fafafa] hover:bg-[#fafafa]">
                   <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border" x-text="emp.name ?? '&#8212;'"></td>
-                  <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
-                    <span x-text="emp.in_person_hrs"></span><span class="text-muted text-[11px]"> hrs</span>
+                  <td x-data="inlineHoursData(emp.homebase_id, 1)" class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
+                    <!-- idle -->
+                    <div x-show="mode === 'idle'" class="flex items-center gap-1.5">
+                      <span class="inline-flex items-baseline min-w-16"><span x-text="emp.in_person_hrs" class="tabular-nums"></span><span class="text-muted text-[11px] ml-0.5">hrs</span></span>
+                      <button @click="startAdd()" title="Add in-person hours"
+                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-blush/15 text-blush text-[13px] font-bold leading-none cursor-pointer hover:bg-blush/30 transition-colors shrink-0">
+                        +
+                      </button>
+                      <button @click="startEdit(emp.in_person_hrs)" title="Edit in-person hours"
+                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-muted/15 text-muted cursor-pointer hover:bg-muted/25 transition-colors shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                    </div>
+                    <!-- add / edit input -->
+                    <div x-show="mode !== 'idle'" class="flex items-center gap-1" style="display:none">
+                      <input type="number" x-model="value" min="0" step="0.5" placeholder="hrs"
+                        @keydown.enter="save()" @keydown.escape="cancel()"
+                        class="w-16 px-1 py-[3px] text-[12px] border border-blush rounded-[4px] bg-cream text-charcoal outline-none" />
+                      <button @click="save()" :disabled="saving" title="Save"
+                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-sage/20 text-sage cursor-pointer hover:bg-sage/35 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                      <button @click="cancel()" title="Cancel"
+                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-app-error/15 text-app-error cursor-pointer hover:bg-app-error/25 transition-colors shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
                   </td>
-                  <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
-                    <span x-text="emp.de_hrs"></span><span class="text-muted text-[11px]"> hrs</span>
+                  <td x-data="inlineHoursData(emp.homebase_id, 2)" class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
+                    <!-- idle -->
+                    <div x-show="mode === 'idle'" class="flex items-center gap-1.5">
+                      <span class="inline-flex items-baseline min-w-16"><span x-text="emp.de_hrs" class="tabular-nums"></span><span class="text-muted text-[11px] ml-0.5">hrs</span></span>
+                      <button @click="startAdd()" title="Add DE hours"
+                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-blush/15 text-blush md:text-[16px] text-[13px] font-bold leading-none cursor-pointer hover:bg-blush/30 transition-colors shrink-0">
+                        ＋
+                      </button>
+                      <button @click="startEdit(emp.de_hrs)" title="Edit DE hours"
+                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-muted/15 text-muted md:text-[16px] text-[13px] cursor-pointer hover:bg-muted/25 transition-colors shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                    </div>
+                    <!-- add / edit input -->
+                    <div x-show="mode !== 'idle'" class="flex items-center gap-1" style="display:none">
+                      <input type="number" x-model="value" min="0" step="0.5" placeholder="hrs"
+                        @keydown.enter="save()" @keydown.escape="cancel()"
+                        class="w-16 px-1 py-[3px] text-[12px] border border-blush rounded-[4px] bg-cream text-charcoal outline-none" />
+                      <button @click="save()" :disabled="saving" title="Save"
+                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-sage/20 text-sage cursor-pointer hover:bg-sage/35 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                      <button @click="cancel()" title="Cancel"
+                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-app-error/15 text-app-error cursor-pointer hover:bg-app-error/25 transition-colors shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
                   </td>
                   <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
                     <span x-text="emp.total_hrs ?? 0"></span><span class="text-muted text-[11px]"> hrs</span>
@@ -370,10 +425,25 @@
                       <span x-text="(emp.percent_complete ?? 0) + '%'"></span>
                     </div>
                   </td>
-                  <td class="px-4 py-2.5 border-b border-app-border flex items-center gap-2.5">
+                  <td class="px-4 py-3 md:py-4 border-b border-app-border flex items-center gap-2.5">
+                    <button
+                      disabled
+                      class="inline-flex items-center justify-center gap-1.5 text-[11px] font-medium h-7 px-2.5 rounded-md text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      Edit
+                    </button>
                     <button
                       @click="$dispatch('open-reset-password', { id: emp.homebase_id, name: emp.name })"
-                      class="inline-flex items-center justify-center text-[11px] font-medium h-7 px-2.5 rounded-[6px] text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap hover:border-blush hover:text-blush transition-colors">
+                      class="inline-flex items-center justify-center gap-1.5 text-[11px] font-medium h-7 px-2.5 rounded-md text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap hover:border-blush hover:text-blush transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
                       Reset PW
                     </button>
                   </td>
@@ -442,6 +512,15 @@
       </div>
     </dialog>
 
+    <!-- ── GLOBAL LOADING OVERLAY ───────────────────────────────────────── -->
+    <div
+      x-show="$store.app.globalLoading"
+      class="global-loading-overlay"
+      style="display: none;"
+      aria-hidden="true">
+      <div class="global-spinner"></div>
+    </div>
+
     <!-- ── SNACKBAR ────────────────────────────────────────────────────── -->
     <div
       class="fixed bottom-8 left-1/2 px-5 py-3 rounded-[8px] font-sans text-[13px] font-medium shadow-[var(--shadow-lg)] transition-all duration-200 z-[999] whitespace-nowrap"
@@ -459,7 +538,7 @@
     <dialog
       id="hours-modal"
       x-data="hoursModalData"
-      @open-hours-modal.window="openModal()"
+      @open-hours-modal.window="openModal($event.detail)"
       class="modal border-none rounded-[14px] shadow-[var(--shadow-lg)] p-0 w-[clamp(300px,92vw,480px)] max-h-[90vh] overflow-y-auto bg-modal-bg m-auto"
       aria-labelledby="hours-modal-title">
       <div class="flex items-center justify-between px-[22px] py-[18px] border-b border-app-border">

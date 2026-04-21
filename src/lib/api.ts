@@ -87,8 +87,8 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     { data: gradesData },
   ] = await Promise.all([
     supabase
-      .from('profiles')
-      .select(`homebase_id, name, total_hrs, hrs_to_graduate, percent_complete, hours(type_id, hours)`)
+      .from('profiles_view')
+      .select(`homebase_id, name, calc_total_hrs, calc_hrs_to_graduate, calc_percent_complete, hours(type_id, hours)`)
       .eq('homebase_id', employeeUserId)
       .single(),
     supabase
@@ -129,12 +129,12 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
 
-  const p = profile as { total_hrs: number; hrs_to_graduate: number; percent_complete: number };
+  const p = profile as { calc_total_hrs: number; calc_hrs_to_graduate: number; calc_percent_complete: number };
 
   return {
-    totalHrsAll: p.total_hrs ?? 0,
-    hrsToGrad: p.hrs_to_graduate ?? 0,
-    percentComplete: p.percent_complete ?? 0,
+    totalHrsAll: p.calc_total_hrs ?? 0,
+    hrsToGrad: p.calc_hrs_to_graduate ?? 0,
+    percentComplete: p.calc_percent_complete ?? 0,
     inPersonHrs,
     deHrs,
     inPersonHrsList,
@@ -146,7 +146,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
 export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   const { data, error } = await supabase
     .from('profiles_view')
-    .select(`homebase_id, name, calc_total_hrs, calc_hrs_to_graduate, calc_percent_complete, hours`)
+    .select(`homebase_id, name, role_id, role_name, calc_total_hrs, calc_hrs_to_graduate, calc_percent_complete, hours`)
     .order('name');
 
   if (error) throw new Error('Failed to load employees');
@@ -154,11 +154,15 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   return (data as Array<{
     homebase_id: number;
     name: string;
+    role_id: number;
+    role_name: string;
     calc_total_hrs: number;
     calc_hrs_to_graduate: number;
     calc_percent_complete: number;
     hours: Array<{ type_id: number; hours: number }>;
-  }>).map(emp => {
+  }>)
+  .filter(emp => emp.role_id === 1)
+  .map(emp => {
     const inPersonHrs = emp.hours
       .filter(h => h.type_id === 1)
       .reduce((sum, h) => sum + (h.hours ?? 0), 0);
@@ -182,7 +186,7 @@ export async function fetchLastSync(): Promise<SyncRecord | null> {
   const { data } = await supabase
     .from('sync_log')
     .select('synced_at, date_synced, inserted, synced_by')
-    .order('synced_at', { ascending: false })
+    .order('date_synced', { ascending: false })
     .limit(1)
     .maybeSingle();
   return data as SyncRecord | null;
@@ -235,6 +239,22 @@ export async function submitHours(payload: {
     headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
     body: JSON.stringify({ ...payload}),
   });
+  // handle these response statuses: 403, 422, 429, 500 and 501 with specific messages
+  if (res.status === 403) {
+    throw new Error('You do not have permission to submit hours. Please contact your administrator.');
+  }
+  if (res.status === 409) {
+    throw new Error('A matching hours entry for this student and date already exists.');
+  }
+  if (res.status === 422) {
+    throw new Error('Invalid data. Please check your inputs and try again.');
+  }
+  if (res.status === 429) {
+    throw new Error('Too many requests. Please wait a moment and try again.');
+  }
+  if (res.status >= 500) {
+    throw new Error('Server error. Please try again later.');
+  }
   if (!res.ok) throw new Error('Save failed');
 }
 

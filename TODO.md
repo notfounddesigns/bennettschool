@@ -20,7 +20,7 @@
 
 - [x] **Student name is not HTML-escaped in the `loadStudents` dropdown** — The `<option>` label is built from `s.first_name + s.last_name` without `escHtml()`. (`app.js:471`)
 
-- [ ] **Topbar never displays the logged-in user's name** — `renderDashboard` sets the avatar initials but the `topbar-user` element in the HTML is otherwise empty. The user's name is available in `_currentEmployee` but never rendered there. (`index.html:23`, `app.js:173–174`)
+- [x] **Topbar never displays the logged-in user's name** — `renderDashboard` sets the avatar initials but the `topbar-user` element in the HTML is otherwise empty. The user's name is available in `_currentEmployee` but never rendered there. (`index.html:23`, `app.js:173–174`)
 
 - [x] **Remove `hombase_id` from the management table display. This is internal data and should not be shown in the UI
 
@@ -68,12 +68,12 @@
   - On Sync, insert a record into the new table
   - UI will display the latest run
 
-- [ ] Instead of the DE Hours Modal for insert DE Hours, add individual row (student) buttons for:
-  - Adding Hours: Can either be In-Person or DE Hours
-  - Editing Row Data
-  - Deleting a Student: not fully removed from DB but updated in the table to 'Removed'
+- [x] Instead of the Hours Modal for insert Hours, add individual row (student) buttons for:
+  - Add / Edit Button next to each "In Person HRS" and "DE HRS" row on the table, not the end of the row
 
 - [ ] Button to add a new student
+
+- [ ] Button to remove a student, not fully removed from DB but updated in the table to 'Removed'
 
 - [x] Export feature. Exports the students table data into a spreadsheet with row header
 

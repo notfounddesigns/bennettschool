@@ -14,12 +14,16 @@ export interface AppStore {
   currentEmployee: Employee | null;
   screen: Screen;
   snackbar: SnackbarState;
+  globalLoading: boolean;
   readonly avatarInitials: string;
+  readonly displayName: string;
 
   setEmployee(emp: Employee): void;
   clearEmployee(): void;
   showScreen(s: Screen): void;
   showSnackbar(message: string, type?: SnackbarType, duration?: number): void;
+  showLoading(): void;
+  hideLoading(): void;
 }
 
 let _snackbarTimer: ReturnType<typeof setTimeout> | null = null;
@@ -28,6 +32,7 @@ export function createAppStore(): AppStore {
   return {
     currentEmployee: null,
     screen: 'login' as Screen,
+    globalLoading: false,
     snackbar: {
       message: '',
       type: 'default' as SnackbarType,
@@ -40,6 +45,11 @@ export function createAppStore(): AppStore {
         `${this.currentEmployee.first_name} ${this.currentEmployee.last_name}`,
       );
       return getInitials(name);
+    },
+
+    get displayName(): string {
+      if (!this.currentEmployee) return '';
+      return toTitleCase(`${this.currentEmployee.first_name} ${this.currentEmployee.last_name}`);
     },
 
     setEmployee(emp: Employee) {
@@ -64,6 +74,14 @@ export function createAppStore(): AppStore {
       _snackbarTimer = setTimeout(() => {
         this.snackbar.visible = false;
       }, duration);
+    },
+
+    showLoading() {
+      this.globalLoading = true;
+    },
+
+    hideLoading() {
+      this.globalLoading = false;
     },
   };
 }

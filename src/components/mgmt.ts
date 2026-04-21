@@ -35,7 +35,7 @@ export function createMgmtStore(): MgmtStore {
     lastSync: null,
 
     async load() {
-      this.loading = true;
+      app().showLoading();
       try {
         const [employees, lastSync] = await Promise.all([
           fetchEmployeeTable(),
@@ -46,13 +46,13 @@ export function createMgmtStore(): MgmtStore {
       } catch {
         app().showSnackbar('Failed to load employees', 'error');
       } finally {
-        this.loading = false;
+        app().hideLoading();
       }
     },
 
     formatLastSync() {
       if (!this.lastSync) return 'No syncs recorded yet.';
-      return `Hours up to date as of ${formatSimpleDate(this.lastSync.date_synced)}`;
+      return `Most recent synced date: ${formatSimpleDate(this.lastSync.date_synced)}`;
     },
 
     exportCsv() {
@@ -98,10 +98,11 @@ export function hoursModalData() {
     hours: '',
     verified: '',
 
-    async openModal() {
+    async openModal(prefill?: { studentId?: string; typeId?: string } | null) {
+      app().showLoading();
       this.error = '';
-      this.studentId = '';
-      this.typeId = this.types[0].id.toString();
+      this.studentId = prefill?.studentId ?? '';
+      this.typeId = prefill?.typeId ?? this.types[0].id.toString();
       this.module = '';
       this.platform = '';
       this.hours = '';
@@ -116,6 +117,7 @@ export function hoursModalData() {
         this.students = [];
       } finally {
         this.studentsLoading = false;
+        app().hideLoading();
       }
 
       const dialog = document.getElementById('hours-modal') as HTMLDialogElement;
@@ -141,7 +143,7 @@ export function hoursModalData() {
           return;
         }
       }
-      this.loading = true;
+      app().showLoading();
     try {
         await submitHours({
           homebase_id: Number(this.studentId),
@@ -155,10 +157,12 @@ export function hoursModalData() {
         this.closeModal();
         const mgmt = Alpine.store('mgmt') as MgmtStore;
         await mgmt.load();
-      } catch {
-        this.error = 'Could not save. Please try again.';
+        // add catch for 409 Conflict (duplicate entry) and show specific message
+        // add type for err
+      } catch (err: any) {
+        this.error = err.message || 'An error occurred while submitting hours.';
       } finally {
-        this.loading = false;
+        app().hideLoading();
       }
     },
   };
@@ -182,6 +186,7 @@ export function gradesModalData() {
     notes: '',
 
     async openModal() {
+      app().showLoading();
       this.error = '';
       this.studentId = '';
       this.project = '';
@@ -198,6 +203,7 @@ export function gradesModalData() {
         this.students = [];
       } finally {
         this.studentsLoading = false;
+        app().hideLoading();
       }
 
       const dialog = document.getElementById('grades-modal') as HTMLDialogElement;
@@ -217,7 +223,7 @@ export function gradesModalData() {
         return;
       }
 
-      this.loading = true;
+      app().showLoading();
       try {
         await submitGradeEntry({
           homebase_id: Number(this.studentId),
@@ -232,7 +238,7 @@ export function gradesModalData() {
       } catch {
         this.error = 'Could not save. Please try again.';
       } finally {
-        this.loading = false;
+        app().hideLoading();
       }
     },
   };
@@ -262,7 +268,7 @@ export function syncDialogData() {
         return;
       }
 
-      this.loading = true;
+      app().showLoading();
       try {
         const emp = app().currentEmployee!;
         const synced_by = `${emp.first_name} ${emp.last_name}`;
@@ -275,7 +281,79 @@ export function syncDialogData() {
       } catch {
         app().showSnackbar('Error syncing hours. Please try again.', 'error');
       } finally {
-        this.loading = false;
+        app().hideLoading();
+      }
+    },
+  };
+}
+
+// ── Inline Hours Edit ─────────────────────────────────────────────────────
+
+export function inlineHoursData(employeeId: number, typeId: 1 | 2) {
+  return {
+    mode: 'idle' as 'idle' | 'add' | 'edit',
+    value: '',
+    originalValue: 0,
+    saving: false,
+
+    startAdd() {
+      this.value = '';
+      this.originalValue = 0;
+      this.mode = 'add';
+    },
+
+    startEdit(currentValue: string) {
+      this.originalValue = parseFloat(currentValue) || 0;
+      this.value = currentValue;
+      this.mode = 'edit';
+    },
+
+    cancel() {
+      this.mode = 'idle';
+      this.value = '';
+      this.originalValue = 0;
+    },
+
+    async save() {
+      const target = parseFloat(this.value);
+      if (isNaN(target) || target < 0) {
+        this.cancel();
+        return;
+      }
+
+      // Add: insert the entered value directly.
+      // Edit: insert the delta (entered total − original total); may be negative.
+      const hrs = this.mode === 'edit' ? target - this.originalValue : target;
+
+      if (hrs === 0) {
+        this.cancel();
+        return;
+      }
+      if (this.mode === 'add' && hrs < 0) {
+        this.cancel();
+        return;
+      }
+      
+      app().showLoading();
+      try {
+        await submitHours({
+          homebase_id: employeeId,
+          type_id: typeId,
+          date: todayIso(),
+          hours: String(hrs),
+          module: '',
+          platform: '',
+          verified: true,
+        });
+        this.cancel();
+        const mgmt = Alpine.store('mgmt') as MgmtStore;
+        await mgmt.load();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Save failed';
+        app().showSnackbar(msg, 'error');
+      } finally {
+        this.saving = false;
+        app().hideLoading();
       }
     },
   };
@@ -306,7 +384,7 @@ export function resetPasswordData() {
     },
 
     async confirm() {
-      this.loading = true;
+      app().showLoading();
       try {
         await setEmployeePassword(this.employeeId, this.employeeName, 'Welcome123');
         this.closeDialog();
@@ -314,7 +392,7 @@ export function resetPasswordData() {
       } catch {
         app().showSnackbar('Failed to reset password. Please try again.', 'error');
       } finally {
-        this.loading = false;
+        app().hideLoading();
       }
     },
   };
