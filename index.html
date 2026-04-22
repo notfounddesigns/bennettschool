@@ -13,7 +13,10 @@
   <script type="module" src="/src/main.ts"></script>
 </head>
 
-<body x-data class="flex flex-col bg-app-bg text-blush font-sans text-[15px] overflow-hidden h-dvh">
+<body x-data class="flex flex-col text-blush font-sans text-[15px] overflow-hidden h-dvh"
+  :class="($store.app.screen === 'dashboard' || $store.app.screen === 'mgmt')
+        ? 'bg-app-bg'
+        : 'bg-app-bg bg-texture'">
 
   <!-- ── Topbar ─────────────────────────────────────────────────────────── -->
   <header
@@ -36,11 +39,7 @@
   </header>
 
   <!-- ── Shell ──────────────────────────────────────────────────────────── -->
-  <main
-    class="flex-1 flex flex-col items-center overflow-y-auto"
-    :class="($store.app.screen === 'dashboard' || $store.app.screen === 'mgmt')
-      ? 'md:px-4 pt-4 md:pt-8 md:pb-2 h-dvh w-dvw'
-      : 'px-4 pt-8 pb-2 justify-center h-dvh w-dvw'">
+  <main class="flex-1 flex flex-col items-center overflow-y-auto md:px-4 pt-4 md:pt-8 md:pb-2 h-dvh w-dvw">
 
     <!-- ── LOGIN ──────────────────────────────────────────────────────── -->
     <section
