@@ -307,6 +307,12 @@ export async function setEmployeePassword(
   if (!res.ok) throw new Error(data.error ?? 'Could not save password. Please try again.');
 }
 
+export async function exportStudents(month: number, year: number): Promise<Blob> {
+  const res = await fetch(`${PROXY}/export-students?month=${month}&year=${year}`, { headers: AUTH_HEADERS });
+  if (!res.ok) throw new Error('Export failed');
+  return res.blob();
+}
+
 export async function validateCachedEmployee(employeeId: number): Promise<boolean> {
   const { data } = await supabase
     .from('profiles')
@@ -314,4 +320,99 @@ export async function validateCachedEmployee(employeeId: number): Promise<boolea
     .eq('homebase_id', employeeId)
     .single();
   return !!data;
+}
+
+// ── Timeclock types ───────────────────────────────────────────────────────────
+
+export interface TimeclockStudent {
+  homebase_id: number;
+  name: string;
+}
+
+export interface ActiveBreak {
+  id: string;
+  break_start: string;
+}
+
+export interface ActiveSession {
+  id: string;
+  clock_in: string;
+  activeBreak: ActiveBreak | null;
+}
+
+// ── Timeclock API ─────────────────────────────────────────────────────────────
+
+export async function getStudentByPin(pin: string): Promise<TimeclockStudent | null> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('homebase_id, name')
+    .eq('pin', pin)
+    .maybeSingle();
+  return data as TimeclockStudent | null;
+}
+
+export async function getActiveSession(homebaseId: number): Promise<ActiveSession | null> {
+  const { data, error } = await supabase
+    .from('timeclock_entries')
+    .select('id, clock_in, timeclock_breaks(id, break_start, break_end)')
+    .eq('homebase_id', homebaseId)
+    .is('clock_out', null)
+    .order('clock_in', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error('Failed to fetch session');
+  if (!data) return null;
+
+  const entry = data as {
+    id: string;
+    clock_in: string;
+    timeclock_breaks: Array<{ id: string; break_start: string; break_end: string | null }>;
+  };
+
+  const openBreak = entry.timeclock_breaks.find(b => !b.break_end) ?? null;
+
+  return {
+    id: entry.id,
+    clock_in: entry.clock_in,
+    activeBreak: openBreak ? { id: openBreak.id, break_start: openBreak.break_start } : null,
+  };
+}
+
+export async function clockIn(homebaseId: number): Promise<void> {
+  const { error } = await supabase
+    .from('timeclock_entries')
+    .insert({ homebase_id: homebaseId });
+  if (error) throw new Error('Failed to clock in');
+}
+
+export async function clockOut(entryId: string): Promise<void> {
+  const { error } = await supabase
+    .from('timeclock_entries')
+    .update({ clock_out: new Date().toISOString() })
+    .eq('id', entryId);
+  if (error) throw new Error('Failed to clock out');
+}
+
+export async function startBreak(entryId: string): Promise<void> {
+  const { error } = await supabase
+    .from('timeclock_breaks')
+    .insert({ entry_id: entryId });
+  if (error) throw new Error('Failed to start break');
+}
+
+export async function endBreak(breakId: string): Promise<void> {
+  const { error } = await supabase
+    .from('timeclock_breaks')
+    .update({ break_end: new Date().toISOString() })
+    .eq('id', breakId);
+  if (error) throw new Error('Failed to end break');
+}
+
+export async function setStudentPin(homebaseId: number, pin: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ pin })
+    .eq('homebase_id', homebaseId);
+  if (error) throw new Error('Failed to set PIN');
 }

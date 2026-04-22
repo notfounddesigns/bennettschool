@@ -20,5 +20,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/scripts/full-sync.ts"]
+  "exclude": ["src/scripts/full-sync.ts", "src/scripts/hours-export.ts"]
 }

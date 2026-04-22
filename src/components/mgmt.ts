@@ -7,6 +7,8 @@ import {
   submitHours,
   submitGradeEntry,
   setEmployeePassword,
+  exportStudents,
+  setStudentPin,
   type MgmtEmployee,
   type SyncRecord,
   type HomebaseEmployee,
@@ -25,7 +27,6 @@ export interface MgmtStore {
   lastSync: SyncRecord | null;
   load(): Promise<void>;
   formatLastSync(): string;
-  exportCsv(): void;
 }
 
 export function createMgmtStore(): MgmtStore {
@@ -55,27 +56,6 @@ export function createMgmtStore(): MgmtStore {
       return `Most recent synced date: ${formatSimpleDate(this.lastSync.date_synced)}`;
     },
 
-    exportCsv() {
-      const headers = ['Name', 'In Person Hrs', 'DE Hrs', 'Total Hrs', 'Hrs to Graduate', '% Complete'];
-      const rows = this.employees.map(emp => [
-        emp.name ?? '',
-        emp.in_person_hrs,
-        emp.de_hrs,
-        String(emp.total_hrs ?? 0),
-        String(emp.hrs_to_graduate ?? 0),
-        String(emp.percent_complete ?? 0),
-      ]);
-      const csv = [headers, ...rows]
-        .map(r => r.map(c => `"${String(c).replaceAll('"', '""')}"`).join(','))
-        .join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `students_${todayIso()}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
   };
 }
 
@@ -359,6 +339,122 @@ export function inlineHoursData(employeeId: number, typeId: 1 | 2) {
   };
 }
 
+// ── Add Student Dialog ────────────────────────────────────────────────────
+
+export function addStudentData() {
+  return {
+    open: false,
+    error: '',
+    students: [] as HomebaseEmployee[],
+    studentsLoading: false,
+    studentId: '',
+
+    async openModal() {
+      app().showLoading();
+      this.error = '';
+      this.studentId = '';
+      this.studentsLoading = true;
+      this.open = true;
+
+      try {
+        const all = await loadStudents();
+        const mgmt = Alpine.store('mgmt') as MgmtStore;
+        const existingIds = new Set(mgmt.employees.map(e => e.homebase_id));
+        this.students = all.filter(s => !existingIds.has(s.id));
+      } catch {
+        this.students = [];
+      } finally {
+        this.studentsLoading = false;
+        app().hideLoading();
+      }
+
+      const dialog = document.getElementById('add-student-dialog') as HTMLDialogElement;
+      dialog?.showModal();
+    },
+
+    closeModal() {
+      this.open = false;
+      const dialog = document.getElementById('add-student-dialog') as HTMLDialogElement;
+      dialog?.close();
+    },
+
+    async submit() {
+      this.error = '';
+      if (!this.studentId) {
+        this.error = 'Please select a student.';
+        return;
+      }
+
+      const student = this.students.find(s => s.id === Number(this.studentId));
+      if (!student) {
+        this.error = 'Student not found.';
+        return;
+      }
+
+      app().showLoading();
+      try {
+        const name = `${student.first_name} ${student.last_name}`.toLowerCase();
+        await setEmployeePassword(student.id, name, 'Welcome123');
+        this.closeModal();
+        app().showSnackbar(`${toTitleCase(name)} added. Default password: Welcome123`, 'success');
+        const mgmt = Alpine.store('mgmt') as MgmtStore;
+        await mgmt.load();
+      } catch {
+        this.error = 'Could not add student. Please try again.';
+      } finally {
+        app().hideLoading();
+      }
+    },
+  };
+}
+
+// ── Export Dialog ─────────────────────────────────────────────────────────
+
+export function exportDialogData() {
+  return {
+    monthYear: new Date().toISOString().slice(0, 7), // 'YYYY-MM'
+
+    openDialog() {
+      this.monthYear = new Date().toISOString().slice(0, 7);
+      const dialog = document.getElementById('export-dialog') as HTMLDialogElement;
+      dialog?.showModal();
+    },
+
+    closeDialog() {
+      const dialog = document.getElementById('export-dialog') as HTMLDialogElement;
+      dialog?.close();
+    },
+
+    async submit() {
+      if (!this.monthYear) return;
+      const [year, month] = this.monthYear.split('-').map(Number);
+      const now = new Date();
+      const curMonth = now.getMonth() + 1;
+      const curYear = now.getFullYear();
+      if (year > curYear || (year === curYear && month > curMonth)) {
+        app().showSnackbar('Cannot export a future month.', 'error', 3500);
+        return;
+      }
+
+      app().showLoading();
+      try {
+        const blob = await exportStudents(month, year);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bennett_${this.monthYear}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.closeDialog();
+      } catch {
+        app().showSnackbar('Export failed. Please try again.', 'error');
+      } finally {
+        app().hideLoading();
+      }
+    },
+  };
+}
+
 // ── Reset Password Dialog ──────────────────────────────────────────────────
 
 export function resetPasswordData() {
@@ -393,6 +489,53 @@ export function resetPasswordData() {
         app().showSnackbar('Failed to reset password. Please try again.', 'error');
       } finally {
         app().hideLoading();
+      }
+    },
+  };
+}
+
+// ── Set PIN Dialog ────────────────────────────────────────────────────────────
+
+export function setPinData() {
+  return {
+    employeeId: 0,
+    employeeName: '',
+    pin: '',
+    loading: false,
+    error: '',
+
+    init() {
+      window.addEventListener('open-set-pin', (e: Event) => {
+        const { id, name } = (e as CustomEvent<{ id: number; name: string }>).detail;
+        this.employeeId = id;
+        this.employeeName = name;
+        this.pin = '';
+        this.error = '';
+        const dialog = document.getElementById('set-pin-dialog') as HTMLDialogElement;
+        dialog?.showModal();
+      });
+    },
+
+    closeDialog() {
+      const dialog = document.getElementById('set-pin-dialog') as HTMLDialogElement;
+      dialog?.close();
+    },
+
+    async submit() {
+      if (!/^\d{4}$/.test(this.pin)) {
+        this.error = 'PIN must be exactly 4 digits (numbers only).';
+        return;
+      }
+      this.loading = true;
+      this.error = '';
+      try {
+        await setStudentPin(this.employeeId, this.pin);
+        this.closeDialog();
+        app().showSnackbar(`PIN set for ${toTitleCase(this.employeeName)}.`, 'success');
+      } catch {
+        this.error = 'Failed to set PIN. Please try again.';
+      } finally {
+        this.loading = false;
       }
     },
   };

@@ -286,8 +286,8 @@
           <div class="flex-1"></div>
 
           <button
-            disabled
-            class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5 disabled:opacity-45 disabled:cursor-not-allowed">
+            @click="$dispatch('open-add-student-dialog')"
+            class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -310,7 +310,7 @@
           </button>
 
           <button
-            @click="$store.mgmt.exportCsv()"
+            @click="$dispatch('open-export-dialog')"
             :disabled="$store.mgmt.employees.length === 0"
             class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5 disabled:opacity-45 disabled:cursor-not-allowed">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -355,7 +355,7 @@
               <template x-for="emp in $store.mgmt.employees" :key="emp.homebase_id">
                 <tr class="even:bg-[#fafafa] hover:bg-[#fafafa]">
                   <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border" x-text="emp.name ?? '&#8212;'"></td>
-                  <td x-data="inlineHoursData(emp.homebase_id, 1)" class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
+                  <td x-data="inlineHoursData(emp.homebase_id, 1)" class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border" @click="console.log('clicked')">
                     <!-- idle -->
                     <div x-show="mode === 'idle'" class="flex items-center gap-1.5">
                       <span class="inline-flex items-baseline min-w-16"><span x-text="emp.in_person_hrs" class="tabular-nums"></span><span class="text-muted text-[11px] ml-0.5">hrs</span></span>
@@ -446,6 +446,15 @@
                       </svg>
                       Reset PW
                     </button>
+                    <button
+                      @click="$dispatch('open-set-pin', { id: emp.homebase_id, name: emp.name })"
+                      class="inline-flex items-center justify-center gap-1.5 text-[11px] font-medium h-7 px-2.5 rounded-md text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap hover:border-sage hover:text-sage transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 17v.01M6 17v.01M18 17v.01M12 12v.01M6 12v.01M18 12v.01M12 7v.01M6 7v.01M18 7v.01"/>
+                      </svg>
+                      Set PIN
+                    </button>
                   </td>
                 </tr>
               </template>
@@ -454,6 +463,75 @@
         </div>
       </div>
     </section>
+
+    <!-- ── EXPORT DIALOG ────────────────────────────────────────────────── -->
+    <dialog
+      id="export-dialog"
+      x-data="exportDialogData"
+      @open-export-dialog.window="openDialog()"
+      class="modal border-none rounded-[14px] shadow-[var(--shadow-lg)] p-0 w-[clamp(300px,92vw,420px)] bg-modal-bg m-auto">
+      <div class="px-[22px] py-4.5 border-b border-app-border">
+        <span class="font-serif text-lg text-cream">Export Attendance</span>
+      </div>
+      <div class="px-[22px] py-5">
+        <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="export-month">Month</label>
+        <input id="export-month" type="month" x-model="monthYear"
+          class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
+      </div>
+      <div class="flex gap-2.5 justify-end px-[22px] pb-[18px] pt-3.5 border-t border-app-border">
+        <button @click="closeDialog()"
+          class="inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-[38px] px-[18px] text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover">
+          Cancel
+        </button>
+        <button @click="submit()" :disabled="!monthYear"
+          class="inline-flex items-center justify-center gap-2 h-[38px] px-[18px] font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
+          Export
+        </button>
+      </div>
+    </dialog>
+
+    <!-- ── ADD STUDENT DIALOG ───────────────────────────────────────────── -->
+    <dialog
+      id="add-student-dialog"
+      x-data="addStudentData"
+      @open-add-student-dialog.window="openModal()"
+      class="modal border-none rounded-[14px] shadow-[var(--shadow-lg)] p-0 w-[clamp(300px,92vw,460px)] bg-modal-bg m-auto">
+      <div class="flex items-center justify-between px-[22px] py-[18px] border-b border-app-border">
+        <span class="font-serif text-lg text-cream">Add Student</span>
+      </div>
+      <div class="px-[22px] py-5">
+        <div class="mb-4">
+          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-student-select">Student</label>
+          <template x-if="studentsLoading">
+            <p class="text-[13px] text-muted">Loading&hellip;</p>
+          </template>
+          <template x-if="!studentsLoading && students.length === 0">
+            <p class="text-[13px] text-muted">All HomeBase employees are already enrolled.</p>
+          </template>
+          <template x-if="!studentsLoading && students.length > 0">
+            <select id="add-student-select" x-model="studentId"
+              class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none">
+              <option value="">Select a student&hellip;</option>
+              <template x-for="s in students" :key="s.id">
+                <option :value="s.id" x-text="`${s.first_name} ${s.last_name}`"></option>
+              </template>
+            </select>
+          </template>
+        </div>
+        <p class="text-[11px] text-muted">The student will log in with the default password <span class="font-semibold text-cream">Welcome123</span> and be prompted to set their own.</p>
+        <p x-show="error" x-text="error" class="mt-3 text-[12px] text-app-error" style="display:none;"></p>
+      </div>
+      <div class="flex gap-2.5 justify-end px-[22px] pb-[18px] pt-3.5 border-t border-app-border">
+        <button @click="closeModal()"
+          class="inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-[38px] px-[18px] text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover">
+          Cancel
+        </button>
+        <button @click="submit()" :disabled="studentsLoading || students.length === 0"
+          class="inline-flex items-center justify-center gap-2 h-[38px] px-[18px] font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
+          Add Student
+        </button>
+      </div>
+    </dialog>
 
     <!-- ── SYNC DATE DIALOG ────────────────────────────────────────────── -->
     <dialog
@@ -523,7 +601,9 @@
 
     <!-- ── SNACKBAR ────────────────────────────────────────────────────── -->
     <div
-      class="fixed bottom-8 left-1/2 px-5 py-3 rounded-[8px] font-sans text-[13px] font-medium shadow-[var(--shadow-lg)] transition-all duration-200 z-[999] whitespace-nowrap"
+      popover="manual"
+      x-effect="$store.app.snackbar.visible ? $el.showPopover?.() : setTimeout(() => $el.hidePopover?.(), 210)"
+      class="fixed bottom-8 left-1/2 px-5 py-3 rounded-[8px] font-sans text-[13px] font-medium shadow-[var(--shadow-lg)] transition-all duration-200 whitespace-nowrap"
       :class="{
         'snackbar-visible': $store.app.snackbar.visible,
         'snackbar-hidden': !$store.app.snackbar.visible,
@@ -531,7 +611,21 @@
         'bg-sage text-sage-light': $store.app.snackbar.type === 'success',
         'bg-app-error text-white': $store.app.snackbar.type === 'error'
       }">
-      <span x-text="$store.app.snackbar.message"></span>
+      <div x-show="$store.app.snackbar.type === 'success'"
+        class="flex gap-2 items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span x-text="$store.app.snackbar.message"></span>
+      </div>
+      <div x-show="$store.app.snackbar.type === 'error'"
+        class="flex gap-2 items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span x-text="$store.app.snackbar.message"></span>
+      </div>
     </div>
 
     <!-- ── HOURS MODAL ──────────────────────────────────────────────── -->
@@ -691,6 +785,50 @@
           class="inline-flex items-center justify-center gap-2 h-[38px] px-[18px] font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
           <span x-show="loading" class="spinner"></span>
           <span x-text="loading ? 'Saving\u2026' : 'Save'"></span>
+        </button>
+      </div>
+    </dialog>
+
+    <!-- ── SET PIN DIALOG ─────────────────────────────────────────────────── -->
+    <dialog
+      id="set-pin-dialog"
+      x-data="setPinData"
+      class="modal border-none rounded-[14px] shadow-[var(--shadow-lg)] p-0 w-[clamp(300px,92vw,380px)] bg-modal-bg m-auto">
+      <div class="px-[22px] py-4.5 border-b border-app-border">
+        <span class="font-serif text-lg text-cream">Set Timeclock PIN</span>
+      </div>
+      <div class="px-[22px] py-5">
+        <p class="text-[13px] text-cream/70 mb-4">
+          Set a 4-digit PIN for <span class="text-cream font-semibold" x-text="employeeName"></span> to use on the student timeclock.
+        </p>
+        <div
+          x-show="error"
+          x-text="error"
+          class="px-[14px] py-[10px] rounded-[8px] text-[13px] mb-4 leading-relaxed bg-error-light text-app-error">
+        </div>
+        <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="set-pin-input">
+          4-Digit PIN
+        </label>
+        <input
+          id="set-pin-input"
+          type="text"
+          inputmode="numeric"
+          maxlength="4"
+          x-model="pin"
+          @keydown.enter="submit()"
+          @keydown.escape="closeDialog()"
+          placeholder="e.g. 1234"
+          class="w-full px-[14px] py-[10px] border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted tracking-[0.2em] text-lg" />
+      </div>
+      <div class="flex gap-2.5 justify-end px-[22px] pb-[18px] pt-3.5 border-t border-app-border">
+        <button @click="closeDialog()"
+          class="inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-[38px] px-[18px] text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover">
+          Cancel
+        </button>
+        <button @click="submit()" :disabled="loading"
+          class="inline-flex items-center justify-center gap-2 h-[38px] px-[18px] font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
+          <span x-show="loading" class="spinner"></span>
+          <span x-text="loading ? 'Saving…' : 'Save PIN'"></span>
         </button>
       </div>
     </dialog>

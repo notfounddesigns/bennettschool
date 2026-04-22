@@ -5,7 +5,11 @@ export default defineConfig({
   plugins: [tailwindcss()],
   build: {
     rollupOptions: {
-      external: (id) => id.includes('full-sync')
-    }
-  }
+      input: {
+        main: 'index.html',
+        timeclock: 'timeclock.html',
+      },
+      external: (id) => id.includes('full-sync') || id.includes('hours-export'),
+    },
+  },
 });

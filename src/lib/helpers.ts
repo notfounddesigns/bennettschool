@@ -49,3 +49,7 @@ export function toTitleCase(str: string): string {
 export function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+export function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
