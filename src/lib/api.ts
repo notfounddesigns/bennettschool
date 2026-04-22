@@ -88,7 +88,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   ] = await Promise.all([
     supabase
       .from('profiles_view')
-      .select(`homebase_id, name, calc_total_hrs, calc_hrs_to_graduate, calc_percent_complete, hours(type_id, hours)`)
+      .select(`homebase_id, name, total_hrs, hrs_to_graduate, percent_complete, hours(type_id, hours)`)
       .eq('homebase_id', employeeUserId)
       .single(),
     supabase
@@ -129,12 +129,12 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
 
-  const p = profile as { calc_total_hrs: number; calc_hrs_to_graduate: number; calc_percent_complete: number };
+  const p = profile as { total_hrs: number; hrs_to_graduate: number; percent_complete: number };
 
   return {
-    totalHrsAll: p.calc_total_hrs ?? 0,
-    hrsToGrad: p.calc_hrs_to_graduate ?? 0,
-    percentComplete: p.calc_percent_complete ?? 0,
+    totalHrsAll: p.total_hrs ?? 0,
+    hrsToGrad: p.hrs_to_graduate ?? 0,
+    percentComplete: p.percent_complete ?? 0,
     inPersonHrs,
     deHrs,
     inPersonHrsList,
@@ -146,7 +146,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
 export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   const { data, error } = await supabase
     .from('profiles_view')
-    .select(`homebase_id, name, role_id, role_name, calc_total_hrs, calc_hrs_to_graduate, calc_percent_complete, hours`)
+    .select(`homebase_id, name, role_id, role_name, total_hrs, hrs_to_graduate, percent_complete, hours`)
     .order('name');
 
   if (error) throw new Error('Failed to load employees');
@@ -156,9 +156,9 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
     name: string;
     role_id: number;
     role_name: string;
-    calc_total_hrs: number;
-    calc_hrs_to_graduate: number;
-    calc_percent_complete: number;
+    total_hrs: number;
+    hrs_to_graduate: number;
+    percent_complete: number;
     hours: Array<{ type_id: number; hours: number }>;
   }>)
   .filter(emp => emp.role_id === 1)
@@ -175,9 +175,9 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       name: emp.name,
       in_person_hrs: fmtFloat(inPersonHrs),
       de_hrs: fmtFloat(deHrs),
-      total_hrs: emp.calc_total_hrs ?? 0,
-      hrs_to_graduate: emp.calc_hrs_to_graduate ?? 0,
-      percent_complete: emp.calc_percent_complete ?? 0,
+      total_hrs: emp.total_hrs ?? 0,
+      hrs_to_graduate: emp.hrs_to_graduate ?? 0,
+      percent_complete: emp.percent_complete ?? 0,
     };
   });
 }
@@ -190,6 +190,50 @@ export async function fetchLastSync(): Promise<SyncRecord | null> {
     .limit(1)
     .maybeSingle();
   return data as SyncRecord | null;
+}
+
+export interface OverviewStats {
+  yesterday: { hours: number; students: number };
+  last7Days: { hours: number; students: number };
+  mtd:       { hours: number; students: number };
+}
+
+export async function fetchOverviewStats(): Promise<OverviewStats> {
+  const now = new Date();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+  const mtdStartStr = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString().split('T')[0];
+
+  const startDate = mtdStartStr < sevenDaysAgoStr ? mtdStartStr : sevenDaysAgoStr;
+
+  const { data } = await supabase
+    .from('hours')
+    .select('hours, date, homebase_id')
+    .eq('type_id', 1)
+    .gte('date', startDate);
+
+  const rows = (data ?? []) as Array<{ hours: number; date: string; homebase_id: number }>;
+
+  const yRows  = rows.filter(r => r.date === yesterdayStr);
+  const w7Rows = rows.filter(r => r.date >= sevenDaysAgoStr);
+  const mRows  = rows.filter(r => r.date >= mtdStartStr);
+
+  const sum  = (a: typeof rows) => a.reduce((s, r) => s + (r.hours ?? 0), 0);
+  const uniq = (a: typeof rows) => new Set(a.map(r => r.homebase_id)).size;
+
+  return {
+    yesterday: { hours: sum(yRows),  students: uniq(yRows)  },
+    last7Days: { hours: sum(w7Rows), students: uniq(w7Rows) },
+    mtd:       { hours: sum(mRows),  students: uniq(mRows)  },
+  };
 }
 
 export async function loadStudents(): Promise<HomebaseEmployee[]> {

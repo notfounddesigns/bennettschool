@@ -258,210 +258,269 @@
       x-transition:enter="transition ease-out duration-200"
       x-transition:enter-start="opacity-0 translate-y-2.5"
       x-transition:enter-end="opacity-100 translate-y-0"
-      class="flex flex-col w-[clamp(300px,95vw,1600px)] h-[calc(100dvh-56px-3rem)]"
+      class="flex flex-col w-full max-w-[1600px] mx-auto px-2 md:px-4 h-[calc(100dvh-56px-3rem)]"
       style="display: none;">
 
-      <div class="flex flex-col min-h-0 h-full">
-        <h2 class="text-cream font-serif text-2xl text-center mb-2.5">Admin Dashboard</h2>
+      <div class="flex flex-col gap-3 h-full min-h-0">
 
-        <!-- Action bar -->
-        <div class="flex flex-col md:flex-row items-center justify-center gap-2 mb-0.5 flex-wrap">
-          <!-- Last sync info + sync trigger -->
-          <div class="flex items-center gap-2 mb-2">
+        <h2 class="text-cream font-serif text-2xl text-center shrink-0">Admin Dashboard</h2>
+
+        <!-- ── Bento Row 1: Overview (2/3) + Needs Attention (1/3) ──── -->
+        <div class="grid gap-3 shrink-0 grid-cols-1 md:grid-cols-[2fr_1fr]">
+
+          <!-- Time Punch Overview -->
+          <div x-data="overviewPanelData" class="bg-white/8 border border-white/8 rounded-[14px] p-5">
+            <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-4">Time Punch Overview</p>
+            <div class="grid grid-cols-3 divide-x divide-white/10">
+              <div class="pr-5">
+                <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-1.5">Yesterday</div>
+                <div class="font-serif text-[28px] text-cream leading-none tabular-nums">
+                  <span x-text="fmt(vals.yH)"></span><span class="text-xs font-sans font-normal text-muted"> hrs</span>
+                </div>
+                <div class="text-[11px] text-muted mt-1"><span x-text="Math.round(vals.yS)"></span> students</div>
+              </div>
+              <div class="px-5">
+                <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-1.5">Last 7 Days</div>
+                <div class="font-serif text-[28px] text-cream leading-none tabular-nums">
+                  <span x-text="fmt(vals.wH)"></span><span class="text-xs font-sans font-normal text-muted"> hrs</span>
+                </div>
+                <div class="text-[11px] text-muted mt-1"><span x-text="Math.round(vals.wS)"></span> students</div>
+              </div>
+              <div class="pl-5">
+                <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-1.5">Month to Date</div>
+                <div class="font-serif text-[28px] text-cream leading-none tabular-nums">
+                  <span x-text="fmt(vals.mH)"></span><span class="text-xs font-sans font-normal text-muted"> hrs</span>
+                </div>
+                <div class="text-[11px] text-muted mt-1"><span x-text="Math.round(vals.mS)"></span> students</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Needs Attention -->
+          <div class="bg-white/8 border border-white/8 rounded-[14px] p-5 overflow-y-auto">
+            <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-3">Needs Attention</p>
+            <template x-if="$store.mgmt.loading">
+              <p class="text-[12px] text-muted">Loading&hellip;</p>
+            </template>
+            <template x-if="!$store.mgmt.loading && $store.mgmt.employees.length > 0 && $store.mgmt.employees.filter(e => e.total_hrs === 0).length === 0">
+              <div class="flex flex-col items-center justify-center py-3 text-center">
+                <div class="w-8 h-8 rounded-full bg-sage/20 flex items-center justify-center mb-2">
+                  <svg class="text-sage" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <p class="text-[12px] text-sage font-medium">All students active</p>
+              </div>
+            </template>
+            <ul x-show="!$store.mgmt.loading && $store.mgmt.employees.filter(e => e.total_hrs === 0).length > 0" class="space-y-2.5">
+              <template x-for="emp in $store.mgmt.employees.filter(e => e.total_hrs === 0)" :key="emp.homebase_id">
+                <li class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-full bg-blush/20 text-blush flex items-center justify-center text-[10px] font-bold shrink-0"
+                       x-text="emp.name.split(' ').map(p => p[0] ?? '').slice(0,2).join('').toUpperCase()"></div>
+                  <div class="min-w-0">
+                    <div class="text-[12px] font-medium text-cream truncate" x-text="emp.name"></div>
+                    <div class="text-[10px] text-blush/60">No hours logged yet</div>
+                  </div>
+                </li>
+              </template>
+            </ul>
+          </div>
+
+        </div>
+
+        <!-- ── Bento Row 2: Sync info (left) + Actions (right) ───────── -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 shrink-0">
+          <div class="flex items-center gap-2 flex-1">
             <p class="text-[12px] text-muted tracking-[0.02em]" x-text="$store.mgmt.formatLastSync()"></p>
             <button
               @click="$dispatch('open-sync-dialog')"
               disabled
-              class="inline-flex items-center gap-1 px-2 rounded-full text-[12px] text-sage cursor-pointer bg-transparent border border-sage hover:text-sage-light hover:border-sage-light transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
-              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="1 4 1 10 7 10" />
-                <path d="M3.51 15a9 9 0 1 0 .49-3.5" />
-              </svg>
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] text-sage bg-transparent border border-sage hover:text-sage-light hover:border-sage-light transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
               Sync
             </button>
           </div>
-
-          <div class="hidden md:flex flex-1"></div>
-          
-          <div>
-            <button
-              @click="$dispatch('open-add-student-dialog')"
-              class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <line x1="19" y1="8" x2="19" y2="14"/>
-                <line x1="22" y1="11" x2="16" y2="11"/>
-              </svg>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button @click="$dispatch('open-add-student-dialog')"
+              class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
               Add Student
             </button>
-
-            <button
-              @click="$dispatch('open-grades-modal')"
-              class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 11l3 3L22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
+            <button @click="$dispatch('open-grades-modal')"
+              class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               Grades
             </button>
-
-            <button
-              @click="$dispatch('open-export-dialog')"
-              :disabled="$store.mgmt.employees.length === 0"
-              class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover mb-2.5 disabled:opacity-45 disabled:cursor-not-allowed">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+            <button @click="$dispatch('open-export-dialog')" :disabled="$store.mgmt.employees.length === 0"
+              class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover disabled:opacity-45 disabled:cursor-not-allowed">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export
             </button>
           </div>
         </div>
 
-        <!-- Employees table -->
-        <div class="flex-1 min-h-0 bg-white rounded-[14px] shadow-card overflow-auto mgmt-table">
-          <table class="w-full border-collapse">
-            <thead class="bg-cream">
+        <!-- ── Row 3: Students Table ──────────────────────────────────── -->
+        <div x-data="mgmtTableData" class="flex-1 min-h-0 bg-white rounded-[14px] shadow-card overflow-auto">
+          <table class="w-full border-collapse text-[13px]">
+
+            <thead class="sticky top-0 z-10 bg-cream">
               <tr>
-                <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Name</th>
-                <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">In Person Hrs</th>
-                <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">DE Hrs</th>
-                <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Total Hrs</th>
-                <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Hrs to Graduate</th>
-                <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">% Complete</th>
-                <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Actions</th>
+                <th @click="toggleSort('name')"
+                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1">Name
+                    <span class="text-[10px]" :class="sortCol==='name'?'text-blush':'opacity-30'" x-text="sortCol==='name'?(sortDir==='asc'?'↑':'↓'):'⇅'"></span>
+                  </span>
+                </th>
+                <th @click="toggleSort('in_person_hrs')"
+                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1">In Person
+                    <span class="text-[10px]" :class="sortCol==='in_person_hrs'?'text-blush':'opacity-30'" x-text="sortCol==='in_person_hrs'?(sortDir==='asc'?'↑':'↓'):'⇅'"></span>
+                  </span>
+                </th>
+                <th @click="toggleSort('de_hrs')"
+                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap hidden md:table-cell">
+                  <span class="inline-flex items-center gap-1">DE
+                    <span class="text-[10px]" :class="sortCol==='de_hrs'?'text-blush':'opacity-30'" x-text="sortCol==='de_hrs'?(sortDir==='asc'?'↑':'↓'):'⇅'"></span>
+                  </span>
+                </th>
+                <th @click="toggleSort('total_hrs')"
+                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap hidden sm:table-cell">
+                  <span class="inline-flex items-center gap-1">Total
+                    <span class="text-[10px]" :class="sortCol==='total_hrs'?'text-blush':'opacity-30'" x-text="sortCol==='total_hrs'?(sortDir==='asc'?'↑':'↓'):'⇅'"></span>
+                  </span>
+                </th>
+                <th @click="toggleSort('percent_complete')"
+                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap hidden lg:table-cell">
+                  <span class="inline-flex items-center gap-1">Progress
+                    <span class="text-[10px]" :class="sortCol==='percent_complete'?'text-blush':'opacity-30'" x-text="sortCol==='percent_complete'?(sortDir==='asc'?'↑':'↓'):'⇅'"></span>
+                  </span>
+                </th>
+                <th @click="toggleSort('hrs_to_graduate')"
+                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap hidden xl:table-cell">
+                  <span class="inline-flex items-center gap-1">To Graduate
+                    <span class="text-[10px]" :class="sortCol==='hrs_to_graduate'?'text-blush':'opacity-30'" x-text="sortCol==='hrs_to_graduate'?(sortDir==='asc'?'↑':'↓'):'⇅'"></span>
+                  </span>
+                </th>
+                <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Actions</th>
               </tr>
             </thead>
+
             <tbody>
               <template x-if="$store.mgmt.loading">
-                <tr>
-                  <td colspan="7" class="text-center py-8 text-muted text-[13px]">
-                    <span class="spinner mr-2" style="vertical-align: middle;"></span>Loading&#8230;
-                  </td>
-                </tr>
+                <tr><td colspan="7" class="text-center py-10 text-muted text-[13px]">
+                  <span class="spinner mr-2" style="vertical-align:middle;"></span>Loading&#8230;
+                </td></tr>
+              </template>
+              <template x-if="!$store.mgmt.loading && sortedEmployees.length === 0">
+                <tr><td colspan="7" class="text-center py-10 text-muted text-[13px]">No students found.</td></tr>
               </template>
 
-              <template x-if="!$store.mgmt.loading && $store.mgmt.employees.length === 0">
-                <tr>
-                  <td colspan="7" class="text-center py-8 text-muted text-[13px]">No students found.</td>
-                </tr>
-              </template>
+              <template x-for="emp in sortedEmployees" :key="emp.homebase_id">
+                <tr class="even:bg-[#fafafa] hover:bg-[#f5f3f0] transition-colors">
 
-              <template x-for="emp in $store.mgmt.employees" :key="emp.homebase_id">
-                <tr class="even:bg-[#fafafa] hover:bg-[#fafafa]">
-                  <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border" x-text="emp.name ?? '&#8212;'"></td>
-                  <td x-data="inlineHoursData(emp.homebase_id, 1)" class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border" @click="console.log('clicked')">
-                    <!-- idle -->
-                    <div x-show="mode === 'idle'" class="flex items-center gap-1.5">
-                      <span class="inline-flex items-baseline min-w-16"><span x-text="emp.in_person_hrs" class="tabular-nums"></span><span class="text-muted text-[11px] ml-0.5">hrs</span></span>
-                      <button @click="startAdd()" title="Add in-person hours"
-                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-blush/15 text-blush text-[13px] font-bold leading-none cursor-pointer hover:bg-blush/30 transition-colors shrink-0">
-                        +
-                      </button>
-                      <button @click="startEdit(emp.in_person_hrs)" title="Edit in-person hours"
-                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-muted/15 text-muted cursor-pointer hover:bg-muted/25 transition-colors shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      </button>
-                    </div>
-                    <!-- add / edit input -->
-                    <div x-show="mode !== 'idle'" class="flex items-center gap-1" style="display:none">
-                      <input type="number" x-model="value" min="0" step="0.5" placeholder="hrs"
-                        @keydown.enter="save()" @keydown.escape="cancel()"
-                        class="w-16 px-1 py-[3px] text-[12px] border border-blush rounded-[4px] bg-cream text-charcoal outline-none" />
-                      <button @click="save()" :disabled="saving" title="Save"
-                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-sage/20 text-sage cursor-pointer hover:bg-sage/35 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </button>
-                      <button @click="cancel()" title="Cancel"
-                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-app-error/15 text-app-error cursor-pointer hover:bg-app-error/25 transition-colors shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  </td>
-                  <td x-data="inlineHoursData(emp.homebase_id, 2)" class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
-                    <!-- idle -->
-                    <div x-show="mode === 'idle'" class="flex items-center gap-1.5">
-                      <span class="inline-flex items-baseline min-w-16"><span x-text="emp.de_hrs" class="tabular-nums"></span><span class="text-muted text-[11px] ml-0.5">hrs</span></span>
-                      <button @click="startAdd()" title="Add DE hours"
-                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-blush/15 text-blush md:text-[16px] text-[13px] font-bold leading-none cursor-pointer hover:bg-blush/30 transition-colors shrink-0">
-                        ＋
-                      </button>
-                      <button @click="startEdit(emp.de_hrs)" title="Edit DE hours"
-                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-muted/15 text-muted md:text-[16px] text-[13px] cursor-pointer hover:bg-muted/25 transition-colors shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      </button>
-                    </div>
-                    <!-- add / edit input -->
-                    <div x-show="mode !== 'idle'" class="flex items-center gap-1" style="display:none">
-                      <input type="number" x-model="value" min="0" step="0.5" placeholder="hrs"
-                        @keydown.enter="save()" @keydown.escape="cancel()"
-                        class="w-16 px-1 py-[3px] text-[12px] border border-blush rounded-[4px] bg-cream text-charcoal outline-none" />
-                      <button @click="save()" :disabled="saving" title="Save"
-                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-sage/20 text-sage cursor-pointer hover:bg-sage/35 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </button>
-                      <button @click="cancel()" title="Cancel"
-                        class="inline-flex items-center justify-center md:w-8 md:h-8 w-5 h-5 rounded-full bg-app-error/15 text-app-error cursor-pointer hover:bg-app-error/25 transition-colors shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  </td>
-                  <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
-                    <span x-text="emp.total_hrs ?? 0"></span><span class="text-muted text-[11px]"> hrs</span>
-                  </td>
-                  <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
-                    <span x-text="emp.hrs_to_graduate ?? 0"></span><span class="text-muted text-[11px]"> hrs</span>
-                  </td>
-                  <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">
+                  <!-- Name + avatar + progress -->
+                  <td class="px-4 py-2 border-b border-app-border">
                     <div class="flex items-center gap-2.5">
-                      <div class="flex-1 h-[5px] bg-app-border rounded-full overflow-hidden min-w-[50px]">
+                      <div class="w-8 h-8 rounded-full bg-blush text-white flex items-center justify-center text-[11px] font-bold shrink-0 leading-none"
+                           x-text="emp.name.split(' ').map(p => p[0] ?? '').slice(0,2).join('').toUpperCase()"></div>
+                      <div class="min-w-0">
+                        <div class="font-medium text-charcoal truncate" x-text="emp.name"></div>
+                        <div class="flex items-center gap-1.5 mt-[3px]">
+                          <div class="h-[3px] w-14 bg-app-border rounded-full overflow-hidden shrink-0">
+                            <div class="h-full rounded-full bg-sage" :style="'width:' + Math.min(emp.percent_complete ?? 0, 100) + '%'"></div>
+                          </div>
+                          <span class="text-[10px] text-muted tabular-nums" x-text="(emp.percent_complete ?? 0) + '%'"></span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- In Person Hrs -->
+                  <td x-data="inlineHoursData(emp.homebase_id, 1)" class="px-4 py-2 border-b border-app-border">
+                    <div x-show="mode === 'idle'" class="flex items-center gap-1.5">
+                      <span class="tabular-nums text-charcoal" x-text="emp.in_person_hrs"></span>
+                      <span class="text-muted text-[11px]">hrs</span>
+                      <button @click="startAdd()" title="Add" class="w-5 h-5 rounded-full bg-blush/15 text-blush text-[12px] font-bold cursor-pointer hover:bg-blush/30 transition-colors shrink-0 inline-flex items-center justify-center leading-none">+</button>
+                      <button @click="startEdit(emp.in_person_hrs)" title="Edit" class="w-5 h-5 rounded-full bg-muted/15 text-muted cursor-pointer hover:bg-muted/25 transition-colors shrink-0 inline-flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                    </div>
+                    <div x-show="mode !== 'idle'" class="flex items-center gap-1" style="display:none">
+                      <input type="number" x-model="value" min="0" step="0.5" @keydown.enter="save()" @keydown.escape="cancel()"
+                        class="w-14 px-1.5 py-[3px] text-[12px] border border-blush rounded-[4px] bg-cream text-charcoal outline-none" />
+                      <button @click="save()" :disabled="saving" class="w-6 h-6 rounded-full bg-sage/20 text-sage cursor-pointer hover:bg-sage/35 transition-colors disabled:opacity-40 shrink-0 inline-flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                      <button @click="cancel()" class="w-6 h-6 rounded-full bg-app-error/15 text-app-error cursor-pointer hover:bg-app-error/25 transition-colors shrink-0 inline-flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  </td>
+
+                  <!-- DE Hrs (hidden < md) -->
+                  <td x-data="inlineHoursData(emp.homebase_id, 2)" class="px-4 py-2 border-b border-app-border hidden md:table-cell">
+                    <div x-show="mode === 'idle'" class="flex items-center gap-1.5">
+                      <span class="tabular-nums text-charcoal" x-text="emp.de_hrs"></span>
+                      <span class="text-muted text-[11px]">hrs</span>
+                      <button @click="startAdd()" title="Add" class="w-5 h-5 rounded-full bg-blush/15 text-blush text-[12px] font-bold cursor-pointer hover:bg-blush/30 transition-colors shrink-0 inline-flex items-center justify-center leading-none">+</button>
+                      <button @click="startEdit(emp.de_hrs)" title="Edit" class="w-5 h-5 rounded-full bg-muted/15 text-muted cursor-pointer hover:bg-muted/25 transition-colors shrink-0 inline-flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                    </div>
+                    <div x-show="mode !== 'idle'" class="flex items-center gap-1" style="display:none">
+                      <input type="number" x-model="value" min="0" step="0.5" @keydown.enter="save()" @keydown.escape="cancel()"
+                        class="w-14 px-1.5 py-[3px] text-[12px] border border-blush rounded-[4px] bg-cream text-charcoal outline-none" />
+                      <button @click="save()" :disabled="saving" class="w-6 h-6 rounded-full bg-sage/20 text-sage cursor-pointer hover:bg-sage/35 transition-colors disabled:opacity-40 shrink-0 inline-flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                      <button @click="cancel()" class="w-6 h-6 rounded-full bg-app-error/15 text-app-error cursor-pointer hover:bg-app-error/25 transition-colors shrink-0 inline-flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  </td>
+
+                  <!-- Total (hidden < sm) -->
+                  <td class="px-4 py-2 border-b border-app-border hidden sm:table-cell">
+                    <span class="tabular-nums text-charcoal" x-text="emp.total_hrs ?? 0"></span>
+                    <span class="text-muted text-[11px]"> hrs</span>
+                  </td>
+
+                  <!-- Progress bar (hidden < lg) -->
+                  <td class="px-4 py-2 border-b border-app-border hidden lg:table-cell">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 h-[4px] bg-app-border rounded-full overflow-hidden min-w-[60px]">
                         <div class="h-full rounded-full bg-sage" :style="'width:' + Math.min(emp.percent_complete ?? 0, 100) + '%'"></div>
                       </div>
-                      <span x-text="(emp.percent_complete ?? 0) + '%'"></span>
+                      <span class="tabular-nums text-[12px] text-charcoal w-8 text-right" x-text="(emp.percent_complete ?? 0) + '%'"></span>
                     </div>
                   </td>
-                  <td class="px-4 py-3 md:py-4 border-b border-app-border flex items-center gap-2.5">
-                    <button
-                      disabled
-                      class="inline-flex items-center justify-center gap-1.5 text-[11px] font-medium h-7 px-2.5 rounded-md text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                      Edit
-                    </button>
-                    <button
-                      @click="$dispatch('open-reset-password', { id: emp.homebase_id, name: emp.name })"
-                      class="inline-flex items-center justify-center gap-1.5 text-[11px] font-medium h-7 px-2.5 rounded-md text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap hover:border-blush hover:text-blush transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                      </svg>
-                      Reset PW
-                    </button>
-                    <button
-                      @click="$dispatch('open-set-pin', { id: emp.homebase_id, name: emp.name })"
-                      class="inline-flex items-center justify-center gap-1.5 text-[11px] font-medium h-7 px-2.5 rounded-md text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap hover:border-sage hover:text-sage transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 17v.01M6 17v.01M18 17v.01M12 12v.01M6 12v.01M18 12v.01M12 7v.01M6 7v.01M18 7v.01"/>
-                      </svg>
-                      Set PIN
-                    </button>
+
+                  <!-- Hrs to Graduate (hidden < xl) -->
+                  <td class="px-4 py-2 border-b border-app-border hidden xl:table-cell">
+                    <span class="tabular-nums text-charcoal" x-text="emp.hrs_to_graduate ?? 0"></span>
+                    <span class="text-muted text-[11px]"> hrs</span>
                   </td>
+
+                  <!-- Actions -->
+                  <td class="px-4 py-2 border-b border-app-border">
+                    <div class="flex items-center gap-1.5 flex-nowrap">
+                      <button @click="$dispatch('open-reset-password', { id: emp.homebase_id, name: emp.name })"
+                        class="inline-flex items-center justify-center gap-1 text-[11px] font-medium h-6 px-2 rounded-md text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap hover:border-blush hover:text-blush transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <span class="hidden sm:inline">Reset PW</span>
+                      </button>
+                      <button @click="$dispatch('open-set-pin', { id: emp.homebase_id, name: emp.name })"
+                        class="inline-flex items-center justify-center gap-1 text-[11px] font-medium h-6 px-2 rounded-md text-muted border border-app-border cursor-pointer bg-transparent whitespace-nowrap hover:border-sage hover:text-sage transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v.01M6 17v.01M18 17v.01M12 12v.01M6 12v.01M18 12v.01M12 7v.01M6 7v.01M18 7v.01"/></svg>
+                        PIN
+                      </button>
+                    </div>
+                  </td>
+
                 </tr>
               </template>
             </tbody>
           </table>
         </div>
+
       </div>
     </section>
 

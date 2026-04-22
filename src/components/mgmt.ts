@@ -2,6 +2,7 @@ import Alpine from 'alpinejs';
 import {
   fetchEmployeeTable,
   fetchLastSync,
+  fetchOverviewStats,
   loadStudents,
   syncHoursByDate,
   submitHours,
@@ -13,6 +14,7 @@ import {
   type SyncRecord,
   type HomebaseEmployee,
   type HoursType,
+  type OverviewStats,
 } from '../lib/api';
 import { toTitleCase, todayIso, formatSimpleDate } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
@@ -25,6 +27,7 @@ export interface MgmtStore {
   loading: boolean;
   employees: MgmtEmployee[];
   lastSync: SyncRecord | null;
+  overviewStats: OverviewStats | null;
   load(): Promise<void>;
   formatLastSync(): string;
 }
@@ -34,16 +37,19 @@ export function createMgmtStore(): MgmtStore {
     loading: false,
     employees: [],
     lastSync: null,
+    overviewStats: null,
 
     async load() {
       app().showLoading();
       try {
-        const [employees, lastSync] = await Promise.all([
+        const [employees, lastSync, overviewStats] = await Promise.all([
           fetchEmployeeTable(),
           fetchLastSync(),
+          fetchOverviewStats(),
         ]);
         this.employees = employees;
         this.lastSync = lastSync;
+        this.overviewStats = overviewStats;
       } catch {
         app().showSnackbar('Failed to load employees', 'error');
       } finally {
@@ -53,7 +59,7 @@ export function createMgmtStore(): MgmtStore {
 
     formatLastSync() {
       if (!this.lastSync) return 'No syncs recorded yet.';
-      return `Most recent synced date: ${formatSimpleDate(this.lastSync.date_synced)}`;
+      return `Last synced: ${formatSimpleDate(this.lastSync.date_synced)} — ${this.lastSync.inserted} records`;
     },
 
   };
@@ -490,6 +496,77 @@ export function resetPasswordData() {
       } finally {
         app().hideLoading();
       }
+    },
+  };
+}
+
+// ── Overview Panel ────────────────────────────────────────────────────────────
+
+export function overviewPanelData() {
+  return {
+    vals: { yH: 0, yS: 0, wH: 0, wS: 0, mH: 0, mS: 0 } as Record<string, number>,
+
+    init(this: any) {
+      const animate = (key: string, target: number) => {
+        const from = this.vals[key] as number;
+        const t0 = performance.now();
+        const tick = (now: number) => {
+          const p = Math.min((now - t0) / 750, 1);
+          const eased = 1 - Math.pow(1 - p, 3);
+          this.vals[key] = parseFloat((from + (target - from) * eased).toFixed(1));
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      };
+
+      const apply = (stats: OverviewStats | null) => {
+        if (!stats) return;
+        animate('yH', stats.yesterday.hours);
+        animate('yS', stats.yesterday.students);
+        animate('wH', stats.last7Days.hours);
+        animate('wS', stats.last7Days.students);
+        animate('mH', stats.mtd.hours);
+        animate('mS', stats.mtd.students);
+      };
+
+      this.$watch('$store.mgmt.overviewStats', apply);
+      apply((Alpine.store('mgmt') as MgmtStore).overviewStats);
+    },
+
+    fmt(n: number): string {
+      return n.toFixed(1);
+    },
+  };
+}
+
+// ── Management Table (sortable) ───────────────────────────────────────────────
+
+export function mgmtTableData() {
+  return {
+    sortCol: 'name' as string,
+    sortDir: 'asc' as 'asc' | 'desc',
+
+    toggleSort(col: string) {
+      if (this.sortCol === col) {
+        this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.sortCol = col;
+        this.sortDir = 'asc';
+      }
+    },
+
+    get sortedEmployees(): MgmtEmployee[] {
+      const mgmt = Alpine.store('mgmt') as MgmtStore;
+      const col = this.sortCol;
+      const numericCols = ['total_hrs', 'hrs_to_graduate', 'percent_complete', 'in_person_hrs', 'de_hrs'];
+      return [...mgmt.employees].sort((a: any, b: any) => {
+        const va = numericCols.includes(col) ? parseFloat(a[col]) || 0 : a[col];
+        const vb = numericCols.includes(col) ? parseFloat(b[col]) || 0 : b[col];
+        const cmp = typeof va === 'number' && typeof vb === 'number'
+          ? va - vb
+          : String(va).localeCompare(String(vb));
+        return this.sortDir === 'asc' ? cmp : -cmp;
+      });
     },
   };
 }
