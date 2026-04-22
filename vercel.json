@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "timeclock.bscdecatur.com" }],
+      "destination": "/timeclock.html"
+    }
+  ]
+}
