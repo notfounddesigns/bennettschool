@@ -258,7 +258,7 @@
       x-transition:enter="transition ease-out duration-200"
       x-transition:enter-start="opacity-0 translate-y-2.5"
       x-transition:enter-end="opacity-100 translate-y-0"
-      class="flex flex-col w-full max-w-[1600px] mx-auto px-2 md:px-4 h-[calc(100dvh-56px-3rem)]"
+      class="flex flex-col w-full max-w-[1600px] mx-auto px-2 md:px-4 pb-3 md:pb-1 md:h-[calc(100dvh-56px-3rem)]"
       style="display: none;">
 
       <div class="flex flex-col gap-3 h-full min-h-0">
@@ -266,7 +266,7 @@
         <!-- <h2 class="text-cream font-serif text-2xl text-center shrink-0">Admin Dashboard</h2> -->
 
         <!-- ── Bento Row 1: Overview (2/3) + Needs Attention (1/3) ──── -->
-        <div class="grid gap-3 shrink-0 grid-cols-1 md:grid-cols-[2fr_1fr]">
+        <div class="grid gap-3 shrink-0 grid-cols-1 md:grid-cols-[2fr_1fr] md:max-h-[200px]">
 
           <!-- Time Punch Overview -->
           <div x-data="overviewPanelData" class="bg-white/8 border border-white/8 rounded-[14px] p-5">
@@ -297,7 +297,7 @@
           </div>
 
           <!-- Needs Attention -->
-          <div class="bg-white/8 border border-white/8 rounded-[14px] p-5 overflow-y-auto">
+          <div class="max-h-[175px] md:max-h-none bg-white/8 border border-white/8 rounded-[14px] p-5 overflow-y-auto">
             <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-3">Needs Attention</p>
             <template x-if="$store.mgmt.loading">
               <p class="text-[12px] text-muted">Loading&hellip;</p>
@@ -358,7 +358,7 @@
         </div>
 
         <!-- ── Row 3: Students Table ──────────────────────────────────── -->
-        <div x-data="mgmtTableData" class="flex-1 min-h-0 bg-white rounded-[14px] shadow-card overflow-auto">
+        <div x-data="mgmtTableData" class="flex-1 h-full min-h-0 max-h-100 md:max-h-none bg-white rounded-[14px] shadow-card overflow-auto">
           <table class="w-full border-collapse text-[13px]">
 
             <thead class="sticky top-0 z-10 bg-cream">
