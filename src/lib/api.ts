@@ -164,7 +164,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   .filter(emp => emp.role_id === 1)
   .map(emp => {
     const inPersonHrs = emp.hours
-      .filter(h => h.type_id === 1)
+      .filter(h => h.type_id !== 2)
       .reduce((sum, h) => sum + (h.hours ?? 0), 0);
     const deHrs = emp.hours
       .filter(h => h.type_id === 2)
@@ -216,8 +216,9 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
 
   const { data } = await supabase
     .from('hours')
-    .select('hours, date, homebase_id')
-    .eq('type_id', 1)
+    .select('hours, date, type_id, homebase_id')
+    .neq('type_id', 2)
+    // .or('type_id.eq.1,type_id.eq.3');
     .gte('date', startDate);
 
   const rows = (data ?? []) as Array<{ hours: number; date: string; homebase_id: number }>;
