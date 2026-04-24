@@ -218,11 +218,10 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
     .from('hours')
     .select('hours, date, type_id, homebase_id')
     .neq('type_id', 2)
-    // .or('type_id.eq.1,type_id.eq.3');
     .gte('date', startDate);
 
   const rows = (data ?? []) as Array<{ hours: number; date: string; homebase_id: number }>;
-
+  rows.map(r => r.date = r.date.split('T')[0]);
   const yRows  = rows.filter(r => r.date === yesterdayStr);
   const w7Rows = rows.filter(r => r.date >= sevenDaysAgoStr);
   const mRows  = rows.filter(r => r.date >= mtdStartStr);

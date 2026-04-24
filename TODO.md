@@ -78,3 +78,25 @@
 - [x] Export feature. Exports the students table data into a spreadsheet with row header
 
 - [x] Add feature for Admin to be able to reset a students password back to the 'Welcome123' password
+
+[X] Automatic daily updates from Homebase in the afternoon after closing.
+* Need to test over the next couple of days to make sure it works correctly
+
+[X] Clicking into an individual student to update timecards.
+
+[ ] Clicking into an individual student to update grades.
+
+[X] A way to add new students.
+
+[ ] New student view modal
+  - Show an overview of the student's hours stats, a log of in-person hours, a log of DE hours.
+  - Ability to switch between yesterday's hours, the past 7 days hours, and current month to date
+
+[ ] Export to include daily hours instead of monthly for state reporting.
+  - Also, create daily cron job?
+
+[X] Changing the percentage color to match the rest of the color scheme.
+
+[X] If we edit timecards, can those updates reflect automatically in the portal?
+
+[ ] Is there an option to block or restrict specific users if needed?

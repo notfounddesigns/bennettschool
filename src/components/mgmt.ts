@@ -441,7 +441,7 @@ export function exportDialogData() {
         app().showSnackbar('Cannot export a future month.', 'error', 3500);
         return;
       }
-
+      this.closeDialog();
       app().showLoading();
       try {
         const blob = await exportStudents(month, year);
@@ -451,7 +451,6 @@ export function exportDialogData() {
         a.download = `bennett_${this.monthYear}.xlsx`;
         a.click();
         URL.revokeObjectURL(url);
-        this.closeDialog();
       } catch {
         app().showSnackbar('Export failed. Please try again.', 'error');
       } finally {
