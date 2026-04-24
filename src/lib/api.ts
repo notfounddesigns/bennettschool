@@ -92,7 +92,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .eq('homebase_id', employeeUserId)
       .single(),
     supabase
-      .from('hours')
+      .from('hours_new')
       .select('type_id, hours, date, module, platform, verified')
       .eq('homebase_id', employeeUserId)
       .gte('date', daysAgo7),
@@ -235,7 +235,7 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
   const startDate = mtdStartStr < sevenDaysAgoStr ? mtdStartStr : sevenDaysAgoStr;
 
   const { data } = await supabase
-    .from('hours')
+    .from('hours_new')
     .select('hours, date, type_id, homebase_id')
     .neq('type_id', 2)
     .gte('date', startDate);
@@ -411,7 +411,7 @@ export async function getStudentByPin(pin: string): Promise<TimeclockStudent | n
     .from('profiles')
     .select('homebase_id, name')
     .eq('pin', pin)
-    .maybeSingle();
+    .single();
   return data as TimeclockStudent | null;
 }
 

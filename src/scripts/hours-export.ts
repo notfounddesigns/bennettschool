@@ -50,7 +50,7 @@ const [
 
   // Current month hours (in-person + DE), up to today
   supabase
-    .from('hours')
+    .from('hours_new')
     .select('homebase_id, type_id, date, hours')
     .gte('date', firstDay)
     .lte('date', today),
@@ -63,7 +63,7 @@ if (studentsError || currentMonthError) {
 // All hours before this month — paginated to avoid the 1000-row default cap
 const allPriorHoursList = await fetchAllPages(() =>
   supabase
-    .from('hours')
+    .from('hours_new')
     .select('homebase_id, type_id, hours, date')
     .lt('date', firstDay)
     .order('date')

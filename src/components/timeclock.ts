@@ -143,6 +143,7 @@ export function timeclockData() {
       this.state = 'loading';
       try {
         const student = await getStudentByPin(this.pin);
+        console.log(student);
         if (!student) {
           this.showError('PIN not recognized. Please try again.');
           return;
