@@ -182,6 +182,26 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   });
 }
 
+export interface TimeclockStatusEntry {
+  name: string;
+  date: string;
+  clock_in: string;
+  is_clocked_in: boolean;
+  on_break: boolean;
+  worked_hours: number | null;
+}
+
+export async function fetchCurrentStudents(): Promise<TimeclockStatusEntry[]> {
+  const { data, error } = await supabase
+    .from('timeclock_status')
+    .select(`name, date, clock_in, is_clocked_in, on_break, worked_hours`)
+    .order('clock_in', { ascending: false });
+
+  if (error) throw new Error('Failed to load timeclock entries');
+
+  return (data ?? []) as TimeclockStatusEntry[];
+}
+
 export async function fetchLastSync(): Promise<SyncRecord | null> {
   const { data } = await supabase
     .from('sync_log')
@@ -459,4 +479,12 @@ export async function setStudentPin(homebaseId: number, pin: string): Promise<vo
     .update({ pin })
     .eq('homebase_id', homebaseId);
   if (error) throw new Error('Failed to set PIN');
+}
+
+export function subscribeToTimeclock(onChanged: () => void) {
+  return supabase
+    .channel('timeclock-watch')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'timeclock_entries' }, onChanged)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'timeclock_breaks' }, onChanged)
+    .subscribe();
 }

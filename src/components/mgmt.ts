@@ -1,6 +1,7 @@
 import Alpine from 'alpinejs';
 import {
   fetchEmployeeTable,
+  fetchCurrentStudents,
   fetchLastSync,
   fetchOverviewStats,
   loadStudents,
@@ -10,12 +11,16 @@ import {
   setEmployeePassword,
   exportStudents,
   setStudentPin,
+  subscribeToTimeclock,
   type MgmtEmployee,
   type SyncRecord,
   type HomebaseEmployee,
   type HoursType,
   type OverviewStats,
+  type TimeclockStatusEntry,
 } from '../lib/api';
+
+let _timeclockChannel: ReturnType<typeof subscribeToTimeclock> | null = null;
 import { toTitleCase, todayIso, formatSimpleDate } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
 
@@ -26,6 +31,7 @@ function app(): AppStore {
 export interface MgmtStore {
   loading: boolean;
   employees: MgmtEmployee[];
+  currentStudents: TimeclockStatusEntry[];
   lastSync: SyncRecord | null;
   overviewStats: OverviewStats | null;
   load(): Promise<void>;
@@ -36,20 +42,30 @@ export function createMgmtStore(): MgmtStore {
   return {
     loading: false,
     employees: [],
+    currentStudents: [],
     lastSync: null,
     overviewStats: null,
 
     async load() {
       app().showLoading();
       try {
-        const [employees, lastSync, overviewStats] = await Promise.all([
+        const [employees, students, lastSync, overviewStats] = await Promise.all([
           fetchEmployeeTable(),
+          fetchCurrentStudents(),
           fetchLastSync(),
           fetchOverviewStats(),
         ]);
         this.employees = employees;
+        this.currentStudents = students;
         this.lastSync = lastSync;
         this.overviewStats = overviewStats;
+
+        if (!_timeclockChannel) {
+          _timeclockChannel = subscribeToTimeclock(async () => {
+            const mgmt = Alpine.store('mgmt') as MgmtStore;
+            mgmt.currentStudents = await fetchCurrentStudents();
+          });
+        }
       } catch {
         app().showSnackbar('Failed to load employees', 'error');
       } finally {
