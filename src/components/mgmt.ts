@@ -21,6 +21,7 @@ import {
 } from '../lib/api';
 
 let _timeclockChannel: ReturnType<typeof subscribeToTimeclock> | null = null;
+let _hoursRefreshInterval: ReturnType<typeof setInterval> | null = null;
 import { toTitleCase, todayIso, formatSimpleDate } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
 
@@ -65,6 +66,12 @@ export function createMgmtStore(): MgmtStore {
             const mgmt = Alpine.store('mgmt') as MgmtStore;
             mgmt.currentStudents = await fetchCurrentStudents();
           });
+        }
+        if (!_hoursRefreshInterval) {
+          _hoursRefreshInterval = setInterval(async () => {
+            const mgmt = Alpine.store('mgmt') as MgmtStore;
+            mgmt.currentStudents = await fetchCurrentStudents();
+          }, 60_000);
         }
       } catch {
         app().showSnackbar('Failed to load employees', 'error');

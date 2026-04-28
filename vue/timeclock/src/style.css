@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand color palette */
+  --color-app-bg: #292728;
+  --color-cream: #F9F5EF;
+  --color-charcoal: #1C1C1E;
+  --color-blush: #D4896A;
+  --color-blush-hover: #C07050;
+  --color-blush-light: #EDD5C8;
+  --color-sage: #7A9E8E;
+  --color-sage-light: #ddeee7;
+  --color-app-error: #C0392B;
+  --color-error-light: #FADBD8;
+  --color-muted: #8A8A8E;
+  --color-app-border: #E5E0D8;
+
+  /* Typography */
+  --font-sans: 'DM Sans', sans-serif;
+  --font-serif: 'DM Serif Display', serif;
+
+  /* Shadows */
+  --shadow-2xl: 0 24px 64px rgba(28, 28, 30, 0.22);
+}
+
+*::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100dvh;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-blush);
+  font-size: 15px;
+}
+
+/* Timeclock page background */
+.tc-bg {
+  background-color: var(--color-app-bg);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 40%, #d4896a28 0%, transparent 60%);
+}
+
+/* Spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.55s linear infinite;
+  opacity: 0.7;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* Timeclock loading bar */
+@keyframes tc-shrink {
+  0%   { width: 100%; }
+  100% { width: 0%; }
+}
+
+.tc-loading-bar {
+  animation: tc-shrink 1.3s linear infinite;
+}

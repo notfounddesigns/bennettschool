@@ -568,18 +568,19 @@
                 <tr>
                   <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Student</th>
                   <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Clock In</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border hidden sm:table-cell">Clock Out</th>
                   <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border hidden sm:table-cell">Hours</th>
                   <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Status</th>
                 </tr>
               </thead>
               <tbody>
                 <template x-if="$store.mgmt.loading">
-                  <tr><td colspan="4" class="text-center py-10 text-muted text-[13px]">
+                  <tr><td colspan="5" class="text-center py-10 text-muted text-[13px]">
                     <span class="spinner mr-2" style="vertical-align:middle;"></span>Loading&#8230;
                   </td></tr>
                 </template>
                 <template x-if="!$store.mgmt.loading && $store.mgmt.currentStudents.length === 0">
-                  <tr><td colspan="4" class="text-center py-10 text-muted text-[13px]">No students clocked in today.</td></tr>
+                  <tr><td colspan="5" class="text-center py-10 text-muted text-[13px]">No students clocked in today.</td></tr>
                 </template>
                 <template x-for="entry in $store.mgmt.currentStudents" :key="entry.name + entry.clock_in">
                   <tr class="even:bg-[#fafafa] hover:bg-[#f5f3f0] transition-colors">
@@ -593,6 +594,10 @@
                     <td class="px-4 py-2.5 border-b border-app-border">
                       <span class="tabular-nums text-charcoal"
                         x-text="new Date(entry.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
+                    </td>
+                    <td class="px-4 py-2.5 border-b border-app-border hidden sm:table-cell">
+                      <span class="tabular-nums text-charcoal"
+                        x-text="entry.clock_out ? new Date(entry.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
                     </td>
                     <td class="px-4 py-2.5 border-b border-app-border hidden sm:table-cell">
                       <span class="tabular-nums text-charcoal" x-text="parseFloat(entry.worked_hours ?? 0).toFixed(1)"></span>
