@@ -386,7 +386,7 @@
                   </span>
                 </th>
                 <th @click="toggleSort('in_person_hrs')"
-                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
+                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap hidden sm:table-cell">
                   <span class="inline-flex items-center gap-1">In Person
                     <span class="text-[10px]" :class="sortCol==='in_person_hrs'?'text-blush':'opacity-30'" x-text="sortCol==='in_person_hrs'?(sortDir==='asc'?'↑':'↓'):'⇅'"></span>
                   </span>
@@ -398,7 +398,7 @@
                   </span>
                 </th>
                 <th @click="toggleSort('total_hrs')"
-                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap hidden sm:table-cell">
+                  class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
                   <span class="inline-flex items-center gap-1">Total
                     <span class="text-[10px]" :class="sortCol==='total_hrs'?'text-blush':'opacity-30'" x-text="sortCol==='total_hrs'?(sortDir==='asc'?'↑':'↓'):'⇅'"></span>
                   </span>

@@ -235,7 +235,7 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
   const startDate = mtdStartStr < sevenDaysAgoStr ? mtdStartStr : sevenDaysAgoStr;
 
   const { data } = await supabase
-    .from('hours_new')
+    .from('hours')
     .select('hours, date, type_id, homebase_id')
     .neq('type_id', 2)
     .gte('date', startDate);
