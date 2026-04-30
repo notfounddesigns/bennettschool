@@ -194,7 +194,7 @@ export interface TimeclockStatusEntry {
 export async function fetchCurrentStudents(): Promise<TimeclockStatusEntry[]> {
   const { data, error } = await supabase
     .from('timeclock_status')
-    .select(`name, date, clock_in, is_clocked_in, on_break, worked_hours`)
+    .select(`name, date, clock_in, clock_out, is_clocked_in, on_break, worked_hours`)
     .order('clock_in', { ascending: false });
 
   if (error) throw new Error('Failed to load timeclock entries');

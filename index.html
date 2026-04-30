@@ -567,7 +567,9 @@
               <thead class="sticky top-0 z-10 bg-cream">
                 <tr>
                   <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Student</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Date</th>
                   <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Clock In</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Clock Out</th>
                   <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border hidden sm:table-cell">Hours</th>
                   <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Status</th>
                 </tr>
@@ -592,7 +594,15 @@
                     </td>
                     <td class="px-4 py-2.5 border-b border-app-border">
                       <span class="tabular-nums text-charcoal"
+                        x-text="entry.date"></span>
+                    </td>
+                    <td class="px-4 py-2.5 border-b border-app-border">
+                      <span class="tabular-nums text-charcoal"
                         x-text="new Date(entry.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
+                    </td>
+                    <td class="px-4 py-2.5 border-b border-app-border">
+                      <span x-show="entry.clock_out" class="tabular-nums text-charcoal"
+                        x-text="new Date(entry.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
                     </td>
                     <td class="px-4 py-2.5 border-b border-app-border hidden sm:table-cell">
                       <span class="tabular-nums text-charcoal" x-text="parseFloat(entry.worked_hours ?? 0).toFixed(1)"></span>
