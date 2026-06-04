@@ -183,9 +183,11 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
 }
 
 export interface TimeclockStatusEntry {
+  homebase_id: number;
   name: string;
   date: string;
   clock_in: string;
+  clock_out: string | null;
   is_clocked_in: boolean;
   on_break: boolean;
   worked_hours: number | null;
@@ -194,10 +196,12 @@ export interface TimeclockStatusEntry {
 export async function fetchCurrentStudents(): Promise<TimeclockStatusEntry[]> {
   const { data, error } = await supabase
     .from('timeclock_status')
-    .select(`name, date, clock_in, clock_out, is_clocked_in, on_break, worked_hours`)
+    .select(`homebase_id, name, date, clock_in, clock_out, is_clocked_in, on_break, worked_hours`)
     .order('clock_in', { ascending: false });
 
   if (error) throw new Error('Failed to load timeclock entries');
+  
+  console.log(data)
 
   return (data ?? []) as TimeclockStatusEntry[];
 }
@@ -479,6 +483,99 @@ export async function setStudentPin(homebaseId: number, pin: string): Promise<vo
     .update({ pin })
     .eq('homebase_id', homebaseId);
   if (error) throw new Error('Failed to set PIN');
+}
+
+export async function fetchDeHoursByDate(): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('hours')
+    .select('homebase_id, date, hours')
+    .eq('type_id', 2);
+  if (error) throw new Error('Failed to load DE hours');
+  const result: Record<string, number> = {};
+  for (const row of (data ?? []) as Array<{ homebase_id: number; date: string; hours: number }>) {
+    const key = `${row.homebase_id}|${row.date.split('T')[0]}`;
+    result[key] = (result[key] ?? 0) + (row.hours ?? 0);
+  }
+  return result;
+}
+
+// ── Compare view ──────────────────────────────────────────────────────────────
+
+export interface CompareRow {
+  homebase_id: number;
+  name: string;
+  date: string;
+  internal_hours: number;
+  external_hours: number;
+  diff: number;
+}
+
+export async function fetchCompareData(): Promise<CompareRow[]> {
+  const [{ data: tcData, error: tcError }, { data: hrData, error: hrError }, { data: profileData }] = await Promise.all([
+    supabase
+      .from('timeclock_status')
+      .select('homebase_id, name, date, worked_hours'),
+    supabase
+      .from('hours')
+      .select('homebase_id, date, hours')
+      .eq('type_id', 1),
+    supabase
+      .from('profiles_view')
+      .select('homebase_id, name')
+      .eq('role_id', 1),
+  ]);
+
+  if (tcError) throw new Error('Failed to load timeclock data');
+  if (hrError) throw new Error('Failed to load hours data');
+
+  type TcRow = { homebase_id: number; name: string; date: string; worked_hours: number | null };
+  type HrRow = { homebase_id: number; date: string; hours: number };
+
+  const nameMap = new Map<number, string>();
+  for (const p of (profileData ?? []) as Array<{ homebase_id: number; name: string }>) {
+    nameMap.set(p.homebase_id, p.name);
+  }
+  for (const row of (tcData ?? []) as TcRow[]) {
+    if (!nameMap.has(row.homebase_id)) nameMap.set(row.homebase_id, row.name);
+  }
+
+  const tcMap = new Map<string, number>();
+  for (const row of (tcData ?? []) as TcRow[]) {
+    const key = `${row.homebase_id}|${row.date}`;
+    tcMap.set(key, (tcMap.get(key) ?? 0) + (row.worked_hours ?? 0));
+  }
+
+  const hrMap = new Map<string, number>();
+  const hrIds = new Set<string>();
+  for (const row of (hrData ?? []) as HrRow[]) {
+    const key = `${row.homebase_id}|${row.date.split('T')[0]}`;
+    hrMap.set(key, (hrMap.get(key) ?? 0) + (row.hours ?? 0));
+    hrIds.add(key);
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const allKeys = new Set([...tcMap.keys(), ...hrIds]);
+  const rows: CompareRow[] = [];
+
+  for (const key of allKeys) {
+    const [id_str, date] = key.split('|');
+    if (date === today) continue;
+    const internal = tcMap.get(key) ?? 0;
+    if (internal === 0) continue;
+    const homebase_id = parseInt(id_str);
+    const external = hrMap.get(key) ?? 0;
+    const name = nameMap.get(homebase_id) ?? `Employee ${homebase_id}`;
+    rows.push({
+      homebase_id,
+      name,
+      date,
+      internal_hours: Math.round(internal * 100) / 100,
+      external_hours: Math.round(external * 100) / 100,
+      diff: Math.round((internal - external) * 100) / 100,
+    });
+  }
+
+  return rows.sort((a, b) => a.name.localeCompare(b.name) || a.date.localeCompare(b.date));
 }
 
 export function subscribeToTimeclock(onChanged: () => void) {

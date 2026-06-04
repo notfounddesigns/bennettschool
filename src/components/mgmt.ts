@@ -4,6 +4,7 @@ import {
   fetchCurrentStudents,
   fetchLastSync,
   fetchOverviewStats,
+  fetchDeHoursByDate,
   loadStudents,
   syncHoursByDate,
   submitHours,
@@ -20,6 +21,18 @@ import {
   type TimeclockStatusEntry,
 } from '../lib/api';
 
+export interface StudentGroup {
+  name: string;
+  initials: string;
+  todayEntry: TimeclockStatusEntry | null;
+  historyEntries: TimeclockStatusEntry[];
+  deHoursByDate: Record<string, number>;
+}
+
+function localDateStr(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 let _timeclockChannel: ReturnType<typeof subscribeToTimeclock> | null = null;
 import { toTitleCase, todayIso, formatSimpleDate } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
@@ -32,10 +45,14 @@ export interface MgmtStore {
   loading: boolean;
   employees: MgmtEmployee[];
   currentStudents: TimeclockStatusEntry[];
+  deHours: Record<string, number>;
   lastSync: SyncRecord | null;
   overviewStats: OverviewStats | null;
   load(): Promise<void>;
   formatLastSync(): string;
+  readonly groupedStudents: StudentGroup[];
+  readonly todayTimeclockStats: { hours: number; students: number };
+  readonly yesterdayTimeclockStats: { hours: number; students: number };
 }
 
 export function createMgmtStore(): MgmtStore {
@@ -43,22 +60,25 @@ export function createMgmtStore(): MgmtStore {
     loading: false,
     employees: [],
     currentStudents: [],
+    deHours: {},
     lastSync: null,
     overviewStats: null,
 
     async load() {
       app().showLoading();
       try {
-        const [employees, students, lastSync, overviewStats] = await Promise.all([
+        const [employees, students, lastSync, overviewStats, deHours] = await Promise.all([
           fetchEmployeeTable(),
           fetchCurrentStudents(),
           fetchLastSync(),
           fetchOverviewStats(),
+          fetchDeHoursByDate(),
         ]);
         this.employees = employees;
         this.currentStudents = students;
         this.lastSync = lastSync;
         this.overviewStats = overviewStats;
+        this.deHours = deHours;
 
         if (!_timeclockChannel) {
           _timeclockChannel = subscribeToTimeclock(async () => {
@@ -76,6 +96,59 @@ export function createMgmtStore(): MgmtStore {
     formatLastSync() {
       if (!this.lastSync) return 'No syncs recorded yet.';
       return `Last synced: ${formatSimpleDate(this.lastSync.date_synced)} — ${this.lastSync.inserted} records`;
+    },
+
+    get groupedStudents(): StudentGroup[] {
+      const today = localDateStr();
+      const groups = new Map<number, TimeclockStatusEntry[]>();
+      for (const entry of this.currentStudents) {
+        if (!groups.has(entry.homebase_id)) groups.set(entry.homebase_id, []);
+        groups.get(entry.homebase_id)!.push(entry);
+      }
+      return Array.from(groups.values())
+        .map(entries => {
+          const sorted = [...entries].sort((a, b) =>
+            new Date(b.clock_in).getTime() - new Date(a.clock_in).getTime()
+          );
+          const todayEntry = sorted.find(e => e.date === today) ?? null;
+          const historyEntries = sorted.filter(e => e.date !== today);
+          const name = entries[0].name;
+          const initials = name.split(' ').map(p => p[0] ?? '').slice(0, 2).join('').toUpperCase();
+          const homebase_id = entries[0].homebase_id;
+          const deHoursByDate: Record<string, number> = {};
+          for (const e of entries) {
+            const val = (this.deHours as Record<string, number>)[`${homebase_id}|${e.date}`];
+            if (val) deHoursByDate[e.date] = val;
+          }
+          return { name, initials, todayEntry, historyEntries, deHoursByDate };
+        })
+        // .filter(g => g.todayEntry !== null)
+        .sort((a, b) => {
+          const aActive = a.todayEntry?.is_clocked_in ? 1 : 0;
+          const bActive = b.todayEntry?.is_clocked_in ? 1 : 0;
+          if (aActive !== bActive) return bActive - aActive;
+          return a.name.localeCompare(b.name);
+        });
+    },
+
+    get todayTimeclockStats(): { hours: number; students: number } {
+      const today = localDateStr();
+      const entries: TimeclockStatusEntry[] = this.currentStudents.filter((s: TimeclockStatusEntry) => s.date === today);
+      return {
+        hours: entries.reduce((sum, s) => sum + (s.worked_hours ?? 0), 0),
+        students: new Set(entries.map(s => s.homebase_id)).size,
+      };
+    },
+
+    get yesterdayTimeclockStats(): { hours: number; students: number } {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      const yesterday = localDateStr(d);
+      const entries: TimeclockStatusEntry[] = this.currentStudents.filter((s: TimeclockStatusEntry) => s.date === yesterday);
+      return {
+        hours: entries.reduce((sum, s) => sum + (s.worked_hours ?? 0), 0),
+        students: new Set(entries.map(s => s.homebase_id)).size,
+      };
     },
 
   };
@@ -424,6 +497,59 @@ export function addStudentData() {
       } catch {
         this.error = 'Could not add student. Please try again.';
       } finally {
+        app().hideLoading();
+      }
+    },
+  };
+}
+
+// ── Add Student Direct Dialog (no Homebase lookup) ────────────────────────────
+
+export function addStudentDirectData() {
+  return {
+    firstName: '',
+    lastName: '',
+    loading: false,
+    error: '',
+
+    openModal() {
+      this.firstName = '';
+      this.lastName = '';
+      this.error = '';
+      const dialog = document.getElementById('add-student-direct-dialog') as HTMLDialogElement;
+      dialog?.showModal();
+    },
+
+    closeModal() {
+      const dialog = document.getElementById('add-student-direct-dialog') as HTMLDialogElement;
+      dialog?.close();
+    },
+
+    async submit() {
+      this.error = '';
+      const first = this.firstName.trim();
+      const last = this.lastName.trim();
+      if (!first || !last) {
+        this.error = !first && !last
+          ? 'First and last name are required.'
+          : !first
+            ? 'First name is required.'
+            : 'Last name is required.';
+        return;
+      }
+      const name = `${first} ${last}`.toLowerCase();
+      this.loading = true;
+      app().showLoading();
+      try {
+        await setEmployeePassword(Date.now(), name, 'Welcome123');
+        this.closeModal();
+        app().showSnackbar(`${toTitleCase(name)} added. Default password: Welcome123`, 'success');
+        const mgmt = Alpine.store('mgmt') as MgmtStore;
+        await mgmt.load();
+      } catch {
+        this.error = 'Could not add student. Please try again.';
+      } finally {
+        this.loading = false;
         app().hideLoading();
       }
     },

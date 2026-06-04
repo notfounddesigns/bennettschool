@@ -255,7 +255,7 @@
     <!-- ── ADMIN / MANAGEMENT ──────────────────────────────────────────── -->
     <section
       x-show="$store.app.screen === 'mgmt'"
-      x-data="{ activeTab: 'dashboard' }"
+      x-data="{ activeTab: 'timeclock' }"
       x-transition:enter="transition ease-out duration-200"
       x-transition:enter-start="opacity-0 translate-y-2.5"
       x-transition:enter-end="opacity-100 translate-y-0"
@@ -275,6 +275,11 @@
             :class="activeTab === 'timeclock' ? 'bg-white/12 text-cream' : 'text-muted hover:text-cream'"
             class="px-4 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer">
             Timeclock
+          </button>
+          <button @click="activeTab = 'compare'"
+            :class="activeTab === 'compare' ? 'bg-white/12 text-cream' : 'text-muted hover:text-cream'"
+            class="px-4 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer">
+            Compare
           </button>
         </div>
 
@@ -540,87 +545,285 @@
         </div><!-- end dashboard tab -->
 
         <!-- ── Timeclock Tab ─────────────────────────────────────────── -->
-        <div x-show="activeTab === 'timeclock'" class="flex flex-col gap-3 flex-1 min-h-0" style="display:none">
+        <div x-show="activeTab === 'timeclock'" x-data="{ tcSearch: '' }" class="flex flex-col gap-3 flex-1 min-h-0" style="display:none">
 
-          <!-- Summary stats -->
-          <div class="grid grid-cols-3 gap-3 shrink-0">
-            <div class="bg-white/8 border border-white/8 rounded-[14px] p-5">
-              <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-2">Clocked In</div>
-              <div class="font-serif text-[32px] text-sage leading-none tabular-nums"
-                x-text="$store.mgmt.currentStudents.filter(s => s.is_clocked_in && !s.on_break).length"></div>
+          <!-- Overview + Needs Attention -->
+          <div class="grid gap-3 shrink-0 grid-cols-1 md:grid-cols-[2fr_1fr] md:max-h-[200px]">
+
+            <!-- Time Punch Overview -->
+            <div x-data="overviewPanelData" class="bg-white/8 border border-white/8 rounded-[14px] p-5">
+              <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-4">Time Punch Overview</p>
+              <div class="grid grid-cols-3 divide-x divide-white/10">
+                <div class="pr-5">
+                  <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-1.5">Yesterday</div>
+                  <div class="font-serif text-[28px] text-cream leading-none tabular-nums">
+                    <span x-text="fmt(vals.yH)"></span><span class="text-xs font-sans font-normal text-muted"> hrs</span>
+                  </div>
+                  <div class="text-[11px] text-muted mt-1"><span x-text="Math.round(vals.yS)"></span> students</div>
+                </div>
+                <div class="px-5">
+                  <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-1.5">Last 7 Days</div>
+                  <div class="font-serif text-[28px] text-cream leading-none tabular-nums">
+                    <span x-text="fmt(vals.wH)"></span><span class="text-xs font-sans font-normal text-muted"> hrs</span>
+                  </div>
+                  <div class="text-[11px] text-muted mt-1"><span x-text="Math.round(vals.wS)"></span> students</div>
+                </div>
+                <div class="pl-5">
+                  <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-1.5">Month to Date</div>
+                  <div class="font-serif text-[28px] text-cream leading-none tabular-nums">
+                    <span x-text="fmt(vals.mH)"></span><span class="text-xs font-sans font-normal text-muted"> hrs</span>
+                  </div>
+                  <div class="text-[11px] text-muted mt-1"><span x-text="Math.round(vals.mS)"></span> students</div>
+                </div>
+              </div>
             </div>
-            <div class="bg-white/8 border border-white/8 rounded-[14px] p-5">
-              <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-2">On Break</div>
-              <div class="font-serif text-[32px] text-blush leading-none tabular-nums"
-                x-text="$store.mgmt.currentStudents.filter(s => s.on_break).length"></div>
+
+            <!-- Needs Attention -->
+            <div class="max-h-[175px] md:max-h-none bg-white/8 border border-white/8 rounded-[14px] p-5 overflow-y-auto">
+              <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-3">Needs Attention</p>
+              <template x-if="$store.mgmt.loading">
+                <p class="text-[12px] text-muted">Loading&hellip;</p>
+              </template>
+              <template x-if="!$store.mgmt.loading && $store.mgmt.employees.length > 0 && $store.mgmt.employees.filter(e => e.total_hrs === 0).length === 0">
+                <div class="flex flex-col items-center justify-center py-3 text-center">
+                  <div class="w-8 h-8 rounded-full bg-sage/20 flex items-center justify-center mb-2">
+                    <svg class="text-sage" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <p class="text-[12px] text-sage font-medium">All students active</p>
+                </div>
+              </template>
+              <ul x-show="!$store.mgmt.loading && $store.mgmt.employees.filter(e => e.total_hrs === 0).length > 0" class="space-y-2.5">
+                <template x-for="emp in $store.mgmt.employees.filter(e => e.total_hrs === 0)" :key="emp.homebase_id">
+                  <li class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-blush/20 text-blush flex items-center justify-center text-[10px] font-bold shrink-0"
+                         x-text="emp.name.split(' ').map(p => p[0] ?? '').slice(0,2).join('').toUpperCase()"></div>
+                    <div class="min-w-0">
+                      <div class="text-[12px] font-medium text-cream truncate" x-text="emp.name"></div>
+                      <div class="text-[10px] text-blush/60">No hours logged yet</div>
+                    </div>
+                  </li>
+                </template>
+              </ul>
             </div>
-            <div class="bg-white/8 border border-white/8 rounded-[14px] p-5">
-              <div class="text-[10px] text-muted uppercase tracking-[0.07em] mb-2">Total Today</div>
-              <div class="font-serif text-[32px] text-cream leading-none tabular-nums"
-                x-text="$store.mgmt.currentStudents.length"></div>
-            </div>
+
+          </div>
+
+          <!-- Toolbar -->
+          <div class="flex items-center gap-2 shrink-0">
+            <input type="search" x-model="tcSearch" placeholder="Search by name&hellip;"
+              class="w-full max-w-xs px-3.5 py-1.5 border border-white/15 rounded-[8px] bg-white/8 text-cream text-[12px] placeholder:text-muted outline-none focus:border-blush" />
+            <div class="flex-1"></div>
+            <button @click="$dispatch('open-add-student-direct')"
+              class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+              Add Student
+            </button>
+            <button @click="$dispatch('open-export-dialog')" :disabled="$store.mgmt.employees.length === 0"
+              class="inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full bg-action-btn text-cream border border-white/8 text-[12px] font-semibold cursor-pointer transition-colors hover:bg-action-btn-hover disabled:opacity-45 disabled:cursor-not-allowed">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export
+            </button>
           </div>
 
           <!-- Timeclock student list -->
-          <div class="flex-1 min-h-0 max-h-100 md:max-h-none bg-white rounded-[14px] shadow-card overflow-auto">
+          <div class="flex-1 min-h-0 max-h-100 md:max-h-none bg-white rounded-card shadow-card overflow-auto">
+            <template x-if="$store.mgmt.loading">
+              <div class="flex items-center justify-center py-10 text-muted text-[13px]">
+                <span class="spinner mr-2"></span>Loading&#8230;
+              </div>
+            </template>
+            <template x-if="!$store.mgmt.loading && $store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length === 0">
+              <div class="text-center py-10 text-muted text-[13px]">No students found.</div>
+            </template>
+            <template x-if="!$store.mgmt.loading && $store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length > 0">
+              <div>
+                <!-- Column header — widths must match every data row exactly -->
+                <div class="sticky top-0 z-10 flex items-center gap-3 px-4 py-2.5 bg-cream border-b border-app-border">
+                  <span class="w-56 shrink-0 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Student</span>
+                  <div class="flex-1"></div>
+                  <span class="hidden sm:block w-28 shrink-0 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Date</span>
+                  <div class="flex-1"></div>
+                  <span class="w-24 shrink-0 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Clock In</span>
+                  <div class="flex-1"></div>
+                  <span class="hidden md:block w-24 shrink-0 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Clock Out</span>
+                  <div class="flex-1"></div>
+                  <span class="w-16 shrink-0 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Hours</span>
+                  <div class="flex-1"></div>
+                  <span class="hidden sm:block w-16 shrink-0 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">DE Hrs</span>
+                  <div class="flex-1"></div>
+                  <span class="hidden sm:block w-24 shrink-0 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Status</span>
+                  <div class="flex-1"></div>
+                  <div class="w-5 shrink-0"></div>
+                </div>
+                <template x-for="group in $store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase()))" :key="group.name">
+                  <div class="border-b border-app-border last:border-b-0" x-data="{ open: false }">
+                    <!-- Main student row -->
+                    <div class="flex items-center gap-3 px-4 py-3 hover:bg-[#f5f3f0] transition-colors cursor-pointer select-none"
+                      @click="open = !open">
+                      <div class="w-56 shrink-0 flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-blush text-white flex items-center justify-center text-[11px] font-bold shrink-0 leading-none"
+                          x-text="group.initials"></div>
+                        <span class="font-medium text-charcoal text-[13px] truncate" x-text="group.name"></span>
+                      </div>
+                      <div class="flex-1"></div>
+                      <span class="hidden sm:block w-28 shrink-0 tabular-nums text-charcoal text-[13px]" x-text="group.todayEntry?.date ?? new Date().toISOString().split('T')[0]"></span>
+                      <div class="flex-1"></div>
+                      <span class="w-24 shrink-0 tabular-nums text-charcoal text-[13px]"
+                        x-text="group.todayEntry ? new Date(group.todayEntry.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
+                      <div class="flex-1"></div>
+                      <span class="hidden md:block w-24 shrink-0 tabular-nums text-charcoal text-[13px]"
+                        x-text="group.todayEntry?.clock_out ? new Date(group.todayEntry.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
+                      <div class="flex-1"></div>
+                      <span class="w-16 shrink-0 tabular-nums text-charcoal text-[13px]"
+                        x-text="parseFloat(group.todayEntry?.worked_hours ?? 0).toFixed(1) + ' hrs'"></span>
+                      <div class="flex-1"></div>
+                      <span class="hidden sm:block w-16 shrink-0 tabular-nums text-charcoal text-[13px]"
+                        x-text="(group.deHoursByDate[group.todayEntry?.date ?? ''] ?? 0) > 0 ? (group.deHoursByDate[group.todayEntry?.date ?? ''] ?? 0).toFixed(1) + ' hrs' : '—'"></span>
+                      <div class="flex-1"></div>
+                      <div class="hidden sm:block w-24 shrink-0">
+                        <span x-show="group.todayEntry?.is_clocked_in && !group.todayEntry?.on_break"
+                          class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sage/15 text-sage">
+                          <span class="w-1.5 h-1.5 rounded-full bg-sage inline-block"></span>Clocked In
+                        </span>
+                        <span x-show="group.todayEntry?.on_break" style="display:none"
+                          class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blush/15 text-blush">
+                          <span class="w-1.5 h-1.5 rounded-full bg-blush inline-block"></span>On Break
+                        </span>
+                        <span x-show="group.todayEntry && !group.todayEntry.is_clocked_in" style="display:none"
+                          class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
+                          <span class="w-1.5 h-1.5 rounded-full bg-muted/60 inline-block"></span>Clocked Out
+                        </span>
+                        <span x-show="!group.todayEntry" style="display:none"
+                          class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
+                          <span class="w-1.5 h-1.5 rounded-full bg-muted/60 inline-block"></span>Clocked Out
+                        </span>
+                      </div>
+                      <div class="flex-1"></div>
+                      <div class="w-5 shrink-0 flex items-center">
+                        <svg x-show="group.historyEntries.length > 0"
+                          :class="open ? 'rotate-180' : ''"
+                          class="w-5 h-5 text-muted transition-transform duration-200"
+                          xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                    <!-- History rows — same column widths as main row -->
+                    <div x-show="open" x-transition>
+                      <template x-for="hist in group.historyEntries" :key="hist.clock_in">
+                        <div class="flex items-center gap-3 px-4 py-2.5 bg-[#fafafa] border-t border-app-border/50">
+                          <div class="w-56 shrink-0"></div>
+                          <div class="flex-1"></div>
+                          <span class="hidden sm:block w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="hist.date"></span>
+                          <div class="flex-1"></div>
+                          <span class="w-24 shrink-0 tabular-nums text-muted text-[12px]"
+                            x-text="new Date(hist.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
+                          <div class="flex-1"></div>
+                            <span class="hidden md:block w-24 shrink-0 tabular-nums text-muted text-[12px]"
+                            x-text="hist.clock_out ? new Date(hist.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
+                          <div class="flex-1"></div>
+                            <span class="w-16 shrink-0 tabular-nums text-muted text-[12px]"
+                            x-text="parseFloat(hist.worked_hours ?? 0).toFixed(1) + ' hrs'"></span>
+                          <div class="flex-1"></div>
+                          <span class="hidden sm:block w-16 shrink-0 tabular-nums text-muted text-[12px]"
+                            x-text="(group.deHoursByDate[hist.date] ?? 0) > 0 ? (group.deHoursByDate[hist.date] ?? 0).toFixed(1) + ' hrs' : '—'"></span>
+                          <div class="flex-1"></div>
+                            <div class="hidden sm:block w-24 shrink-0"></div>
+                          <div class="flex-1"></div>
+                          <div class="w-5 shrink-0"></div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+
+        </div><!-- end timeclock tab -->
+
+        <!-- ── Compare Tab ──────────────────────────────────────────── -->
+        <div x-show="activeTab === 'compare'"
+             x-data="compareTableData"
+             x-effect="activeTab === 'compare' && rows.length === 0 && !loading && load()"
+             class="flex flex-col gap-3 flex-1 min-h-0"
+             style="display:none">
+
+          <!-- Search bar -->
+          <div class="flex items-center gap-2 shrink-0">
+            <input type="search" x-model="search" placeholder="Search by name&hellip;"
+              class="w-full max-w-xs px-3.5 py-1.5 border border-white/15 rounded-[8px] bg-white/8 text-cream text-[12px] placeholder:text-muted outline-none focus:border-blush" />
+            <span x-show="!loading && rows.length > 0" class="text-[11px] text-muted"
+              x-text="filteredRows.length + ' of ' + rows.length + ' rows'"></span>
+          </div>
+
+          <!-- Compare table -->
+          <div class="flex-1 min-h-0 max-h-100 md:max-h-none bg-white rounded-card shadow-card overflow-auto">
             <table class="w-full border-collapse text-[13px]">
               <thead class="sticky top-0 z-10 bg-cream">
                 <tr>
-                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Student</th>
-                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Date</th>
-                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Clock In</th>
-                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Clock Out</th>
-                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border hidden sm:table-cell">Hours</th>
-                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Status</th>
+                  <th @click="toggleSort('name')"
+                    class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1">Name
+                      <span class="text-[10px]" :class="sortIconClass('name')" x-text="sortIcon('name')"></span>
+                    </span>
+                  </th>
+                  <th @click="toggleSort('date')"
+                    class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1">Date
+                      <span class="text-[10px]" :class="sortIconClass('date')" x-text="sortIcon('date')"></span>
+                    </span>
+                  </th>
+                  <th @click="toggleSort('internal_hours')"
+                    class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1">Internal (Timeclock)
+                      <span class="text-[10px]" :class="sortIconClass('internal_hours')" x-text="sortIcon('internal_hours')"></span>
+                    </span>
+                  </th>
+                  <th @click="toggleSort('external_hours')"
+                    class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1">External (Homebase)
+                      <span class="text-[10px]" :class="sortIconClass('external_hours')" x-text="sortIcon('external_hours')"></span>
+                    </span>
+                  </th>
+                  <th @click="toggleSort('diff')"
+                    class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border cursor-pointer select-none hover:text-charcoal transition-colors whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1">Difference
+                      <span class="text-[10px]" :class="sortIconClass('diff')" x-text="sortIcon('diff')"></span>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                <template x-if="$store.mgmt.loading">
-                  <tr><td colspan="4" class="text-center py-10 text-muted text-[13px]">
+                <template x-if="loading">
+                  <tr><td colspan="5" class="text-center py-10 text-muted text-[13px]">
                     <span class="spinner mr-2" style="vertical-align:middle;"></span>Loading&#8230;
                   </td></tr>
                 </template>
-                <template x-if="!$store.mgmt.loading && $store.mgmt.currentStudents.length === 0">
-                  <tr><td colspan="4" class="text-center py-10 text-muted text-[13px]">No students clocked in today.</td></tr>
+                <template x-if="!loading && rows.length === 0">
+                  <tr><td colspan="5" class="text-center py-10 text-muted text-[13px]">No data for the selected date range.</td></tr>
                 </template>
-                <template x-for="entry in $store.mgmt.currentStudents" :key="entry.name + entry.clock_in">
+                <template x-for="row in filteredRows" :key="row.homebase_id + '|' + row.date">
                   <tr class="even:bg-[#fafafa] hover:bg-[#f5f3f0] transition-colors">
                     <td class="px-4 py-2.5 border-b border-app-border">
                       <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-full bg-blush text-white flex items-center justify-center text-[11px] font-bold shrink-0 leading-none"
-                          x-text="entry.name.split(' ').map(p => p[0] ?? '').slice(0,2).join('').toUpperCase()"></div>
-                        <span class="font-medium text-charcoal" x-text="entry.name"></span>
+                        <div class="w-7 h-7 rounded-full bg-blush text-white flex items-center justify-center text-[10px] font-bold shrink-0 leading-none"
+                             x-text="row.name.split(' ').map(p => p[0] ?? '').slice(0,2).join('').toUpperCase()"></div>
+                        <span class="font-medium text-charcoal truncate" x-text="row.name"></span>
                       </div>
                     </td>
+                    <td class="px-4 py-2.5 border-b border-app-border tabular-nums text-charcoal" x-text="row.date"></td>
                     <td class="px-4 py-2.5 border-b border-app-border">
-                      <span class="tabular-nums text-charcoal"
-                        x-text="entry.date"></span>
-                    </td>
-                    <td class="px-4 py-2.5 border-b border-app-border">
-                      <span class="tabular-nums text-charcoal"
-                        x-text="new Date(entry.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
-                    </td>
-                    <td class="px-4 py-2.5 border-b border-app-border">
-                      <span x-show="entry.clock_out" class="tabular-nums text-charcoal"
-                        x-text="new Date(entry.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
-                    </td>
-                    <td class="px-4 py-2.5 border-b border-app-border hidden sm:table-cell">
-                      <span class="tabular-nums text-charcoal" x-text="parseFloat(entry.worked_hours ?? 0).toFixed(1)"></span>
+                      <span class="tabular-nums text-charcoal" x-text="row.internal_hours.toFixed(2)"></span>
                       <span class="text-muted text-[11px]"> hrs</span>
                     </td>
                     <td class="px-4 py-2.5 border-b border-app-border">
-                      <span x-show="entry.is_clocked_in && !entry.on_break"
-                        class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sage/15 text-sage">
-                        <span class="w-1.5 h-1.5 rounded-full bg-sage inline-block"></span>Clocked In
-                      </span>
-                      <span x-show="entry.on_break" style="display:none"
-                        class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blush/15 text-blush">
-                        <span class="w-1.5 h-1.5 rounded-full bg-blush inline-block"></span>On Break
-                      </span>
-                      <span x-show="!entry.is_clocked_in" style="display:none"
-                        class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
-                        <span class="w-1.5 h-1.5 rounded-full bg-muted/60 inline-block"></span>Clocked Out
-                      </span>
+                      <span class="tabular-nums text-charcoal" x-text="row.external_hours.toFixed(2)"></span>
+                      <span class="text-muted text-[11px]"> hrs</span>
+                    </td>
+                    <td class="px-4 py-2.5 border-b border-app-border">
+                      <span class="tabular-nums font-medium" :class="diffColor(row.diff)"
+                        x-text="(row.diff >= 0 ? '+' : '') + row.diff.toFixed(2) + ' hrs'"></span>
                     </td>
                   </tr>
                 </template>
@@ -628,7 +831,7 @@
             </table>
           </div>
 
-        </div><!-- end timeclock tab -->
+        </div><!-- end compare tab -->
 
       </div>
     </section>
@@ -697,6 +900,44 @@
         </button>
         <button @click="submit()" :disabled="studentsLoading || students.length === 0"
           class="inline-flex items-center justify-center gap-2 h-[38px] px-[18px] font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
+          Add Student
+        </button>
+      </div>
+    </dialog>
+
+    <!-- ── ADD STUDENT DIRECT DIALOG ────────────────────────────────────── -->
+    <dialog
+      id="add-student-direct-dialog"
+      x-data="addStudentDirectData"
+      @open-add-student-direct.window="openModal()"
+      class="modal border-none rounded-[14px] shadow-[var(--shadow-lg)] p-0 w-[clamp(300px,92vw,440px)] bg-modal-bg m-auto">
+      <div class="px-[22px] py-[18px] border-b border-app-border">
+        <span class="font-serif text-lg text-cream">Add New Student</span>
+      </div>
+      <div class="px-[22px] py-5 flex flex-col gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="new-student-first">First Name</label>
+          <input id="new-student-first" type="text" x-model="firstName" @keydown.enter="submit()"
+            placeholder="Jane"
+            class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="new-student-last">Last Name</label>
+          <input id="new-student-last" type="text" x-model="lastName" @keydown.enter="submit()"
+            placeholder="Smith"
+            class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
+        </div>
+        <p class="text-[11px] text-muted">The student will log in with the default password <span class="font-semibold text-cream">Welcome123</span> and be prompted to set their own.</p>
+        <p x-show="error" x-text="error" class="text-[12px] text-app-error" style="display:none;"></p>
+      </div>
+      <div class="flex gap-2.5 justify-end px-[22px] pb-[18px] pt-3.5 border-t border-app-border">
+        <button @click="closeModal()" :disabled="loading"
+          class="inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-[38px] px-[18px] text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover disabled:opacity-45 disabled:cursor-not-allowed">
+          Cancel
+        </button>
+        <button @click="submit()" :disabled="loading"
+          class="inline-flex items-center justify-center gap-2 h-[38px] px-[18px] font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
+          <span x-show="loading" class="spinner"></span>
           Add Student
         </button>
       </div>
