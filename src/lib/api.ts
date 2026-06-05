@@ -2,12 +2,18 @@ import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY, PROXY, AUTH_HEADERS } from '
 import { fmtFloat, nDaysAgo } from './helpers';
 
 // ── Types ─────────────────────────────────────────────────────────────────
-
-export interface Employee {
+export interface LoginResult {
+  data: {
+    result: 'first_time' | 'ok';
+    student: Student;
+    error?: string
+  }
+}
+export interface Student {
   id: number;
   first_name: string;
   last_name: string;
-  job: { level: string };
+  role_id: number;
 }
 
 export interface HoursType {
@@ -381,7 +387,7 @@ export async function loginEmployee(
   first: string,
   last: string,
   password: string,
-): Promise<{ result: 'first_time' | 'ok'; employee: Employee }> {
+): Promise<{ result: 'first_time' | 'ok'; student: Student }> {
   const res = await fetch(`${PROXY}/auth-login`, {
     method: 'POST',
     headers: AUTH_HEADERS,
@@ -391,7 +397,8 @@ export async function loginEmployee(
       password,
     }),
   });
-  const data = await res.json() as { result: 'first_time' | 'ok'; employee: Employee; error?: string };
+  const result = await res.json() as LoginResult;
+  const data = result.data;
   if (!res.ok) throw new Error(data.error ?? 'Login failed. Please try again.');
   return data;
 }

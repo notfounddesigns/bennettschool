@@ -1,4 +1,4 @@
-import type { Employee } from './api';
+import type { Student } from './api';
 import { getInitials, toTitleCase } from './helpers';
 
 export type Screen = 'login' | 'setpass' | 'dashboard' | 'mgmt';
@@ -11,14 +11,14 @@ export interface SnackbarState {
 }
 
 export interface AppStore {
-  currentEmployee: Employee | null;
+  currentEmployee: Student | null;
   screen: Screen;
   snackbar: SnackbarState;
   globalLoading: boolean;
   readonly avatarInitials: string;
   readonly displayName: string;
 
-  setEmployee(emp: Employee): void;
+  setEmployee(emp: Student): void;
   clearEmployee(): void;
   showScreen(s: Screen): void;
   showSnackbar(message: string, type?: SnackbarType, duration?: number): void;
@@ -52,7 +52,7 @@ export function createAppStore(): AppStore {
       return toTitleCase(`${this.currentEmployee.first_name} ${this.currentEmployee.last_name}`);
     },
 
-    setEmployee(emp: Employee) {
+    setEmployee(emp: Student) {
       this.currentEmployee = emp;
       localStorage.setItem('employee', JSON.stringify(emp));
     },

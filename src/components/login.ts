@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import { loginEmployee } from '../lib/api';
+import { loginEmployee, type Student } from '../lib/api';
 import type { AppStore } from '../lib/store';
 import type { DashboardStore } from './dashboard';
 import type { MgmtStore } from './mgmt';
@@ -28,20 +28,20 @@ export function loginData() {
       try {
         const data = await loginEmployee(first, last, password);
         const store = Alpine.store('app') as AppStore;
-        store.setEmployee(data.employee);
+        store.setEmployee(data.student);
 
         if (data.result === 'first_time') {
           store.showScreen('setpass');
           return;
         }
 
-        const isManager = data.employee.job.level === 'Manager';
+        const isManager = data.student.role_id === 3;
         if (isManager) {
           store.showScreen('mgmt');
           await (Alpine.store('mgmt') as MgmtStore).load();
         } else {
           store.showScreen('dashboard');
-          await (Alpine.store('dashboard') as DashboardStore).load(data.employee.id);
+          await (Alpine.store('dashboard') as DashboardStore).load(data.student.id);
         }
       } catch (e: unknown) {
         this.error = e instanceof Error ? e.message : 'Network error. Please try again.';
