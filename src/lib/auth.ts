@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import { validateCachedEmployee } from './api';
+import { validateCachedEmployee, type Student } from './api';
 import type { AppStore } from './store';
 import type { DashboardStore } from '../components/dashboard';
 import type { MgmtStore } from '../components/mgmt';
@@ -18,21 +18,21 @@ export async function restoreSession(): Promise<boolean> {
   if (!raw) return false;
 
   try {
-    const emp = JSON.parse(raw);
-    const valid = await validateCachedEmployee(emp.id);
+    const emp = JSON.parse(raw) as Student;
+    const valid = await validateCachedEmployee(emp.homebase_id);
     if (!valid) {
       localStorage.removeItem('employee');
       return false;
     }
     store().setEmployee(emp);
 
-    const isManager = emp.job?.level === 'Manager';
+    const isManager = emp.role_id === 3;
     if (isManager) {
       store().showScreen('mgmt');
       await (Alpine.store('mgmt') as MgmtStore).load();
     } else {
       store().showScreen('dashboard');
-      await (Alpine.store('dashboard') as DashboardStore).load(emp.id);
+      await (Alpine.store('dashboard') as DashboardStore).load(emp.homebase_id);
     }
     return true;
   } catch {
