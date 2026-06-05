@@ -42,14 +42,14 @@ export function createAppStore(): AppStore {
     get avatarInitials(): string {
       if (!this.currentEmployee) return '??';
       const name = toTitleCase(
-        `${this.currentEmployee.first_name} ${this.currentEmployee.last_name}`,
+        `${this.currentEmployee.name}`,
       );
       return getInitials(name);
     },
 
     get displayName(): string {
       if (!this.currentEmployee) return '';
-      return toTitleCase(`${this.currentEmployee.first_name} ${this.currentEmployee.last_name}`);
+      return toTitleCase(`${this.currentEmployee.name}`);
     },
 
     setEmployee(emp: Student) {

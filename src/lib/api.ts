@@ -3,16 +3,13 @@ import { fmtFloat, nDaysAgo } from './helpers';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 export interface LoginResult {
-  data: {
-    result: 'first_time' | 'ok';
-    student: Student;
-    error?: string
-  }
+  result: 'first_time' | 'ok';
+  student: Student;
+  error?: string;
 }
 export interface Student {
-  id: number;
-  first_name: string;
-  last_name: string;
+  homebase_id: number;
+  name: string;
   role_id: number;
 }
 
@@ -398,23 +395,30 @@ export async function loginEmployee(
     }),
   });
   const result = await res.json() as LoginResult;
-  const data = result.data;
-  if (!res.ok) throw new Error(data.error ?? 'Login failed. Please try again.');
-  return data;
+  if (!res.ok) throw new Error(result.error ?? 'Login failed. Please try again.');
+  return result;
 }
 
 export async function setEmployeePassword(
-  homebseId: number,
+  homebaseId: number,
   fullName: string,
   password: string,
 ): Promise<void> {
   const res = await fetch(`${PROXY}/set-password`, {
     method: 'POST',
     headers: AUTH_HEADERS,
-    body: JSON.stringify({ homebase_id: String(homebseId), password, name: fullName }),
+    body: JSON.stringify({ homebase_id: String(homebaseId), password, name: fullName }),
   });
   const data = await res.json() as { error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Could not save password. Please try again.');
+}
+
+export async function clearStudentPassword(homebaseId: number): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ password_hash: null })
+    .eq('homebase_id', homebaseId);
+  if (error) throw new Error(error.message);
 }
 
 export async function exportStudents(month: number, year: number): Promise<Blob> {

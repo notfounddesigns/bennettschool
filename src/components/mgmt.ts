@@ -11,6 +11,7 @@ import {
   submitHours,
   submitGradeEntry,
   setEmployeePassword,
+  clearStudentPassword,
   exportStudents,
   setStudentPin,
   updateStudentName,
@@ -442,7 +443,7 @@ export function syncDialogData() {
       app().showLoading();
       try {
         const emp = app().currentEmployee!;
-        const synced_by = `${emp.first_name} ${emp.last_name}`;
+        const synced_by = `${emp.name}`;
         const { inserted } = await syncHoursByDate(this.date, synced_by);
         this.closeDialog();
         app().showSnackbar(`Success — ${inserted} timecards synced.`, 'success');
@@ -741,7 +742,7 @@ export function resetPasswordData() {
     async confirm() {
       app().showLoading();
       try {
-        await setEmployeePassword(this.employeeId, this.employeeName, 'Welcome123');
+        await clearStudentPassword(this.employeeId);
         this.closeDialog();
         app().showSnackbar(`Password reset for ${toTitleCase(this.employeeName)}.`, 'success');
       } catch {

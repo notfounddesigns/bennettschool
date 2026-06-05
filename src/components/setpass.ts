@@ -32,18 +32,18 @@ export function setpassData() {
 
       this.loading = true;
       try {
-        const fullName = `${emp.first_name} ${emp.last_name}`;
-        await setEmployeePassword(emp.id, fullName, np);
+        const fullName = `${emp.name}`;
+        await setEmployeePassword(emp.homebase_id, fullName, np);
         this.success = 'Password saved! Taking you to your dashboard…';
 
         setTimeout(async () => {
-          const isManager = emp.job.level === 'Manager';
+          const isManager = emp.role_id === 3;
           if (isManager) {
             store.showScreen('mgmt');
             await (Alpine.store('mgmt') as MgmtStore).load();
           } else {
             store.showScreen('dashboard');
-            await (Alpine.store('dashboard') as DashboardStore).load(emp.id);
+            await (Alpine.store('dashboard') as DashboardStore).load(emp.homebase_id);
           }
         }, 1200);
       } catch (e: unknown) {

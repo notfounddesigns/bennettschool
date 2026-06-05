@@ -28,6 +28,8 @@
 
 ## Bugs
 
+- [x] The reset student password should clear the password_hash field for that student rather than calling 'set-pass'. 
+
 ---
 
 ## Refactor / Code Quality

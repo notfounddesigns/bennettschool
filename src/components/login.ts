@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import { loginEmployee, type Student } from '../lib/api';
+import { loginEmployee } from '../lib/api';
 import type { AppStore } from '../lib/store';
 import type { DashboardStore } from './dashboard';
 import type { MgmtStore } from './mgmt';
@@ -41,7 +41,7 @@ export function loginData() {
           await (Alpine.store('mgmt') as MgmtStore).load();
         } else {
           store.showScreen('dashboard');
-          await (Alpine.store('dashboard') as DashboardStore).load(data.student.id);
+          await (Alpine.store('dashboard') as DashboardStore).load(data.student.homebase_id);
         }
       } catch (e: unknown) {
         this.error = e instanceof Error ? e.message : 'Network error. Please try again.';
