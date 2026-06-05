@@ -50,11 +50,18 @@ export interface StudentDashboard {
 export interface MgmtEmployee {
   homebase_id: number;
   name: string;
+  role_id: number;
+  role_name: string;
   in_person_hrs: string;
   de_hrs: string;
   total_hrs: number;
   hrs_to_graduate: number;
   percent_complete: number;
+}
+
+export interface Role {
+  id: number;
+  role_name: string;
 }
 
 export interface SyncRecord {
@@ -144,12 +151,23 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
 }
 
 export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
-  const { data, error } = await supabase
-    .from('profiles_view')
-    .select(`homebase_id, name, role_id, role_name, total_hrs, hrs_to_graduate, percent_complete, hours`)
-    .order('name');
+  const [{ data, error }, { data: profileData }] = await Promise.all([
+    supabase
+      .from('profiles_view')
+      .select(`homebase_id, name, role_id, role_name, total_hrs, hrs_to_graduate, percent_complete, hours`)
+      .order('name'),
+    supabase
+      .from('profiles')
+      .select('homebase_id, is_active'),
+  ]);
 
   if (error) throw new Error('Failed to load employees');
+
+  const activeIds = new Set(
+    ((profileData ?? []) as Array<{ homebase_id: number; is_active: boolean }>)
+      .filter(p => p.is_active !== false)
+      .map(p => p.homebase_id)
+  );
 
   return (data as Array<{
     homebase_id: number;
@@ -161,7 +179,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
     percent_complete: number;
     hours: Array<{ type_id: number; hours: number }>;
   }>)
-  .filter(emp => emp.role_id === 1)
+  .filter(emp => emp.role_id === 1 && activeIds.has(emp.homebase_id))
   .map(emp => {
     const inPersonHrs = emp.hours
       .filter(h => h.type_id !== 2)
@@ -173,6 +191,8 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
     return {
       homebase_id: emp.homebase_id,
       name: emp.name,
+      role_id: emp.role_id,
+      role_name: emp.role_name ?? '',
       in_person_hrs: fmtFloat(inPersonHrs),
       de_hrs: fmtFloat(deHrs),
       total_hrs: emp.total_hrs ?? 0,
@@ -180,6 +200,23 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       percent_complete: emp.percent_complete ?? 0,
     };
   });
+}
+
+export async function fetchRoles(): Promise<Role[]> {
+  const { data, error } = await supabase
+    .from('roles')
+    .select('id, role_name')
+    .order('id');
+  if (error) throw new Error('Failed to load roles');
+  return (data ?? []) as Role[];
+}
+
+export async function updateStudentRole(homebaseId: number, roleId: number): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ role_id: roleId })
+    .eq('homebase_id', homebaseId);
+  if (error) throw new Error('Failed to update role');
 }
 
 export interface TimeclockStatusEntry {
@@ -200,8 +237,6 @@ export async function fetchCurrentStudents(): Promise<TimeclockStatusEntry[]> {
     .order('clock_in', { ascending: false });
 
   if (error) throw new Error('Failed to load timeclock entries');
-  
-  console.log(data)
 
   return (data ?? []) as TimeclockStatusEntry[];
 }
@@ -239,18 +274,18 @@ export async function fetchOverviewStats(): Promise<OverviewStats> {
   const startDate = mtdStartStr < sevenDaysAgoStr ? mtdStartStr : sevenDaysAgoStr;
 
   const { data } = await supabase
-    .from('hours')
-    .select('hours, date, type_id, homebase_id')
-    .neq('type_id', 2)
-    .gte('date', startDate);
+    .from('timeclock_status')
+    .select('worked_hours, date, homebase_id')
+    .gte('date', startDate)
+    .not('clock_out', 'is', null);
 
-  const rows = (data ?? []) as Array<{ hours: number; date: string; homebase_id: number }>;
-  rows.map(r => r.date = r.date.split('T')[0]);
+  const rows = (data ?? []) as Array<{ worked_hours: number | null; date: string; homebase_id: number }>;
+  rows.forEach(r => { r.date = r.date.split('T')[0]; });
   const yRows  = rows.filter(r => r.date === yesterdayStr);
   const w7Rows = rows.filter(r => r.date >= sevenDaysAgoStr);
   const mRows  = rows.filter(r => r.date >= mtdStartStr);
 
-  const sum  = (a: typeof rows) => a.reduce((s, r) => s + (r.hours ?? 0), 0);
+  const sum  = (a: typeof rows) => a.reduce((s, r) => s + (r.worked_hours ?? 0), 0);
   const uniq = (a: typeof rows) => new Set(a.map(r => r.homebase_id)).size;
 
   return {
@@ -411,12 +446,14 @@ export interface ActiveSession {
 // ── Timeclock API ─────────────────────────────────────────────────────────────
 
 export async function getStudentByPin(pin: string): Promise<TimeclockStudent | null> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('homebase_id, name')
-    .eq('pin', pin)
-    .single();
-  return data as TimeclockStudent | null;
+  const res = await fetch(`${PROXY}/verify-pin`, {
+    method: 'POST',
+    headers: AUTH_HEADERS,
+    body: JSON.stringify({ pin }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json() as { student: TimeclockStudent | null };
+  return data.student;
 }
 
 export async function getActiveSession(homebaseId: number): Promise<ActiveSession | null> {
@@ -478,11 +515,56 @@ export async function endBreak(breakId: string): Promise<void> {
 }
 
 export async function setStudentPin(homebaseId: number, pin: string): Promise<void> {
+  const res = await fetch(`${PROXY}/set-pin`, {
+    method: 'POST',
+    headers: AUTH_HEADERS,
+    body: JSON.stringify({ homebase_id: homebaseId, pin }),
+  });
+  const data = await res.json() as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to set PIN');
+}
+
+export async function updateStudentName(homebaseId: number, name: string): Promise<void> {
   const { error } = await supabase
     .from('profiles')
-    .update({ pin })
+    .update({ name })
     .eq('homebase_id', homebaseId);
-  if (error) throw new Error('Failed to set PIN');
+  if (error) throw new Error('Failed to update name');
+}
+
+export async function removeStudent(homebaseId: number): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ is_active: false })
+    .eq('homebase_id', homebaseId);
+  if (error) throw new Error('Failed to remove student');
+}
+
+export async function updateTimeclockEntry(
+  homebaseId: number,
+  originalClockIn: string,
+  updates: { clock_in?: string; clock_out?: string | null }
+): Promise<void> {
+  const { error } = await supabase
+    .from('timeclock_entries')
+    .update(updates)
+    .eq('homebase_id', homebaseId)
+    .eq('clock_in', originalClockIn);
+  if (error) throw new Error('Failed to update timeclock entry');
+}
+
+export async function fetchAllGrades(): Promise<Record<number, GradeEntry[]>> {
+  const { data, error } = await supabase
+    .from('grades')
+    .select('homebase_id, date, project, category, score, notes')
+    .order('date', { ascending: false });
+  if (error) throw new Error('Failed to load grades');
+  const result: Record<number, GradeEntry[]> = {};
+  for (const row of (data ?? []) as Array<{ homebase_id: number } & GradeEntry>) {
+    if (!result[row.homebase_id]) result[row.homebase_id] = [];
+    result[row.homebase_id].push({ date: row.date, project: row.project, category: row.category, score: row.score, notes: row.notes });
+  }
+  return result;
 }
 
 export async function fetchDeHoursByDate(): Promise<Record<string, number>> {
