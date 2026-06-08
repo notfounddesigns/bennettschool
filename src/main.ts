@@ -1,7 +1,7 @@
 import './style.css';
 import Alpine from 'alpinejs';
 import { createAppStore } from './lib/store';
-import { createDashboardStore, dashboardDisplayData } from './components/dashboard';
+import { createDashboardStore, dashboardDisplayData, changePinData } from './components/dashboard';
 import { createMgmtStore, hoursModalData, gradesModalData, syncDialogData, resetPasswordData, inlineHoursData, addStudentData, addStudentDirectData, exportDialogData, setPinData, overviewPanelData, mgmtTableData, editStudentNameData, removeStudentData, historyRowData, addEntryModalData, gradeRowData } from './components/mgmt';
 import { compareTableData } from './components/compare';
 import { loginData } from './components/login';
@@ -19,6 +19,7 @@ Alpine.store('mgmt', createMgmtStore());
 Alpine.data('loginData', loginData);
 Alpine.data('setpassData', setpassData);
 Alpine.data('dashboardDisplayData', dashboardDisplayData);
+Alpine.data('changePinData', changePinData);
 Alpine.data('hoursModalData', hoursModalData);
 Alpine.data('gradesModalData', gradesModalData);
 Alpine.data('syncDialogData', syncDialogData);

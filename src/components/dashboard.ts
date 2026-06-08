@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import { fetchStudentDashboard, type StudentDashboard, type HourEntry, type DeEntry, type GradeEntry } from '../lib/api';
+import { fetchStudentDashboard, changeStudentPin, logAuditEvent, type StudentDashboard, type HourEntry, type DeEntry, type GradeEntry } from '../lib/api';
 import { fmtFloat, formatSimpleDate, scoreToLetter } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
 
@@ -116,6 +116,67 @@ export function renderDeRows(list: DeEntry[]): string {
       </li>`,
     )
     .join('');
+}
+
+// ── Alpine.data component for the student "Change PIN" dialog ─────────────
+
+export function changePinData() {
+  return {
+    currentPin: '',
+    newPin: '',
+    confirmPin: '',
+    loading: false,
+    error: '',
+
+    init() {
+      window.addEventListener('open-change-pin', () => {
+        this.currentPin = '';
+        this.newPin = '';
+        this.confirmPin = '';
+        this.error = '';
+        const dialog = document.getElementById('change-pin-dialog') as HTMLDialogElement;
+        dialog?.showModal();
+      });
+    },
+
+    closeDialog() {
+      const dialog = document.getElementById('change-pin-dialog') as HTMLDialogElement;
+      dialog?.close();
+    },
+
+    async submit() {
+      if (!/^\d{4}$/.test(this.currentPin) || !/^\d{4}$/.test(this.newPin)) {
+        this.error = 'PINs must be exactly 4 digits (numbers only).';
+        return;
+      }
+      if (this.newPin !== this.confirmPin) {
+        this.error = 'New PIN and confirmation do not match.';
+        return;
+      }
+      const emp = app().currentEmployee;
+      if (!emp) return;
+
+      this.loading = true;
+      this.error = '';
+      try {
+        await changeStudentPin(emp.homebase_id, this.currentPin, this.newPin);
+        void logAuditEvent({
+          actor_id: emp.homebase_id,
+          actor_name: emp.name,
+          action: 'pin_reset',
+          target_id: emp.homebase_id,
+          target_name: emp.name,
+          description: `${emp.name} changed their timeclock PIN`,
+        }).catch(() => {});
+        this.closeDialog();
+        app().showSnackbar('Your PIN has been updated.', 'success');
+      } catch (e: unknown) {
+        this.error = e instanceof Error ? e.message : 'Failed to update PIN. Please try again.';
+      } finally {
+        this.loading = false;
+      }
+    },
+  };
 }
 
 export function renderGradesTable(grades: GradeEntry[]): string {

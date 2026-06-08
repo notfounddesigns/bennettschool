@@ -2,10 +2,17 @@
 
 ## New Features
 
-- [x] Ability to Edit (inline edit, same as for hours) a student's grade details
-  - [x] Can edit Project Name, Category, or Score
+- [x] Allow students to set / reset their pin for the Timeclock system
+  - (Manual, done by me) Set a default pin for all students that do not currently have a pin
+  - On student dashboard, UI/UX for student's to set / reset their pin
+    - Enter current (default if never logged in to Timeclock system) pin
+    - Enter New Pin
+    - Confirm New Pin
+  - Log user that changed pin and when pin was changed
 
-- [ ] "Clear All" button for "Needs Attention" items
+- [x] # of "Needs Attention" items next to the "Needs Attention" label. 
+
+- [x] "Resolve All" button for "Needs Attention" items
   
 - [ ] Create a new Auth user in Supabase for the Timeclock iPad kiosk station to authenticate with
   - [ ] Timeclock punch pin entry screen is blocked if not authenticated
@@ -19,11 +26,15 @@
 - [ ] Export to include daily hours instead of monthly for state reporting.
   - Also, create daily cron job?
 
-- [ ] Logging system for Audit purposes
+- [x] Logging system for Audit purposes
+
+- [ ] Create TODO items for system cutover (Homebase -> Internal Timeclock System)
+  - [ ] Shooting for July 1 "system cutover"
+  - [ ] All students will ONLY clock in/out & start/end break with internal timeclock system
+  - [ ] Remove any/all API calls to Homebase and any functions/triggers that pull in hours from the Homebase API
+  - [ ] Decide how to store / reference existing Homebase hours along with new / ongoing hours calculated by internal Timeclock system
 
 ## Incomplete Features
-
-- [ ] Ability to store a "Needs Attention" detail item in a supabase db table w/ CRUD capabilites
 
 ---
 
@@ -34,6 +45,8 @@
 ---
 
 ## Refactor / Code Quality
+
+- [ ] Find areas in the codebase that can be refactored for code quality, maintainability, or performance related reasons
 
 ---
 

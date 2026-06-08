@@ -21,6 +21,14 @@ import {
   subscribeToTimeclock,
   fetchRoles,
   updateStudentRole,
+  fetchNeedsAttentionItems,
+  updateNeedsAttentionItem,
+  fetchAuditLog,
+  logAuditEvent,
+  type NeedsAttentionRecord,
+  type NeedsAttentionType,
+  type AuditLogRecord,
+  type AuditAction,
   type MgmtEmployee,
   type SyncRecord,
   type HomebaseEmployee,
@@ -59,11 +67,50 @@ function app(): AppStore {
   return Alpine.store('app') as AppStore;
 }
 
-export interface NeedsAttentionItem {
-  homebase_id: number;
-  name: string;
-  reason: 'no_clockin' | 'no_clockout';
+async function logAudit(action: AuditAction, opts: {
+  targetId?: string | number | null;
+  targetName?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
+} = {}): Promise<void> {
+  const actor = app().currentEmployee;
+  try {
+    await logAuditEvent({
+      actor_id: actor?.homebase_id ?? null,
+      actor_name: actor?.name ?? null,
+      action,
+      target_id: opts.targetId ?? null,
+      target_name: opts.targetName ?? null,
+      description: opts.description ?? null,
+      metadata: opts.metadata ?? null,
+    });
+  } catch {
+    // Logging must never block or fail the parent action.
+  }
 }
+
+const ACTION_LABELS: Record<AuditAction, string> = {
+  login: 'Signed in',
+  logout: 'Signed out',
+  grade_update: 'Edited a grade entry',
+  timeclock_edit: 'Edited a timeclock entry',
+  role_change: 'Updated a student profile',
+  pin_reset: 'Reset a PIN',
+  password_reset: 'Set a password',
+  password_clear: 'Reset a password',
+  student_removed: 'Removed a student',
+  student_reactivated: 'Reactivated a student',
+  needs_attention_resolved: 'Resolved a Needs Attention item',
+  needs_attention_resolve_all: 'Resolved all Needs Attention items',
+};
+
+const ATTENTION_TYPE_LABELS: Record<NeedsAttentionType, string> = {
+  no_clock_in: 'No clock-in yesterday',
+  no_clock_out: 'No clock-out yesterday',
+  no_break_end: 'Break not ended yesterday',
+  no_timepunch_image: 'Missing punch photo yesterday',
+  timepunch_image_mismatch: 'Punch photo mismatch',
+};
 
 export interface MgmtStore {
   loading: boolean;
@@ -73,13 +120,18 @@ export interface MgmtStore {
   allGrades: Record<number, GradeEntry[]>;
   lastSync: SyncRecord | null;
   overviewStats: OverviewStats | null;
-  dismissedAttentionIds: number[];
+  needsAttentionItems: NeedsAttentionRecord[];
+  auditLog: AuditLogRecord[];
   load(): Promise<void>;
   formatLastSync(): string;
-  dismissAttention(id: number): void;
+  resolveAttention(id: string): Promise<void>;
+  resolveAllAttention(): Promise<void>;
+  attentionTypeLabel(type: NeedsAttentionType): string;
+  auditActionLabel(action: AuditAction): string;
+  auditTimestamp(iso: string): string;
   readonly groupedStudents: StudentGroup[];
   readonly clockedInCount: number;
-  readonly needsAttentionStudents: NeedsAttentionItem[];
+  readonly unresolvedAttentionItems: NeedsAttentionRecord[];
   readonly todayTimeclockStats: { hours: number; students: number };
   readonly yesterdayTimeclockStats: { hours: number; students: number };
 }
@@ -93,10 +145,61 @@ export function createMgmtStore(): MgmtStore {
     allGrades: {},
     lastSync: null,
     overviewStats: null,
-    dismissedAttentionIds: [],
+    needsAttentionItems: [],
+    auditLog: [],
 
-    dismissAttention(id: number) {
-      this.dismissedAttentionIds = [...(this.dismissedAttentionIds as number[]), id];
+    attentionTypeLabel(type: NeedsAttentionType): string {
+      return ATTENTION_TYPE_LABELS[type] ?? type;
+    },
+
+    auditActionLabel(action: AuditAction): string {
+      return ACTION_LABELS[action] ?? action;
+    },
+
+    auditTimestamp(iso: string): string {
+      return new Date(iso).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    },
+
+    async resolveAttention(id: string) {
+      const items = this.needsAttentionItems as NeedsAttentionRecord[];
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      try {
+        await updateNeedsAttentionItem(id, { is_resolved: true });
+        item.is_resolved = true;
+        item.resolved_at = new Date().toISOString();
+        void logAudit('needs_attention_resolved', {
+          targetId: item.id,
+          targetName: item.student_name,
+          description: `Resolved "${this.attentionTypeLabel(item.type)}" for ${toTitleCase(item.student_name)}`,
+        });
+      } catch {
+        app().showSnackbar('Failed to resolve item', 'error');
+      }
+    },
+
+    async resolveAllAttention() {
+      const unresolved = (this.needsAttentionItems as NeedsAttentionRecord[]).filter(i => !i.is_resolved);
+      if (unresolved.length === 0) return;
+      try {
+        await Promise.all(unresolved.map(i => updateNeedsAttentionItem(i.id, { is_resolved: true })));
+        const now = new Date().toISOString();
+        for (const item of unresolved) {
+          item.is_resolved = true;
+          item.resolved_at = now;
+        }
+        void logAudit('needs_attention_resolve_all', {
+          description: `Resolved ${unresolved.length} Needs Attention item${unresolved.length === 1 ? '' : 's'}`,
+        });
+      } catch {
+        app().showSnackbar('Failed to resolve items', 'error');
+      }
     },
 
     get clockedInCount(): number {
@@ -107,43 +210,22 @@ export function createMgmtStore(): MgmtStore {
       ).size;
     },
 
-    get needsAttentionStudents(): NeedsAttentionItem[] {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
-      const prevDay = localDateStr(d);
-
-      const prevEntries = (this.currentStudents as TimeclockStatusEntry[]).filter(s => s.date === prevDay);
-      const prevByStudent = new Map<number, TimeclockStatusEntry[]>();
-      for (const e of prevEntries) {
-        if (!prevByStudent.has(e.homebase_id)) prevByStudent.set(e.homebase_id, []);
-        prevByStudent.get(e.homebase_id)!.push(e);
-      }
-
-      const dismissed = new Set(this.dismissedAttentionIds as number[]);
-      const result: NeedsAttentionItem[] = [];
-      for (const emp of this.employees as MgmtEmployee[]) {
-        if (dismissed.has(emp.homebase_id)) continue;
-        const entries = prevByStudent.get(emp.homebase_id) ?? [];
-        if (entries.length === 0) {
-          result.push({ homebase_id: emp.homebase_id, name: emp.name, reason: 'no_clockin' });
-        } else if (entries.some(e => e.clock_out === null)) {
-          result.push({ homebase_id: emp.homebase_id, name: emp.name, reason: 'no_clockout' });
-        }
-      }
-      return result;
+    get unresolvedAttentionItems(): NeedsAttentionRecord[] {
+      return (this.needsAttentionItems as NeedsAttentionRecord[]).filter(i => !i.is_resolved);
     },
 
     async load() {
       app().showLoading();
       try {
-        const [employees, students, lastSync, overviewStats, deHours, allGrades] = await Promise.all([
+        const [employees, students, lastSync, overviewStats, deHours, allGrades, needsAttentionItems, auditLog] = await Promise.all([
           fetchEmployeeTable(),
           fetchCurrentStudents(),
           fetchLastSync(),
           fetchOverviewStats(),
           fetchDeHoursByDate(),
           fetchAllGrades(),
+          fetchNeedsAttentionItems(),
+          fetchAuditLog(),
         ]);
         this.employees = employees;
         this.currentStudents = students;
@@ -151,6 +233,8 @@ export function createMgmtStore(): MgmtStore {
         this.overviewStats = overviewStats;
         this.deHours = deHours;
         this.allGrades = allGrades;
+        this.needsAttentionItems = needsAttentionItems;
+        this.auditLog = auditLog;
 
         if (!_timeclockChannel) {
           _timeclockChannel = subscribeToTimeclock(async () => {
@@ -744,6 +828,11 @@ export function resetPasswordData() {
       app().showLoading();
       try {
         await clearStudentPassword(this.employeeId);
+        void logAudit('password_clear', {
+          targetId: this.employeeId,
+          targetName: this.employeeName,
+          description: `Reset password for ${toTitleCase(this.employeeName)}`,
+        });
         this.closeDialog();
         app().showSnackbar(`Password reset for ${toTitleCase(this.employeeName)}.`, 'success');
       } catch {
@@ -869,6 +958,11 @@ export function editStudentNameData() {
           updateStudentName(this.homebaseId, trimmed),
           updateStudentRole(this.homebaseId, this.roleId),
         ]);
+        void logAudit('role_change', {
+          targetId: this.homebaseId,
+          targetName: trimmed,
+          description: `Updated profile for ${toTitleCase(trimmed)} (role: ${this.roles.find(r => r.id === this.roleId)?.role_name ?? this.roleId})`,
+        });
         this.closeDialog();
         app().showSnackbar('Student updated.', 'success');
         const mgmt = Alpine.store('mgmt') as MgmtStore;
@@ -915,6 +1009,11 @@ export function removeStudentData() {
       app().showLoading();
       try {
         await removeStudent(this.homebaseId);
+        void logAudit('student_removed', {
+          targetId: this.homebaseId,
+          targetName: this.studentName,
+          description: `Removed ${this.displayName} from the roster`,
+        });
         this.closeDialog();
         app().showSnackbar(`${this.displayName} has been removed.`, 'success');
         const mgmt = Alpine.store('mgmt') as MgmtStore;
@@ -969,6 +1068,11 @@ export function historyRowData() {
       app().showLoading();
       try {
         await updateTimeclockEntry(homebaseId, originalClockIn, { [field]: newDate.toISOString() });
+        void logAudit('timeclock_edit', {
+          targetId: homebaseId,
+          description: `Edited ${field === 'clock_in' ? 'clock-in' : 'clock-out'} time for ${date}`,
+          metadata: { field, date, newValue: newDate.toISOString() },
+        });
         this.cancel();
         await (Alpine.store('mgmt') as MgmtStore).load();
       } catch {
@@ -1047,6 +1151,11 @@ export function gradeRowData() {
       app().showLoading();
       try {
         await updateGradeEntry(homebaseId, { date: grade.date, project: grade.project, category: grade.category }, updates);
+        void logAudit('grade_update', {
+          targetId: homebaseId,
+          description: `Edited ${field} on a grade entry (${grade.project} / ${grade.category}, ${grade.date})`,
+          metadata: { field, date: grade.date, before: grade[field], after: updates[field] },
+        });
         this.cancel();
         await (Alpine.store('mgmt') as MgmtStore).load();
       } catch {
@@ -1202,6 +1311,11 @@ export function setPinData() {
       this.error = '';
       try {
         await setStudentPin(this.employeeId, this.pin);
+        void logAudit('pin_reset', {
+          targetId: this.employeeId,
+          targetName: this.employeeName,
+          description: `Set PIN for ${toTitleCase(this.employeeName)}`,
+        });
         this.closeDialog();
         app().showSnackbar(`PIN set for ${toTitleCase(this.employeeName)}.`, 'success');
       } catch (e: unknown) {

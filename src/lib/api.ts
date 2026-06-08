@@ -552,6 +552,16 @@ export async function setStudentPin(homebaseId: number, pin: string): Promise<vo
   if (!res.ok) throw new Error(data.error ?? 'Failed to set PIN');
 }
 
+export async function changeStudentPin(homebaseId: number, currentPin: string, newPin: string): Promise<void> {
+  const res = await fetch(`${PROXY}/change-pin`, {
+    method: 'POST',
+    headers: AUTH_HEADERS,
+    body: JSON.stringify({ homebase_id: homebaseId, current_pin: currentPin, new_pin: newPin }),
+  });
+  const data = await res.json() as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to change PIN');
+}
+
 export async function updateStudentName(homebaseId: number, name: string): Promise<void> {
   const { error } = await supabase
     .from('profiles')
@@ -694,4 +704,122 @@ export function subscribeToTimeclock(onChanged: () => void) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'timeclock_entries' }, onChanged)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'timeclock_breaks' }, onChanged)
     .subscribe();
+}
+
+// ── Needs Attention items ─────────────────────────────────────────────────
+
+export type NeedsAttentionType =
+  | 'no_clock_in'
+  | 'no_clock_out'
+  | 'no_break_end'
+  | 'no_timepunch_image'
+  | 'timepunch_image_mismatch';
+
+export interface NeedsAttentionRecord {
+  id: string;
+  homebase_id: number;
+  student_name: string;
+  date: string;
+  type: NeedsAttentionType;
+  is_resolved: boolean;
+  description: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export async function fetchNeedsAttentionItems(): Promise<NeedsAttentionRecord[]> {
+  const { data, error } = await supabase
+    .from('needs_attention_items')
+    .select('id, homebase_id, student_name, date, type, is_resolved, description, created_at, resolved_at')
+    .order('date', { ascending: false });
+  if (error) throw new Error('Failed to load needs attention items');
+  return (data ?? []) as NeedsAttentionRecord[];
+}
+
+export async function createNeedsAttentionItem(payload: {
+  homebase_id: number;
+  student_name: string;
+  date: string;
+  type: NeedsAttentionType;
+  description?: string | null;
+}): Promise<void> {
+  const { error } = await supabase
+    .from('needs_attention_items')
+    .insert({ ...payload, description: payload.description ?? null });
+  if (error) throw new Error('Failed to create needs attention item');
+}
+
+export async function updateNeedsAttentionItem(
+  id: string,
+  updates: Partial<{ type: NeedsAttentionType; description: string | null; is_resolved: boolean }>
+): Promise<void> {
+  const body: typeof updates & { resolved_at?: string | null } = { ...updates };
+  if ('is_resolved' in updates) {
+    body.resolved_at = updates.is_resolved ? new Date().toISOString() : null;
+  }
+  const { error } = await supabase
+    .from('needs_attention_items')
+    .update(body)
+    .eq('id', id);
+  if (error) throw new Error('Failed to update needs attention item');
+}
+
+export async function deleteNeedsAttentionItem(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('needs_attention_items')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error('Failed to delete needs attention item');
+}
+
+export type AuditAction =
+  | 'login' | 'logout'
+  | 'grade_update'
+  | 'timeclock_edit'
+  | 'role_change'
+  | 'pin_reset' | 'password_reset' | 'password_clear'
+  | 'student_removed' | 'student_reactivated'
+  | 'needs_attention_resolved' | 'needs_attention_resolve_all';
+
+export interface AuditLogRecord {
+  id: string;
+  actor_id: number | null;
+  actor_name: string | null;
+  action: AuditAction;
+  target_id: string | null;
+  target_name: string | null;
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export async function fetchAuditLog(limit = 200): Promise<AuditLogRecord[]> {
+  const { data, error } = await supabase
+    .from('audit_log')
+    .select('id, actor_id, actor_name, action, target_id, target_name, description, metadata, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error('Failed to load audit log');
+  return (data ?? []) as AuditLogRecord[];
+}
+
+export async function logAuditEvent(entry: {
+  actor_id: number | null;
+  actor_name: string | null;
+  action: AuditAction;
+  target_id?: string | number | null;
+  target_name?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
+}): Promise<void> {
+  const { error } = await supabase.from('audit_log').insert({
+    actor_id: entry.actor_id,
+    actor_name: entry.actor_name,
+    action: entry.action,
+    target_id: entry.target_id != null ? String(entry.target_id) : null,
+    target_name: entry.target_name ?? null,
+    description: entry.description ?? null,
+    metadata: entry.metadata ?? null,
+  });
+  if (error) throw new Error('Failed to write audit log entry');
 }

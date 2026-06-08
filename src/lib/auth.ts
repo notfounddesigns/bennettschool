@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import { validateCachedEmployee, type Student } from './api';
+import { validateCachedEmployee, logAuditEvent, type Student } from './api';
 import type { AppStore } from './store';
 import type { DashboardStore } from '../components/dashboard';
 import type { MgmtStore } from '../components/mgmt';
@@ -9,6 +9,17 @@ function store(): AppStore {
 }
 
 export function handleLogout(): void {
+  const emp = store().currentEmployee;
+  if (emp) {
+    void logAuditEvent({
+      actor_id: emp.homebase_id,
+      actor_name: emp.name,
+      action: 'logout',
+      target_id: emp.homebase_id,
+      target_name: emp.name,
+      description: `${emp.name} signed out`,
+    }).catch(() => {});
+  }
   store().clearEmployee();
   store().showScreen('login');
 }

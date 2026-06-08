@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import { loginEmployee } from '../lib/api';
+import { loginEmployee, logAuditEvent } from '../lib/api';
 import type { AppStore } from '../lib/store';
 import type { DashboardStore } from './dashboard';
 import type { MgmtStore } from './mgmt';
@@ -29,6 +29,14 @@ export function loginData() {
         const data = await loginEmployee(first, last, password);
         const store = Alpine.store('app') as AppStore;
         store.setEmployee(data.student);
+        void logAuditEvent({
+          actor_id: data.student.homebase_id,
+          actor_name: data.student.name,
+          action: 'login',
+          target_id: data.student.homebase_id,
+          target_name: data.student.name,
+          description: `${data.student.name} signed in`,
+        }).catch(() => {});
 
         if (data.result === 'first_time') {
           store.showScreen('setpass');
