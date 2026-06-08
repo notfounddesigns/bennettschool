@@ -6,6 +6,18 @@
   - [x] Update UI to match screenshot design
   - [x] Combine In Person hours and DE hours into 1 table with a type (In Person or DE) col
   - [ ] Update API call for Student's Hours to pull from internal timeclock system (show time in / time out, break start / break end)
+- [x] Ability to Edit (inline edit, same as for hours) a student's grade details
+  - [x] Can edit Project Name, Category, or Score
+
+- [x] "Clear All" button for "Needs Attention" items
+
+- [x] Take picture (from front facing camera on iPad) on a student time punch (clock in/out, start/end break)
+  - [x] Store picture in supabase db table
+  
+- [x] UI for admin to view the images associated with a student's time punch
+
+- [ ] Export to include daily hours instead of monthly for state reporting.
+  - Also, create daily cron job?
   
 - [ ] Create a new Auth user in Supabase for the Timeclock iPad kiosk station to authenticate with
   - [ ] Timeclock punch pin entry screen is blocked if not authenticated
@@ -25,6 +37,7 @@
   - [ ] Remove any/all API calls to Homebase and any functions/triggers that pull in hours from the Homebase API
   - [ ] Decide how to store / reference existing Homebase hours along with new / ongoing hours calculated by internal Timeclock system
 
+- [ ] Logging system for Audit purposes
 ## UI / UI
 
 - [x] Time punch data table under student needs a max height and ability to scroll

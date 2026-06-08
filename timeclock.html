@@ -18,6 +18,10 @@
   @keydown.window="onKeydown($event)"
   class="tc-bg flex flex-col items-center justify-center min-h-dvh font-sans select-none px-4">
 
+  <!-- Hidden capture rig for front-facing camera punch photos -->
+  <video id="punch-video" autoplay playsinline muted class="hidden" width="320" height="240"></video>
+  <canvas id="punch-canvas" class="hidden" width="320" height="240"></canvas>
+
   <img src="/nav-logo.png" class="h-14 mb-3" alt="Bennett Cosmetology" />
 
   <!-- Live clock -->

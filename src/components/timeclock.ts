@@ -5,6 +5,7 @@ import {
   clockOut,
   startBreak,
   endBreak,
+  uploadPunchPhoto,
   type TimeclockStudent,
   type ActiveSession,
 } from '../lib/api';
@@ -36,6 +37,10 @@ export function timeclockData() {
     _inactivityTimer: null as ReturnType<typeof setTimeout> | null,
     _countdownInterval: null as ReturnType<typeof setInterval> | null,
 
+    // Front-facing camera, kept warm so punches can auto-capture instantly
+    _cameraStream: null as MediaStream | null,
+    _cameraReady: false,
+
     init() {
       const tick = () => {
         const now = new Date();
@@ -44,12 +49,54 @@ export function timeclockData() {
       };
       tick();
       this._clockInterval = setInterval(tick, 1000);
+      this._startCamera();
     },
 
     destroy() {
       if (this._clockInterval) clearInterval(this._clockInterval);
       this._clearCountdown();
       this._clearInactivity();
+      this._stopCamera();
+    },
+
+    // ── Punch photo capture ─────────────────────────────────────────────────
+
+    async _startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        this._cameraStream = stream;
+        const video = document.getElementById('punch-video') as HTMLVideoElement;
+        video.srcObject = stream;
+        await video.play();
+        this._cameraReady = true;
+      } catch {
+        this._cameraReady = false;
+      }
+    },
+
+    _stopCamera() {
+      if (this._cameraStream) {
+        this._cameraStream.getTracks().forEach(t => t.stop());
+        this._cameraStream = null;
+      }
+      this._cameraReady = false;
+    },
+
+    async _capturePunchPhoto(homebaseId: number): Promise<string | null> {
+      if (!this._cameraReady) return null;
+      try {
+        const video = document.getElementById('punch-video') as HTMLVideoElement;
+        const canvas = document.getElementById('punch-canvas') as HTMLCanvasElement;
+        if (!video.videoWidth || !video.videoHeight) return null;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+        if (!blob) return null;
+        return await uploadPunchPhoto(homebaseId, blob);
+      } catch {
+        return null;
+      }
     },
 
     // ── Computed ────────────────────────────────────────────────────────────
@@ -165,7 +212,8 @@ export function timeclockData() {
       this._clearCountdown();
       this.actionLoading = true;
       try {
-        await clockIn(this.student!.homebase_id);
+        const photoPath = await this._capturePunchPhoto(this.student!.homebase_id);
+        await clockIn(this.student!.homebase_id, photoPath);
         this.showSuccess('You have been clocked in!');
       } catch {
         this.showError('Failed to clock in. Please try again.');
@@ -179,7 +227,8 @@ export function timeclockData() {
       this._clearCountdown();
       this.actionLoading = true;
       try {
-        await clockOut(this.session!.id);
+        const photoPath = await this._capturePunchPhoto(this.student!.homebase_id);
+        await clockOut(this.session!.id, photoPath);
         this.showSuccess('You have been clocked out. Have a great day!');
       } catch {
         this.showError('Failed to clock out. Please try again.');
@@ -193,7 +242,8 @@ export function timeclockData() {
       this._clearCountdown();
       this.actionLoading = true;
       try {
-        await startBreak(this.session!.id);
+        const photoPath = await this._capturePunchPhoto(this.student!.homebase_id);
+        await startBreak(this.session!.id, photoPath);
         this.showSuccess('Your break has started.');
       } catch {
         this.showError('Failed to start break. Please try again.');
@@ -207,7 +257,8 @@ export function timeclockData() {
       this._clearCountdown();
       this.actionLoading = true;
       try {
-        await endBreak(this.session!.activeBreak!.id);
+        const photoPath = await this._capturePunchPhoto(this.student!.homebase_id);
+        await endBreak(this.session!.activeBreak!.id, photoPath);
         this.showSuccess(`Welcome back, ${this.student!.name}!`);
       } catch {
         this.showError('Failed to end break. Please try again.');

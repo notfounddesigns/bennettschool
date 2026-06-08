@@ -512,32 +512,68 @@ export async function getActiveSession(homebaseId: number): Promise<ActiveSessio
   };
 }
 
-export async function clockIn(homebaseId: number): Promise<void> {
+const PUNCH_PHOTOS_BUCKET = 'punch-photos';
+
+export async function uploadPunchPhoto(homebaseId: number, photo: Blob): Promise<string | null> {
+  const path = `${homebaseId}/${Date.now()}.jpg`;
+  const { error } = await supabase.storage
+    .from(PUNCH_PHOTOS_BUCKET)
+    .upload(path, photo, { contentType: 'image/jpeg' });
+  if (error) return null;
+  return path;
+}
+
+export interface PunchPhotos {
+  clock_in_photo_path: string | null;
+  clock_out_photo_path: string | null;
+  timeclock_breaks: Array<{ break_start_photo_path: string | null; break_end_photo_path: string | null }>;
+}
+
+export async function fetchPunchPhotos(homebaseId: number, clockIn: string): Promise<PunchPhotos | null> {
+  const { data, error } = await supabase
+    .from('timeclock_entries')
+    .select('clock_in_photo_path, clock_out_photo_path, timeclock_breaks(break_start_photo_path, break_end_photo_path)')
+    .eq('homebase_id', homebaseId)
+    .eq('clock_in', clockIn)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as unknown as PunchPhotos;
+}
+
+export async function getPunchPhotoUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from(PUNCH_PHOTOS_BUCKET)
+    .createSignedUrl(path, 3600);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+export async function clockIn(homebaseId: number, photoPath: string | null): Promise<void> {
   const { error } = await supabase
     .from('timeclock_entries')
-    .insert({ homebase_id: homebaseId });
+    .insert({ homebase_id: homebaseId, clock_in_photo_path: photoPath });
   if (error) throw new Error('Failed to clock in');
 }
 
-export async function clockOut(entryId: string): Promise<void> {
+export async function clockOut(entryId: string, photoPath: string | null): Promise<void> {
   const { error } = await supabase
     .from('timeclock_entries')
-    .update({ clock_out: new Date().toISOString() })
+    .update({ clock_out: new Date().toISOString(), clock_out_photo_path: photoPath })
     .eq('id', entryId);
   if (error) throw new Error('Failed to clock out');
 }
 
-export async function startBreak(entryId: string): Promise<void> {
+export async function startBreak(entryId: string, photoPath: string | null): Promise<void> {
   const { error } = await supabase
     .from('timeclock_breaks')
-    .insert({ entry_id: entryId });
+    .insert({ entry_id: entryId, break_start_photo_path: photoPath });
   if (error) throw new Error('Failed to start break');
 }
 
-export async function endBreak(breakId: string): Promise<void> {
+export async function endBreak(breakId: string, photoPath: string | null): Promise<void> {
   const { error } = await supabase
     .from('timeclock_breaks')
-    .update({ break_end: new Date().toISOString() })
+    .update({ break_end: new Date().toISOString(), break_end_photo_path: photoPath })
     .eq('id', breakId);
   if (error) throw new Error('Failed to end break');
 }

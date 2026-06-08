@@ -853,7 +853,12 @@
                           <!-- Today's entry -->
                           <template x-if="group.todayEntry">
                             <div x-data="historyRowData" class="group/histrow flex items-center gap-3 pl-[25px] pr-4 py-2.5 bg-[#fafcfb] border-t border-app-border/50">
-                              <span class="w-24 shrink-0 tabular-nums text-charcoal text-[12px] font-medium" x-text="group.todayEntry.date"></span>
+                              <span class="w-24 shrink-0 tabular-nums text-charcoal text-[12px] font-medium flex items-center gap-1">
+                                <span x-text="group.todayEntry.date"></span>
+                                <button @click.stop="$dispatch('open-punch-photos-modal', { homebaseId: group.homebase_id, clockIn: group.todayEntry.clock_in })" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="View punch photos">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                                </button>
+                              </span>
                               <!-- Clock In -->
                               <div class="w-28 shrink-0">
                                 <div x-show="editField !== 'clock_in'" class="flex items-center gap-1.5">
@@ -903,7 +908,12 @@
                           <!-- History entries -->
                           <template x-for="hist in group.historyEntries" :key="hist.clock_in">
                             <div x-data="historyRowData" class="group/histrow flex items-center gap-3 pl-[25px] pr-4 py-2.5 bg-[#fafafa] border-t border-app-border/50">
-                              <span class="w-24 shrink-0 tabular-nums text-muted text-[12px]" x-text="hist.date"></span>
+                              <span class="w-24 shrink-0 tabular-nums text-muted text-[12px] flex items-center gap-1">
+                                <span x-text="hist.date"></span>
+                                <button @click.stop="$dispatch('open-punch-photos-modal', { homebaseId: group.homebase_id, clockIn: hist.clock_in })" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="View punch photos">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                                </button>
+                              </span>
                               <!-- Clock In -->
                               <div class="w-28 shrink-0">
                                 <div x-show="editField !== 'clock_in'" class="flex items-center gap-1.5">
@@ -1719,6 +1729,41 @@
           <span x-show="loading" class="spinner"></span>
           <span x-text="loading ? 'Saving\u2026' : 'Save'"></span>
         </button>
+      </div>
+    </dialog>
+
+    <!-- ── PUNCH PHOTOS MODAL ─────────────────────────────────────────────── -->
+    <dialog
+      id="punch-photos-modal"
+      x-data="punchPhotosModalData"
+      @open-punch-photos-modal.window="openModal($event.detail.homebaseId, $event.detail.clockIn)"
+      class="modal border-none rounded-[14px] shadow-[var(--shadow-lg)] p-0 w-[clamp(300px,92vw,520px)] max-h-[90vh] overflow-y-auto bg-modal-bg m-auto"
+      aria-labelledby="punch-photos-modal-title">
+      <div class="flex items-center justify-between px-[22px] py-[18px] border-b border-app-border">
+        <span class="font-serif text-lg text-cream" id="punch-photos-modal-title">Punch Photos</span>
+        <button @click="closeModal()" aria-label="Close"
+          class="bg-transparent border-none text-[22px] text-cream cursor-pointer leading-none px-1 transition-colors hover:text-charcoal">&times;</button>
+      </div>
+
+      <div class="px-[22px] py-5">
+        <div x-show="loading" class="flex items-center justify-center py-10">
+          <span class="spinner"></span>
+        </div>
+
+        <div x-show="!loading && photos.length === 0" style="display:none" class="text-center py-10 text-[13px] text-muted">
+          No photos were captured for this punch.
+        </div>
+
+        <div x-show="!loading && photos.length > 0" style="display:none" class="grid grid-cols-2 gap-4">
+          <template x-for="photo in photos" :key="photo.label">
+            <div class="flex flex-col gap-1.5">
+              <span class="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted" x-text="photo.label"></span>
+              <a :href="photo.url" target="_blank" rel="noopener">
+                <img :src="photo.url" :alt="photo.label" class="w-full aspect-[4/3] object-cover rounded-[8px] border border-app-border bg-cream" />
+              </a>
+            </div>
+          </template>
+        </div>
       </div>
     </dialog>
 
