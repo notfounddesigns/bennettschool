@@ -380,6 +380,23 @@ export async function submitGradeEntry(payload: {
   if (!res.ok) throw new Error('Save failed');
 }
 
+export async function updateGradeEntry(
+  homebaseId: number,
+  original: { date: string; project: string; category: string },
+  updates: Partial<{ project: string; category: string; score: number }>
+): Promise<void> {
+  const { error } = await supabase
+    .from('grades')
+    .update(updates)
+    .eq('homebase_id', homebaseId)
+    .eq('date', original.date)
+    .eq('project', original.project)
+    .eq('category', original.category);
+  if (error) throw new Error('Failed to update grade entry');
+}
+
+// 1780596226798
+
 export async function loginEmployee(
   first: string,
   last: string,

@@ -10,6 +10,7 @@ import {
   syncHoursByDate,
   submitHours,
   submitGradeEntry,
+  updateGradeEntry,
   setEmployeePassword,
   clearStudentPassword,
   exportStudents,
@@ -1008,6 +1009,56 @@ export function historyRowData() {
   };
 }
 
+// ── Grade Row (in-place edit for project, category, score) ───────────────────
+
+export function gradeRowData() {
+  return {
+    editField: null as null | 'project' | 'category' | 'score',
+    editValue: '',
+    saving: false,
+
+    startEdit(field: 'project' | 'category' | 'score', current: string | number) {
+      this.editValue = String(current);
+      this.editField = field;
+    },
+
+    cancel() {
+      this.editField = null;
+      this.editValue = '';
+    },
+
+    async save(homebaseId: number, grade: GradeEntry) {
+      const field = this.editField;
+      if (!field) return;
+
+      let updates: Partial<{ project: string; category: string; score: number }>;
+      if (field === 'score') {
+        const score = parseFloat(this.editValue);
+        if (isNaN(score) || score < 0) { this.cancel(); return; }
+        if (score === grade.score) { this.cancel(); return; }
+        updates = { score };
+      } else {
+        const value = this.editValue.trim();
+        if (!value || value === grade[field]) { this.cancel(); return; }
+        updates = { [field]: value };
+      }
+
+      this.saving = true;
+      app().showLoading();
+      try {
+        await updateGradeEntry(homebaseId, { date: grade.date, project: grade.project, category: grade.category }, updates);
+        this.cancel();
+        await (Alpine.store('mgmt') as MgmtStore).load();
+      } catch {
+        app().showSnackbar('Could not update grade. Please try again.', 'error');
+      } finally {
+        this.saving = false;
+        app().hideLoading();
+      }
+    },
+  };
+}
+
 // ── Add Entry Dialog (per-student row in Timeclock view) ─────────────────────
 
 export function addEntryModalData() {
@@ -1102,6 +1153,8 @@ export function addEntryModalData() {
           });
           this.closeDialog();
           app().showSnackbar('Grade saved.', 'success');
+          const mgmt = Alpine.store('mgmt') as MgmtStore;
+          await mgmt.load();
         } catch {
           this.error = 'Could not save. Please try again.';
         } finally {

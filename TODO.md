@@ -2,14 +2,19 @@
 
 ## New Features
 
-- [x] Add Button ('+' icon) in "Actions" col on Timeclock view
-  - [x] Opens dialog with a dropdown for selecting what to add. Options: DE Hours, Grades
-  - [x] DE Hours selected, fields for adding DE Hours show below. Fields: Student (text, required), Date (required), Hours (number, required), Module (text, not required), Platform (text, not required)
-  - [x] Grades selected, fields for adding Grades show below. Fields: Student (text, required), Date (required), Score (number, required), Project (text, not required), Category (text, not required), Notes (text, not required).
+- [x] Ability to Edit (inline edit, same as for hours) a student's grade details
+  - [x] Can edit Project Name, Category, or Score
+
+- [ ] "Clear All" button for "Needs Attention" items
   
 - [ ] Create a new Auth user in Supabase for the Timeclock iPad kiosk station to authenticate with
   - [ ] Timeclock punch pin entry screen is blocked if not authenticated
   - [ ] Any time punch updates that are not authenticated with this user should be blocked
+
+- [ ] Take picture (from front facing camera on iPad) on a student time punch (clock in/out, start/end break)
+  - [ ] Store picture in supabase db table
+  
+- [ ] UI for admin to view the images associated with a student's time punch
 
 - [ ] Export to include daily hours instead of monthly for state reporting.
   - Also, create daily cron job?
@@ -18,25 +23,17 @@
 
 ## Incomplete Features
 
-- [x] The "Needs Attention" detail pane should display:
-  - [x] Any students that did not have a clock-in for the previous day
-  - [x] Any students that had a clock-in but no clock-out for the previous day
-  - [ ] Anything else?
-  - [x] A way to hide or ignore a needs attention entry
+- [ ] Ability to store a "Needs Attention" detail item in a supabase db table w/ CRUD capabilites
 
 ---
 
 ## Bugs
 
-- [x] The reset student password should clear the password_hash field for that student rather than calling 'set-pass'. 
+- [ ] When signing out, the leftover name is still present in the name text input
 
 ---
 
 ## Refactor / Code Quality
-
-- [x] Time Punch Overview updates:
-  - [x] Add current number of students that are clocked in
-  - [x] Yesterday, Last 7, & Month to date hours should pull from the timeclock_entries table (minus timeclock_breaks)
 
 ---
 
