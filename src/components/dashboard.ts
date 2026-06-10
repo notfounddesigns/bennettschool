@@ -61,13 +61,11 @@ export function createDashboardStore(): DashboardStore {
 
 export function dashboardDisplayData() {
   return {
-    get inPersonRowsHtml() {
+    activeTab: 'hours' as 'hours' | 'grades',
+
+    get hoursHtml() {
       const dash = Alpine.store('dashboard') as DashboardStore;
-      return renderInPersonRows(dash.data?.inPersonHrsList ?? []);
-    },
-    get deRowsHtml() {
-      const dash = Alpine.store('dashboard') as DashboardStore;
-      return renderDeRows(dash.data?.deHrsList ?? []);
+      return renderHoursTable(dash.data?.inPersonHrsList ?? [], dash.data?.deHrsList ?? []);
     },
     get gradesHtml() {
       const dash = Alpine.store('dashboard') as DashboardStore;
@@ -78,44 +76,44 @@ export function dashboardDisplayData() {
 
 // ── HTML render helpers ───────────────────────────────────────────────────
 
-export function renderInPersonRows(list: HourEntry[]): string {
-  if (list.length === 0) {
-    return '<li class="empty-state text-center py-8 text-muted text-sm">No in person hours recorded yet.</li>';
-  }
-  return list
-    .map(
-      e => `
-      <li class="flex justify-between items-center py-[11px] border-b border-app-border text-[13px] gap-2 last:border-b-0">
-        <div class="flex flex-col gap-0.5">
-          <span class="font-medium text-charcoal">${formatSimpleDate(e.date)}</span>
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <span class="text-xs font-semibold text-muted bg-cream px-2.5 py-0.5 rounded-full border border-app-border">${e.hours}h</span>
-        </div>
-      </li>`,
-    )
-    .join('');
+interface CombinedHourRow {
+  date: string;
+  type: 'In Person' | 'DE';
+  hours: number;
 }
 
-export function renderDeRows(list: DeEntry[]): string {
-  if (list.length === 0) {
-    return '<li class="empty-state text-center py-8 text-muted text-sm">No DE hours recorded yet.</li>';
+export function renderHoursTable(inPerson: HourEntry[], de: DeEntry[]): string {
+  const combined: CombinedHourRow[] = [
+    ...inPerson.map(e => ({ date: e.date, type: 'In Person' as const, hours: e.hours })),
+    ...de.map(e => ({ date: e.date, type: 'DE' as const, hours: e.hours })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (combined.length === 0) {
+    return '<p class="text-center py-8 text-muted text-sm">No hours recorded in the last 7 days.</p>';
   }
-  return list
+
+  const rows = combined
     .map(
-      e => `
-      <li class="flex justify-between items-center py-[11px] border-b border-app-border text-[13px] gap-2 last:border-b-0">
-        <div class="flex flex-col gap-0.5">
-          <span class="font-medium text-charcoal">${formatSimpleDate(e.date)}</span>
-          <span class="text-muted text-xs">${e.module} · ${e.platform}</span>
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <span class="text-xs font-semibold text-muted bg-cream px-2.5 py-0.5 rounded-full border border-app-border">${e.hours}h</span>
-          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full tracking-wide ${e.verified ? 'bg-sage-light text-[#2D6A55]' : 'bg-[#FEF3C7] text-[#92400E]'}">${e.verified ? 'Verified' : 'Unverified'}</span>
-        </div>
-      </li>`,
+      e => `<tr>
+        <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">${formatSimpleDate(e.date)}</td>
+        <td class="px-4 py-2.5 text-[13px] border-b border-app-border">
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full tracking-wide ${e.type === 'In Person' ? 'bg-sage-light text-[#2D6A55]' : 'bg-[#FEF3C7] text-[#92400E]'}">${e.type}</span>
+        </td>
+        <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">${e.hours}h</td>
+      </tr>`,
     )
     .join('');
+
+  return `<table class="w-full border-collapse">
+    <thead>
+      <tr>
+        <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Date</th>
+        <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Type</th>
+        <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Hours</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 // ── Alpine.data component for the student "Change PIN" dialog ─────────────
@@ -180,9 +178,7 @@ export function changePinData() {
 }
 
 export function renderGradesTable(grades: GradeEntry[]): string {
-  if (grades.length === 0) {
-    return '<p class="text-center py-8 text-muted text-sm">No grades recorded yet.</p>';
-  }
+  if (grades.length === 0) return '<p class="text-center py-8 text-muted text-sm">No grades recorded yet.</p>';
 
   const rows = grades
     .map(g => {
@@ -197,7 +193,7 @@ export function renderGradesTable(grades: GradeEntry[]): string {
             <span class="text-muted text-xs">${g.score}</span>
           </div>
         </td>
-        <td class="px-4 py-2.5 text-[13px] text-muted border-b border-app-border last:border-b-0">${g.notes ?? '—'}</td>
+        <td class="px-4 py-2.5 text-[13px] text-muted border-b border-app-border">${g.notes ?? '—'}</td>
       </tr>`;
     })
     .join('');

@@ -2,17 +2,10 @@
 
 ## New Features
 
-- [x] Allow students to set / reset their pin for the Timeclock system
-  - (Manual, done by me) Set a default pin for all students that do not currently have a pin
-  - On student dashboard, UI/UX for student's to set / reset their pin
-    - Enter current (default if never logged in to Timeclock system) pin
-    - Enter New Pin
-    - Confirm New Pin
-  - Log user that changed pin and when pin was changed
-
-- [x] # of "Needs Attention" items next to the "Needs Attention" label. 
-
-- [x] "Resolve All" button for "Needs Attention" items
+- [ ] Update the student dashboard UI
+  - [x] Update UI to match screenshot design
+  - [x] Combine In Person hours and DE hours into 1 table with a type (In Person or DE) col
+  - [ ] Update API call for Student's Hours to pull from internal timeclock system (show time in / time out, break start / break end)
   
 - [ ] Create a new Auth user in Supabase for the Timeclock iPad kiosk station to authenticate with
   - [ ] Timeclock punch pin entry screen is blocked if not authenticated
@@ -25,8 +18,6 @@
 
 - [ ] Export to include daily hours instead of monthly for state reporting.
   - Also, create daily cron job?
-
-- [x] Logging system for Audit purposes
 
 - [ ] Create TODO items for system cutover (Homebase -> Internal Timeclock System)
   - [ ] Shooting for July 1 "system cutover"
@@ -47,8 +38,9 @@
 ## Refactor / Code Quality
 
 - [ ] Find areas in the codebase that can be refactored for code quality, maintainability, or performance related reasons
-
----
+  - [ ] Can `index.html` be split into smaller components?
+  - [ ] Can any of the `component` or `lib` `*.ts` files be split into smaller modules?
+  - [ ] Analyze `api.ts`, do any of the API calls to the DB need to be refactore for performance or maintainability?
 
 ---
 
