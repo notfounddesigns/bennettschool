@@ -25,6 +25,10 @@
   - [ ] Remove any/all API calls to Homebase and any functions/triggers that pull in hours from the Homebase API
   - [ ] Decide how to store / reference existing Homebase hours along with new / ongoing hours calculated by internal Timeclock system
 
+## UI / UI
+
+- [x] Time punch data table under student needs a max height and ability to scroll
+
 ## Incomplete Features
 
 ---
