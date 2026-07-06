@@ -53,6 +53,7 @@ export interface StudentGroup {
   historyEntries: TimeclockStatusEntry[];
   deHoursByDate: Record<string, number>;
   grades: GradeEntry[];
+  open: boolean;
 }
 
 function localDateStr(d: Date = new Date()): string {
@@ -122,6 +123,7 @@ export interface MgmtStore {
   overviewStats: OverviewStats | null;
   needsAttentionItems: NeedsAttentionRecord[];
   auditLog: AuditLogRecord[];
+  expandedId: number | null;
   load(): Promise<void>;
   formatLastSync(): string;
   resolveAttention(id: string): Promise<void>;
@@ -129,6 +131,7 @@ export interface MgmtStore {
   attentionTypeLabel(type: NeedsAttentionType): string;
   auditActionLabel(action: AuditAction): string;
   auditTimestamp(iso: string): string;
+  handleRowClick(group: StudentGroup): void;
   readonly groupedStudents: StudentGroup[];
   readonly clockedInCount: number;
   readonly unresolvedAttentionItems: NeedsAttentionRecord[];
@@ -147,6 +150,7 @@ export function createMgmtStore(): MgmtStore {
     overviewStats: null,
     needsAttentionItems: [],
     auditLog: [],
+    expandedId: null,
 
     attentionTypeLabel(type: NeedsAttentionType): string {
       return ATTENTION_TYPE_LABELS[type] ?? type;
@@ -254,6 +258,11 @@ export function createMgmtStore(): MgmtStore {
       return `Last synced: ${formatSimpleDate(this.lastSync.date_synced)} — ${this.lastSync.inserted} records`;
     },
 
+    handleRowClick(group: StudentGroup) {
+      // Accordion: collapse if already open, otherwise open only this row.
+      this.expandedId = this.expandedId === group.homebase_id ? null : group.homebase_id;
+    },
+
     get groupedStudents(): StudentGroup[] {
       const today = localDateStr();
 
@@ -303,6 +312,7 @@ export function createMgmtStore(): MgmtStore {
             historyEntries,
             deHoursByDate,
             grades: (this.allGrades as Record<number, GradeEntry[]>)[homebase_id] ?? [],
+            open: this.expandedId === homebase_id,
           };
         })
         .sort((a, b) => {

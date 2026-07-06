@@ -13,7 +13,7 @@
   <script type="module" src="/src/main.ts"></script>
 </head>
 
-<body x-data class="flex flex-col text-blush font-sans text-[15px] overflow-hidden h-dvh"
+<body x-data class="flex flex-col text-blush font-sans text-[15px] overflow-hidden h-dvh scroll-smooth"
   :class="($store.app.screen === 'dashboard' || $store.app.screen === 'mgmt')
         ? 'bg-app-bg'
         : 'bg-app-bg bg-texture'">
@@ -211,19 +211,19 @@
 
         <!-- Stats row -->
         <div class="grid grid-cols-3 gap-2.5 max-sm:grid-cols-1">
-          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border">
+          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
             <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">In Person</div>
             <div class="font-serif text-[28px] text-blush leading-none">
               <span x-text="$store.dashboard.formattedInPersonHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
             </div>
           </div>
-          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border">
+          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
             <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">DE Hours</div>
             <div class="font-serif text-[28px] text-blush leading-none">
               <span x-text="$store.dashboard.formattedDeHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
             </div>
           </div>
-          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border">
+          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
             <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">Total</div>
             <div class="font-serif text-[28px] text-blush leading-none">
               <span x-text="$store.dashboard.formattedTotalHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
@@ -232,13 +232,14 @@
         </div>
 
         <!-- Profile row -->
-        <div class="flex items-center gap-3 flex-wrap pt-1">
+        <div class="flex items-center justify-center sm:justify-start gap-3 flex-wrap pt-1">
           <div
             class="w-14 h-14 rounded-full bg-blush text-white flex items-center justify-center font-bold text-sm shrink-0"
             x-text="$store.app.avatarInitials">
           </div>
-          <span class="font-serif text-lg text-blush" x-text="$store.app.displayName"></span>
-          <div class="flex items-center gap-2 ml-auto">
+          <!-- On small screens, make the display name go to next line -->
+          <span class="font-serif text-lg text-blush sm:w-fit w-full text-center sm:text-left" x-text="$store.app.displayName"></span>
+          <div class="flex items-center gap-2 sm:ml-auto ml-auto sm:mr-0 mr-auto">
             <button
               @click="$dispatch('open-change-pin')"
               class="inline-flex gap-1 items-center justify-center text-blush border border-blush rounded-[8px] h-8 px-3.5 text-[13px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover">
@@ -712,7 +713,7 @@
           </div>
 
           <!-- Timeclock student list -->
-          <div class="flex-1 min-h-0 max-h-100 md:max-h-none bg-white rounded-card shadow-card overflow-auto">
+          <div class="flex-1 min-h-0 max-h-100 md:max-h-none bg-white rounded-card shadow-card overflow-auto scroll-smooth">
             <template x-if="$store.mgmt.loading">
               <div class="flex items-center justify-center py-10 text-muted text-[13px]">
                 <span class="spinner mr-2"></span>Loading&#8230;
@@ -733,10 +734,11 @@
                   <div class="w-5 shrink-0"></div>
                 </div>
                 <template x-for="group in $store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase()))" :key="group.name">
-                  <div class="border-b border-app-border last:border-b-0" x-data="{ open: false }">
+                  <div class="border-b border-app-border last:border-b-0" x-data="group">
                     <!-- Main student row -->
+                    <!-- On click, close any other open rows then open the clicked row -->
                     <div class="group/row flex items-center gap-4 px-4 py-3 hover:bg-[#f5f3f0] transition-colors cursor-pointer select-none"
-                      @click="open = !open">
+                      @click="$store.mgmt.handleRowClick(group)">
 
                       <!-- Student Info: avatar + name + role + progress -->
                       <div class="w-40 md:w-56 xl:w-72 flex items-center gap-2.5">
@@ -827,7 +829,7 @@
                       <!-- Chevron -->
                       <div class="w-5 flex items-center justify-center">
                         <svg x-show="group.todayEntry || group.historyEntries.length > 0 || group.grades.length > 0"
-                          :class="open ? 'rotate-180' : ''"
+                          :class="group.open ? 'rotate-180' : ''"
                           class="w-5 h-5 text-muted transition-transform duration-200"
                           xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
@@ -836,9 +838,10 @@
                     </div>
 
                     <!-- Expanded entries with in-place edit -->
-                    <div x-show="open" x-transition class="flex divide-x divide-app-border/40 py-1 px-3 gap-3">
+                    <div x-show="group.open" x-transition class="flex divide-x divide-app-border/40 py-1 px-3 gap-3">
                       <template x-if="group.todayEntry || group.historyEntries.length > 0">
-                        <div class="w-1/2 flex flex-col min-w-0">
+                        <!-- Add max-height and overflow-y-auto for scrollable content -->
+                        <div class="w-1/2 flex flex-col min-w-0 max-h-60 overflow-y-auto">
                           <!-- Sub-header for entry columns -->
                           <div class="flex items-center gap-3 pl-6 pr-4 py-1.5 bg-[#f5f3f0] border-t border-app-border/70">
                             <span class="w-24 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Date</span>
@@ -955,7 +958,7 @@
                         </div>
                       </template>
                       <template x-if="group.grades.length > 0">
-                        <div class="w-1/2 flex flex-col min-w-0">
+                        <div class="w-1/2 flex flex-col min-w-0 max-h-60 overflow-y-auto">
                           <div class="flex items-center gap-3 pl-6 pr-4 py-1.5 bg-[#f5f3f0] border-t border-app-border/70">
                             <span class="w-24 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Date</span>
                             <span class="w-40 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Project</span>
