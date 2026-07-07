@@ -6,8 +6,12 @@ import {
   startBreak,
   endBreak,
   uploadPunchPhoto,
+  loginEmployee,
+  validateCachedEmployee,
+  logAuditEvent,
   type TimeclockStudent,
   type ActiveSession,
+  type Student,
 } from '../lib/api';
 import { getInitials, formatTime } from '../lib/helpers';
 
@@ -15,9 +19,21 @@ type ClockState = 'idle' | 'loading' | 'actions' | 'success' | 'error';
 type ClockStatus = 'clocked_out' | 'clocked_in' | 'on_break';
 
 const INACTIVITY_MS = 7000;
+const MANAGER_ROLE_ID = 3;
+const KIOSK_MANAGER_KEY = 'kiosk_manager';
 
 export function timeclockData() {
   return {
+    // ── Manager gate ────────────────────────────────────────────────────────
+    // The kiosk stays locked until a manager (role_id === 3) signs in. The
+    // unlocked manager is cached so the device stays ready across reloads.
+    locked: true,
+    manager: null as Student | null,
+    loginName: '',
+    loginPassword: '',
+    loginError: '',
+    unlocking: false,
+
     pin: '',
     state: 'idle' as ClockState,
     student: null as TimeclockStudent | null,
@@ -49,6 +65,94 @@ export function timeclockData() {
       };
       tick();
       this._clockInterval = setInterval(tick, 1000);
+      void this._restoreUnlock();
+    },
+
+    // ── Manager gate ──────────────────────────────────────────────────────────
+
+    async _restoreUnlock() {
+      const raw = localStorage.getItem(KIOSK_MANAGER_KEY);
+      if (!raw) return;
+      try {
+        const manager = JSON.parse(raw) as Student;
+        if (manager.role_id !== MANAGER_ROLE_ID) throw new Error('not a manager');
+        const valid = await validateCachedEmployee(manager.homebase_id);
+        if (!valid) throw new Error('stale session');
+        this.manager = manager;
+        this._onUnlocked();
+      } catch {
+        localStorage.removeItem(KIOSK_MANAGER_KEY);
+      }
+    },
+
+    async unlock() {
+      this.loginError = '';
+      const name = this.loginName.trim();
+      const password = this.loginPassword;
+      if (!name) { this.loginError = 'Please enter your first and last name.'; return; }
+      if (!password) { this.loginError = 'Please enter your password.'; return; }
+
+      const parts = name.split(' ').filter(Boolean);
+      if (parts.length < 2) { this.loginError = 'Please enter your first and last name.'; return; }
+      const [first, last] = parts;
+
+      this.unlocking = true;
+      try {
+        const data = await loginEmployee(first, last, password);
+        if (data.result === 'first_time') {
+          this.loginError = 'Set up your password in the main app before unlocking the kiosk.';
+          return;
+        }
+        if (data.student.role_id !== MANAGER_ROLE_ID) {
+          this.loginError = 'Manager access is required to unlock the kiosk.';
+          return;
+        }
+        this.manager = data.student;
+        localStorage.setItem(KIOSK_MANAGER_KEY, JSON.stringify(data.student));
+        void logAuditEvent({
+          actor_id: data.student.homebase_id,
+          actor_name: data.student.name,
+          action: 'login',
+          target_id: data.student.homebase_id,
+          target_name: data.student.name,
+          description: `${data.student.name} unlocked the timeclock kiosk`,
+        }).catch(() => {});
+        this._onUnlocked();
+      } catch (e: unknown) {
+        this.loginError = e instanceof Error ? e.message : 'Network error. Please try again.';
+      } finally {
+        this.loginPassword = '';
+        this.unlocking = false;
+      }
+    },
+
+    lock() {
+      const emp = this.manager;
+      if (emp) {
+        void logAuditEvent({
+          actor_id: emp.homebase_id,
+          actor_name: emp.name,
+          action: 'logout',
+          target_id: emp.homebase_id,
+          target_name: emp.name,
+          description: `${emp.name} locked the timeclock kiosk`,
+        }).catch(() => {});
+      }
+      localStorage.removeItem(KIOSK_MANAGER_KEY);
+      this.manager = null;
+      this.locked = true;
+      this.loginName = '';
+      this.loginPassword = '';
+      this.loginError = '';
+      this.reset();
+      this._stopCamera();
+    },
+
+    _onUnlocked() {
+      this.locked = false;
+      this.loginName = '';
+      this.loginPassword = '';
+      this.loginError = '';
       this._startCamera();
     },
 
@@ -174,6 +278,7 @@ export function timeclockData() {
     },
 
     onKeydown(e: KeyboardEvent) {
+      if (this.locked) return;
       if (this.state === 'success' || this.state === 'error') return;
       if (this.state === 'actions') {
         if (e.key === 'Escape') this.reset();

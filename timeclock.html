@@ -30,7 +30,54 @@
     <div class="text-[13px] text-cream/45 mt-1 tracking-[0.04em]" x-text="currentDate"></div>
   </div>
 
-  <div class="bg-white rounded-[14px] shadow-(--shadow-2xl) w-[clamp(300px,90vw,360px)] overflow-hidden">
+  <!-- ── LOCKED: manager unlock ─────────────────────────────────────────────── -->
+  <div x-show="locked"
+    class="bg-white rounded-[14px] shadow-(--shadow-2xl) w-[clamp(300px,90vw,360px)] overflow-hidden">
+
+    <div class="px-6 pt-5 pb-4 text-center border-b border-app-border">
+      <div class="font-serif text-2xl text-app-bg">Kiosk Locked</div>
+      <p class="text-[13px] text-muted mt-1">A manager must sign in to enable this device.</p>
+    </div>
+
+    <form @submit.prevent="unlock()" class="px-6 py-6 flex flex-col gap-3">
+      <div>
+        <label class="block text-[12px] font-medium text-muted mb-1">Manager name</label>
+        <input
+          type="text"
+          x-model="loginName"
+          :disabled="unlocking"
+          autocomplete="off"
+          placeholder="First and last name"
+          class="w-full h-11 px-3 rounded-[10px] bg-cream text-charcoal border border-app-border text-[15px] outline-none focus:border-blush transition-colors disabled:opacity-50" />
+      </div>
+      <div>
+        <label class="block text-[12px] font-medium text-muted mb-1">Password</label>
+        <input
+          type="password"
+          x-model="loginPassword"
+          :disabled="unlocking"
+          autocomplete="off"
+          placeholder="Password"
+          class="w-full h-11 px-3 rounded-[10px] bg-cream text-charcoal border border-app-border text-[15px] outline-none focus:border-blush transition-colors disabled:opacity-50" />
+      </div>
+
+      <p x-show="loginError" style="display:none" class="text-[13px] text-app-error font-medium" x-text="loginError"></p>
+
+      <button
+        type="submit"
+        :disabled="unlocking"
+        class="w-full h-12 rounded-[10px] bg-blush text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
+        <span x-show="!unlocking">Unlock Kiosk</span>
+        <span x-show="unlocking" style="display:none" class="inline-flex items-center gap-2">
+          <span class="spinner"></span>Signing in…
+        </span>
+      </button>
+    </form>
+  </div>
+
+  <!-- ── UNLOCKED: student timeclock ────────────────────────────────────────── -->
+  <div x-show="!locked" style="display:none"
+    class="bg-white rounded-[14px] shadow-(--shadow-2xl) w-[clamp(300px,90vw,360px)] overflow-hidden">
 
     <!-- Header -->
     <div class="px-6 pt-5 pb-4 text-center border-b border-app-border">
@@ -204,6 +251,20 @@
       </div>
     </div>
   </div>
+
+  <!-- Lock kiosk — only while unlocked -->
+  <button
+    x-show="!locked"
+    style="display:none"
+    @click="lock()"
+    class="mt-5 inline-flex items-center gap-1.5 text-[12px] text-cream/50 hover:text-cream/80 transition-colors cursor-pointer">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+    <span>Lock kiosk<template x-if="manager"><span x-text="' · ' + manager.name"></span></template></span>
+  </button>
 
 </body>
 </html>
