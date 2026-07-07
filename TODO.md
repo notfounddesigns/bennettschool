@@ -18,18 +18,16 @@
 
 - [ ] Export to include daily hours instead of monthly for state reporting.
   - Also, create daily cron job?
-  
-- [ ] Create a new Auth user in Supabase for the Timeclock iPad kiosk station to authenticate with
-  - [ ] Timeclock punch pin entry screen is blocked if not authenticated
-  - [ ] Any time punch updates that are not authenticated with this user should be blocked
 
-- [ ] Take picture (from front facing camera on iPad) on a student time punch (clock in/out, start/end break)
-  - [ ] Store picture in supabase db table
-  
-- [ ] UI for admin to view the images associated with a student's time punch
+#### No longer doing  
+- [-] Create a new Auth user in Supabase for the Timeclock iPad kiosk station to authenticate with
+  - [-] Timeclock punch pin entry screen is blocked if not authenticated
+  - [-] Any time punch updates that are not authenticated with this user should be blocked
 
-- [ ] Export to include daily hours instead of monthly for state reporting.
-  - Also, create daily cron job?
+- [x] Take picture (from front facing camera on iPad) on a student time punch (clock in/out, start/end break)
+  - [x] Store picture in supabase db table
+  
+- [x] UI for admin to view the images associated with a student's time punch
 
 - [ ] Create TODO items for system cutover (Homebase -> Internal Timeclock System)
   - [ ] Shooting for July 1 "system cutover"
@@ -38,6 +36,7 @@
   - [ ] Decide how to store / reference existing Homebase hours along with new / ongoing hours calculated by internal Timeclock system
 
 - [ ] Logging system for Audit purposes
+
 ## UI / UI
 
 - [x] Time punch data table under student needs a max height and ability to scroll
@@ -48,7 +47,7 @@
 
 ## Bugs
 
-- [ ] When signing out, the leftover name is still present in the name text input
+- [x] When signing out, the leftover name is still present in the name text input
 
 ---
 

@@ -16,7 +16,7 @@
 <body
   x-data="timeclockData"
   @keydown.window="onKeydown($event)"
-  class="tc-bg flex flex-col items-center justify-center min-h-dvh font-sans select-none px-4">
+  class="tc-bg flex flex-col items-center justify-center min-h-dvh font-sans select-none touch-manipulation px-4">
 
   <!-- Hidden capture rig for front-facing camera punch photos -->
   <video id="punch-video" autoplay playsinline muted class="hidden" width="320" height="240"></video>
@@ -66,7 +66,7 @@
       <button
         type="submit"
         :disabled="unlocking"
-        class="w-full h-12 rounded-[10px] bg-blush text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
+        class="w-full h-12 rounded-[10px] bg-blush text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 touch-manipulation">
         <span x-show="!unlocking">Unlock Kiosk</span>
         <span x-show="unlocking" style="display:none" class="inline-flex items-center gap-2">
           <span class="spinner"></span>Signing in…
@@ -107,7 +107,7 @@
           <template x-for="d in ['1','2','3','4','5','6','7','8','9']" :key="d">
             <button
               @click="appendDigit(d)"
-              class="h-[58px] rounded-[10px] bg-cream text-charcoal font-semibold text-xl border border-app-border hover:bg-blush/10 active:scale-95 transition-all cursor-pointer">
+              class="h-[58px] rounded-[10px] bg-cream text-charcoal font-semibold text-xl border border-app-border hover:bg-blush/10 active:scale-95 transition-all cursor-pointer touch-manipulation">
               <span x-text="d"></span>
             </button>
           </template>
@@ -120,7 +120,7 @@
           </button>
           <button
             @click="deleteDigit()"
-            class="h-[58px] rounded-[10px] bg-cream text-muted text-2xl border border-app-border hover:bg-blush/10 active:scale-95 transition-all cursor-pointer">
+            class="h-[58px] rounded-[10px] bg-cream text-muted text-2xl border border-app-border hover:bg-blush/10 active:scale-95 transition-all cursor-pointer touch-manipulation">
             ⌫
           </button>
         </div>
@@ -163,7 +163,7 @@
             x-show="clockStatus === 'clocked_out'"
             @click="doClockIn()"
             :disabled="actionLoading"
-            class="w-full h-12 rounded-[10px] bg-sage text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
+            class="w-full h-12 rounded-[10px] bg-sage text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 touch-manipulation">
             <span x-show="!actionLoading">Clock In</span>
             <span x-show="actionLoading" style="display:none" class="inline-flex items-center gap-2">
               <span class="spinner"></span>Clocking in…
@@ -175,7 +175,7 @@
             x-show="clockStatus === 'clocked_in'"
             @click="doStartBreak()"
             :disabled="actionLoading"
-            class="w-full h-12 rounded-[10px] bg-blush text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
+            class="w-full h-12 rounded-[10px] bg-blush text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 touch-manipulation">
             <span x-show="!actionLoading">Start Break</span>
             <span x-show="actionLoading" style="display:none" class="inline-flex items-center gap-2">
               <span class="spinner"></span>…
@@ -187,7 +187,7 @@
             x-show="clockStatus === 'clocked_in'"
             @click="doClockOut()"
             :disabled="actionLoading"
-            class="w-full h-12 rounded-[10px] border border-app-border text-charcoal font-medium text-[15px] cursor-pointer hover:bg-cream active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
+            class="w-full h-12 rounded-[10px] border border-app-border text-charcoal font-medium text-[15px] cursor-pointer hover:bg-cream active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 touch-manipulation">
             <span x-show="!actionLoading">Clock Out</span>
             <span x-show="actionLoading" style="display:none" class="inline-flex items-center gap-2">
               <span class="spinner text-muted"></span>…
@@ -199,7 +199,7 @@
             x-show="clockStatus === 'on_break'"
             @click="doEndBreak()"
             :disabled="actionLoading"
-            class="w-full h-12 rounded-[10px] bg-sage text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
+            class="w-full h-12 rounded-[10px] bg-sage text-white font-semibold text-[15px] cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 touch-manipulation">
             <span x-show="!actionLoading">End Break</span>
             <span x-show="actionLoading" style="display:none" class="inline-flex items-center gap-2">
               <span class="spinner"></span>Ending break…
@@ -210,7 +210,7 @@
           <button
             @click="reset()"
             :disabled="actionLoading"
-            class="w-full h-9 text-muted text-[13px] cursor-pointer hover:text-charcoal transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            class="w-full h-9 text-muted text-[13px] cursor-pointer hover:text-charcoal transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation">
             Cancel
           </button>
         </div>
