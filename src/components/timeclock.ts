@@ -66,6 +66,9 @@ export function timeclockData() {
       tick();
       this._clockInterval = setInterval(tick, 1000);
       void this._restoreUnlock();
+      // Requested once per page load and kept alive for the whole session so the
+      // browser only has to grant camera permission once, not on every lock/unlock.
+      void this._startCamera();
     },
 
     // ── Manager gate ──────────────────────────────────────────────────────────
@@ -145,7 +148,6 @@ export function timeclockData() {
       this.loginPassword = '';
       this.loginError = '';
       this.reset();
-      this._stopCamera();
     },
 
     _onUnlocked() {
@@ -153,7 +155,6 @@ export function timeclockData() {
       this.loginName = '';
       this.loginPassword = '';
       this.loginError = '';
-      this._startCamera();
     },
 
     destroy() {
