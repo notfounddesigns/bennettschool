@@ -102,7 +102,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .eq('homebase_id', employeeUserId)
       .single(),
     supabase
-      .from('hours_new')
+      .from('hours')
       .select('type_id, hours, date, module, platform, verified')
       .eq('homebase_id', employeeUserId)
       .gte('date', daysAgo7),

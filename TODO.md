@@ -43,11 +43,22 @@
 
 ## Incomplete Features
 
+- [ ] Need some protection logic around time punches
+  - [ ] Need a lower limit and upper limit for time punches, i.e. if a user attempts to record a time punch before 7a or after 7p it is flagged for "Needs Attention". For now, the time punch is still allowed
+  - [ ] Need a function to run nightly to check for students that did not clock out.
+    - Should run nightly at 9p CST
+    - If any students are found to still be clocked in, they are automatically clocked out with their clock out time being 5p (same day)
+    - This should be flagged for a "Needs Attention" so a manager can correctly adjust the timesheet
+
 ---
 
 ## Bugs
 
 - [x] When signing out, the leftover name is still present in the name text input
+
+- [ ] Non-unique "match" updates — updateGradeEntry matches on (homebase_id, date, project, category) and      updateTimeclockEntry on (homebase_id, clock_in). Neither is a unique key, so a single edit can silently update multiple rows. Grades are the real exposure (a student can have duplicate date/project/category rows).
+
+- [x] student dashboard "recent hours" reads a dead table — fixed: fetchStudentDashboard now queries `hours` instead of `hours_new` (dead table left in place)
 
 ---
 
