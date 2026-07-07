@@ -11,6 +11,8 @@ import {
   submitHours,
   submitGradeEntry,
   updateGradeEntry,
+  fetchPunchPhotos,
+  getPunchPhotoUrl,
   setEmployeePassword,
   clearStudentPassword,
   exportStudents,
@@ -507,6 +509,53 @@ export function gradesModalData() {
       } finally {
         app().hideLoading();
       }
+    },
+  };
+}
+
+// ── Punch Photos Modal ─────────────────────────────────────────────────────
+
+export function punchPhotosModalData() {
+  return {
+    open: false,
+    loading: false,
+    photos: [] as Array<{ label: string; url: string }>,
+
+    async openModal(homebaseId: number, clockIn: string) {
+      this.open = true;
+      this.loading = true;
+      this.photos = [];
+      const dialog = document.getElementById('punch-photos-modal') as HTMLDialogElement;
+      dialog?.showModal();
+
+      try {
+        const data = await fetchPunchPhotos(homebaseId, clockIn);
+        const items: Array<{ label: string; path: string | null }> = [];
+        if (data) {
+          items.push({ label: 'Clock In', path: data.clock_in_photo_path });
+          items.push({ label: 'Clock Out', path: data.clock_out_photo_path });
+          data.timeclock_breaks.forEach((b, i) => {
+            const n = data.timeclock_breaks.length > 1 ? ` ${i + 1}` : '';
+            items.push({ label: `Break${n} Start`, path: b.break_start_photo_path });
+            items.push({ label: `Break${n} End`, path: b.break_end_photo_path });
+          });
+        }
+        const resolved = await Promise.all(
+          items
+            .filter((item): item is { label: string; path: string } => !!item.path)
+            .map(async item => ({ label: item.label, url: await getPunchPhotoUrl(item.path) }))
+        );
+        this.photos = resolved.filter((p): p is { label: string; url: string } => !!p.url);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    closeModal() {
+      this.open = false;
+      this.photos = [];
+      const dialog = document.getElementById('punch-photos-modal') as HTMLDialogElement;
+      dialog?.close();
     },
   };
 }
@@ -1313,8 +1362,8 @@ export function setPinData() {
     },
 
     async submit() {
-      if (!/^\d{4}$/.test(this.pin)) {
-        this.error = 'PIN must be exactly 4 digits (numbers only).';
+      if (!/^\d{6}$/.test(this.pin)) {
+        this.error = 'PIN must be exactly 6 digits (numbers only).';
         return;
       }
       this.loading = true;

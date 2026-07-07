@@ -2,7 +2,7 @@ import './style.css';
 import Alpine from 'alpinejs';
 import { createAppStore } from './lib/store';
 import { createDashboardStore, dashboardDisplayData, changePinData } from './components/dashboard';
-import { createMgmtStore, hoursModalData, gradesModalData, syncDialogData, resetPasswordData, inlineHoursData, addStudentData, addStudentDirectData, exportDialogData, setPinData, overviewPanelData, mgmtTableData, editStudentNameData, removeStudentData, historyRowData, addEntryModalData, gradeRowData } from './components/mgmt';
+import { createMgmtStore, hoursModalData, gradesModalData, syncDialogData, resetPasswordData, inlineHoursData, addStudentData, addStudentDirectData, exportDialogData, setPinData, overviewPanelData, mgmtTableData, editStudentNameData, removeStudentData, historyRowData, addEntryModalData, gradeRowData, punchPhotosModalData } from './components/mgmt';
 import { compareTableData } from './components/compare';
 import { loginData } from './components/login';
 import { setpassData } from './components/setpass';
@@ -36,6 +36,7 @@ Alpine.data('editStudentNameData', editStudentNameData);
 Alpine.data('removeStudentData', removeStudentData);
 Alpine.data('historyRowData', historyRowData);
 Alpine.data('gradeRowData', gradeRowData);
+Alpine.data('punchPhotosModalData', punchPhotosModalData);
 Alpine.data('addEntryModalData', addEntryModalData);
 
 // ── Global magic helpers ──────────────────────────────────────────────────

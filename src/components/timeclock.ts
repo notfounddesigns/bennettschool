@@ -5,8 +5,13 @@ import {
   clockOut,
   startBreak,
   endBreak,
+  uploadPunchPhoto,
+  loginEmployee,
+  validateCachedEmployee,
+  logAuditEvent,
   type TimeclockStudent,
   type ActiveSession,
+  type Student,
 } from '../lib/api';
 import { getInitials, formatTime } from '../lib/helpers';
 
@@ -14,9 +19,21 @@ type ClockState = 'idle' | 'loading' | 'actions' | 'success' | 'error';
 type ClockStatus = 'clocked_out' | 'clocked_in' | 'on_break';
 
 const INACTIVITY_MS = 7000;
+const MANAGER_ROLE_ID = 3;
+const KIOSK_MANAGER_KEY = 'kiosk_manager';
 
 export function timeclockData() {
   return {
+    // ── Manager gate ────────────────────────────────────────────────────────
+    // The kiosk stays locked until a manager (role_id === 3) signs in. The
+    // unlocked manager is cached so the device stays ready across reloads.
+    locked: true,
+    manager: null as Student | null,
+    loginName: '',
+    loginPassword: '',
+    loginError: '',
+    unlocking: false,
+
     pin: '',
     state: 'idle' as ClockState,
     student: null as TimeclockStudent | null,
@@ -36,6 +53,10 @@ export function timeclockData() {
     _inactivityTimer: null as ReturnType<typeof setTimeout> | null,
     _countdownInterval: null as ReturnType<typeof setInterval> | null,
 
+    // Front-facing camera, kept warm so punches can auto-capture instantly
+    _cameraStream: null as MediaStream | null,
+    _cameraReady: false,
+
     init() {
       const tick = () => {
         const now = new Date();
@@ -44,12 +65,142 @@ export function timeclockData() {
       };
       tick();
       this._clockInterval = setInterval(tick, 1000);
+      void this._restoreUnlock();
+    },
+
+    // ── Manager gate ──────────────────────────────────────────────────────────
+
+    async _restoreUnlock() {
+      const raw = localStorage.getItem(KIOSK_MANAGER_KEY);
+      if (!raw) return;
+      try {
+        const manager = JSON.parse(raw) as Student;
+        if (manager.role_id !== MANAGER_ROLE_ID) throw new Error('not a manager');
+        const valid = await validateCachedEmployee(manager.homebase_id);
+        if (!valid) throw new Error('stale session');
+        this.manager = manager;
+        this._onUnlocked();
+      } catch {
+        localStorage.removeItem(KIOSK_MANAGER_KEY);
+      }
+    },
+
+    async unlock() {
+      this.loginError = '';
+      const name = this.loginName.trim();
+      const password = this.loginPassword;
+      if (!name) { this.loginError = 'Please enter your first and last name.'; return; }
+      if (!password) { this.loginError = 'Please enter your password.'; return; }
+
+      const parts = name.split(' ').filter(Boolean);
+      if (parts.length < 2) { this.loginError = 'Please enter your first and last name.'; return; }
+      const [first, last] = parts;
+
+      this.unlocking = true;
+      try {
+        const data = await loginEmployee(first, last, password);
+        if (data.result === 'first_time') {
+          this.loginError = 'Set up your password in the main app before unlocking the kiosk.';
+          return;
+        }
+        if (data.student.role_id !== MANAGER_ROLE_ID) {
+          this.loginError = 'Manager access is required to unlock the kiosk.';
+          return;
+        }
+        this.manager = data.student;
+        localStorage.setItem(KIOSK_MANAGER_KEY, JSON.stringify(data.student));
+        void logAuditEvent({
+          actor_id: data.student.homebase_id,
+          actor_name: data.student.name,
+          action: 'login',
+          target_id: data.student.homebase_id,
+          target_name: data.student.name,
+          description: `${data.student.name} unlocked the timeclock kiosk`,
+        }).catch(() => {});
+        this._onUnlocked();
+      } catch (e: unknown) {
+        this.loginError = e instanceof Error ? e.message : 'Network error. Please try again.';
+      } finally {
+        this.loginPassword = '';
+        this.unlocking = false;
+      }
+    },
+
+    lock() {
+      const emp = this.manager;
+      if (emp) {
+        void logAuditEvent({
+          actor_id: emp.homebase_id,
+          actor_name: emp.name,
+          action: 'logout',
+          target_id: emp.homebase_id,
+          target_name: emp.name,
+          description: `${emp.name} locked the timeclock kiosk`,
+        }).catch(() => {});
+      }
+      localStorage.removeItem(KIOSK_MANAGER_KEY);
+      this.manager = null;
+      this.locked = true;
+      this.loginName = '';
+      this.loginPassword = '';
+      this.loginError = '';
+      this.reset();
+      this._stopCamera();
+    },
+
+    _onUnlocked() {
+      this.locked = false;
+      this.loginName = '';
+      this.loginPassword = '';
+      this.loginError = '';
+      this._startCamera();
     },
 
     destroy() {
       if (this._clockInterval) clearInterval(this._clockInterval);
       this._clearCountdown();
       this._clearInactivity();
+      this._stopCamera();
+    },
+
+    // ── Punch photo capture ─────────────────────────────────────────────────
+
+    async _startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        this._cameraStream = stream;
+        const video = document.getElementById('punch-video') as HTMLVideoElement;
+        video.srcObject = stream;
+        await video.play();
+        this._cameraReady = true;
+      } catch {
+        this._cameraReady = false;
+      }
+    },
+
+    _stopCamera() {
+      if (this._cameraStream) {
+        this._cameraStream.getTracks().forEach(t => t.stop());
+        this._cameraStream = null;
+      }
+      this._cameraReady = false;
+    },
+
+    async _capturePunchPhoto(homebaseId: number): Promise<string | null> {
+      if (!this._cameraReady) return null;
+      try {
+        const video = document.getElementById('punch-video') as HTMLVideoElement;
+        const canvas = document.getElementById('punch-canvas') as HTMLCanvasElement;
+        if (!video.videoWidth || !video.videoHeight) return null;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+        if (!blob) return null;
+        return await uploadPunchPhoto(homebaseId, blob);
+      } catch {
+        return null;
+      }
     },
 
     // ── Computed ────────────────────────────────────────────────────────────
@@ -116,9 +267,9 @@ export function timeclockData() {
     // ── PIN pad ─────────────────────────────────────────────────────────────
 
     appendDigit(d: string) {
-      if (this.pin.length >= 4 || this.state === 'loading') return;
+      if (this.pin.length >= 6 || this.state === 'loading') return;
       this.pin += d;
-      if (this.pin.length === 4) this.lookupPin();
+      if (this.pin.length === 6) this.lookupPin();
     },
 
     deleteDigit() {
@@ -127,6 +278,7 @@ export function timeclockData() {
     },
 
     onKeydown(e: KeyboardEvent) {
+      if (this.locked) return;
       if (this.state === 'success' || this.state === 'error') return;
       if (this.state === 'actions') {
         if (e.key === 'Escape') this.reset();
@@ -165,7 +317,8 @@ export function timeclockData() {
       this._clearCountdown();
       this.actionLoading = true;
       try {
-        await clockIn(this.student!.homebase_id);
+        const photoPath = await this._capturePunchPhoto(this.student!.homebase_id);
+        await clockIn(this.student!.homebase_id, photoPath);
         this.showSuccess('You have been clocked in!');
       } catch {
         this.showError('Failed to clock in. Please try again.');
@@ -179,7 +332,8 @@ export function timeclockData() {
       this._clearCountdown();
       this.actionLoading = true;
       try {
-        await clockOut(this.session!.id);
+        const photoPath = await this._capturePunchPhoto(this.student!.homebase_id);
+        await clockOut(this.session!.id, photoPath);
         this.showSuccess('You have been clocked out. Have a great day!');
       } catch {
         this.showError('Failed to clock out. Please try again.');
@@ -193,7 +347,8 @@ export function timeclockData() {
       this._clearCountdown();
       this.actionLoading = true;
       try {
-        await startBreak(this.session!.id);
+        const photoPath = await this._capturePunchPhoto(this.student!.homebase_id);
+        await startBreak(this.session!.id, photoPath);
         this.showSuccess('Your break has started.');
       } catch {
         this.showError('Failed to start break. Please try again.');
@@ -207,7 +362,8 @@ export function timeclockData() {
       this._clearCountdown();
       this.actionLoading = true;
       try {
-        await endBreak(this.session!.activeBreak!.id);
+        const photoPath = await this._capturePunchPhoto(this.student!.homebase_id);
+        await endBreak(this.session!.activeBreak!.id, photoPath);
         this.showSuccess(`Welcome back, ${this.student!.name}!`);
       } catch {
         this.showError('Failed to end break. Please try again.');
