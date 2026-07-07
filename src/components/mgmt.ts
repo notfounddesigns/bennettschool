@@ -1362,8 +1362,8 @@ export function setPinData() {
     },
 
     async submit() {
-      if (!/^\d{4}$/.test(this.pin)) {
-        this.error = 'PIN must be exactly 4 digits (numbers only).';
+      if (!/^\d{6}$/.test(this.pin)) {
+        this.error = 'PIN must be exactly 6 digits (numbers only).';
         return;
       }
       this.loading = true;

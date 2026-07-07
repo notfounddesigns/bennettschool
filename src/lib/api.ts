@@ -588,6 +588,15 @@ export async function setStudentPin(homebaseId: number, pin: string): Promise<vo
   if (!res.ok) throw new Error(data.error ?? 'Failed to set PIN');
 }
 
+export async function studentHasPin(homebaseId: number): Promise<boolean> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('pin_hash')
+    .eq('homebase_id', homebaseId)
+    .maybeSingle();
+  return !!(data as { pin_hash: string | null } | null)?.pin_hash;
+}
+
 export async function changeStudentPin(homebaseId: number, currentPin: string, newPin: string): Promise<void> {
   const res = await fetch(`${PROXY}/change-pin`, {
     method: 'POST',

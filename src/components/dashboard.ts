@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import { fetchStudentDashboard, changeStudentPin, logAuditEvent, type StudentDashboard, type HourEntry, type DeEntry, type GradeEntry } from '../lib/api';
+import { fetchStudentDashboard, changeStudentPin, setStudentPin, studentHasPin, logAuditEvent, type StudentDashboard, type HourEntry, type DeEntry, type GradeEntry } from '../lib/api';
 import { fmtFloat, formatSimpleDate, scoreToLetter } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
 
@@ -120,6 +120,8 @@ export function renderHoursTable(inPerson: HourEntry[], de: DeEntry[]): string {
 
 export function changePinData() {
   return {
+    hasPin: true,          // true → "change" flow (needs current PIN); false → first-time "create" flow
+    checking: true,        // resolving hasPin after the dialog opens
     currentPin: '',
     newPin: '',
     confirmPin: '',
@@ -132,9 +134,25 @@ export function changePinData() {
         this.newPin = '';
         this.confirmPin = '';
         this.error = '';
+        this.checking = true;
+        this.hasPin = true;
         const dialog = document.getElementById('change-pin-dialog') as HTMLDialogElement;
         dialog?.showModal();
+        void this.resolveHasPin();
       });
+    },
+
+    async resolveHasPin() {
+      const emp = app().currentEmployee;
+      if (!emp) { this.checking = false; return; }
+      try {
+        this.hasPin = await studentHasPin(emp.homebase_id);
+      } catch {
+        // Assume they have one; the server still validates the current PIN.
+        this.hasPin = true;
+      } finally {
+        this.checking = false;
+      }
     },
 
     closeDialog() {
@@ -143,8 +161,12 @@ export function changePinData() {
     },
 
     async submit() {
-      if (!/^\d{4}$/.test(this.currentPin) || !/^\d{4}$/.test(this.newPin)) {
-        this.error = 'PINs must be exactly 4 digits (numbers only).';
+      if (this.hasPin && !/^\d{6}$/.test(this.currentPin)) {
+        this.error = 'PINs must be exactly 6 digits (numbers only).';
+        return;
+      }
+      if (!/^\d{6}$/.test(this.newPin)) {
+        this.error = 'PINs must be exactly 6 digits (numbers only).';
         return;
       }
       if (this.newPin !== this.confirmPin) {
@@ -157,19 +179,23 @@ export function changePinData() {
       this.loading = true;
       this.error = '';
       try {
-        await changeStudentPin(emp.homebase_id, this.currentPin, this.newPin);
+        if (this.hasPin) {
+          await changeStudentPin(emp.homebase_id, this.currentPin, this.newPin);
+        } else {
+          await setStudentPin(emp.homebase_id, this.newPin);
+        }
         void logAuditEvent({
           actor_id: emp.homebase_id,
           actor_name: emp.name,
           action: 'pin_reset',
           target_id: emp.homebase_id,
           target_name: emp.name,
-          description: `${emp.name} changed their timeclock PIN`,
+          description: `${emp.name} ${this.hasPin ? 'changed' : 'created'} their timeclock PIN`,
         }).catch(() => {});
         this.closeDialog();
-        app().showSnackbar('Your PIN has been updated.', 'success');
+        app().showSnackbar(this.hasPin ? 'Your PIN has been updated.' : 'Your PIN has been created.', 'success');
       } catch (e: unknown) {
-        this.error = e instanceof Error ? e.message : 'Failed to update PIN. Please try again.';
+        this.error = e instanceof Error ? e.message : 'Failed to save PIN. Please try again.';
       } finally {
         this.loading = false;
       }

@@ -1777,7 +1777,7 @@
       </div>
       <div class="px-5.5 py-5">
         <p class="text-[13px] text-cream/70 mb-4">
-          Set a 4-digit PIN for <span class="text-cream font-semibold" x-text="employeeName"></span> to use on the student timeclock.
+          Set a 6-digit PIN for <span class="text-cream font-semibold" x-text="employeeName"></span> to use on the student timeclock.
         </p>
         <div
           x-show="error"
@@ -1785,17 +1785,17 @@
           class="px-3.5 py-2.5 rounded-[8px] text-[13px] mb-4 leading-relaxed bg-error-light text-app-error">
         </div>
         <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="set-pin-input">
-          4-Digit PIN
+          6-Digit PIN
         </label>
         <input
           id="set-pin-input"
           type="text"
           inputmode="numeric"
-          maxlength="4"
+          maxlength="6"
           x-model="pin"
           @keydown.enter="submit()"
           @keydown.escape="closeDialog()"
-          placeholder="e.g. 1234"
+          placeholder="e.g. 123456"
           class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted tracking-[0.2em] text-lg" />
       </div>
       <div class="flex gap-2.5 justify-end px-5.5 pb-4.5 pt-3.5 border-t border-app-border">
@@ -1817,30 +1817,36 @@
       x-data="changePinData"
       class="modal border-none rounded-card shadow-(--shadow-lg) p-0 w-[clamp(300px,92vw,380px)] bg-modal-bg m-auto">
       <div class="px-5.5 py-4.5 border-b border-app-border">
-        <span class="font-serif text-lg text-cream">Change Timeclock PIN</span>
+        <span class="font-serif text-lg text-cream" x-text="hasPin ? 'Change Timeclock PIN' : 'Create Timeclock PIN'"></span>
       </div>
       <div class="px-5.5 py-5">
-        <p class="text-[13px] text-cream/70 mb-4">
-          Update the 4-digit PIN you use to clock in and out on the student timeclock.
+        <p class="text-[13px] text-cream/70 mb-4"
+          x-text="hasPin
+            ? 'Update the 6-digit PIN you use to clock in and out on the student timeclock.'
+            : 'Create a 6-digit PIN to clock in and out on the student timeclock.'">
         </p>
         <div
           x-show="error"
           x-text="error"
           class="px-3.5 py-2.5 rounded-[8px] text-[13px] mb-4 leading-relaxed bg-error-light text-app-error">
         </div>
-        <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="change-pin-current">
-          Current PIN
-        </label>
-        <input
-          id="change-pin-current"
-          type="text"
-          inputmode="numeric"
-          maxlength="4"
-          x-model="currentPin"
-          @keydown.enter="submit()"
-          @keydown.escape="closeDialog()"
-          placeholder="e.g. 1234"
-          class="w-full mb-3.5 px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted tracking-[0.2em] text-lg" />
+        <template x-if="!checking && hasPin">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="change-pin-current">
+              Current PIN
+            </label>
+            <input
+              id="change-pin-current"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              x-model="currentPin"
+              @keydown.enter="submit()"
+              @keydown.escape="closeDialog()"
+              placeholder="e.g. 123456"
+              class="w-full mb-3.5 px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted tracking-[0.2em] text-lg" />
+          </div>
+        </template>
 
         <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="change-pin-new">
           New PIN
@@ -1849,11 +1855,11 @@
           id="change-pin-new"
           type="text"
           inputmode="numeric"
-          maxlength="4"
+          maxlength="6"
           x-model="newPin"
           @keydown.enter="submit()"
           @keydown.escape="closeDialog()"
-          placeholder="e.g. 5678"
+          placeholder="e.g. 246810"
           class="w-full mb-3.5 px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted tracking-[0.2em] text-lg" />
 
         <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="change-pin-confirm">
@@ -1863,11 +1869,11 @@
           id="change-pin-confirm"
           type="text"
           inputmode="numeric"
-          maxlength="4"
+          maxlength="6"
           x-model="confirmPin"
           @keydown.enter="submit()"
           @keydown.escape="closeDialog()"
-          placeholder="e.g. 5678"
+          placeholder="e.g. 246810"
           class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted tracking-[0.2em] text-lg" />
       </div>
       <div class="flex gap-2.5 justify-end px-5.5 pb-4.5 pt-3.5 border-t border-app-border">

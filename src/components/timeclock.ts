@@ -267,9 +267,9 @@ export function timeclockData() {
     // ── PIN pad ─────────────────────────────────────────────────────────────
 
     appendDigit(d: string) {
-      if (this.pin.length >= 4 || this.state === 'loading') return;
+      if (this.pin.length >= 6 || this.state === 'loading') return;
       this.pin += d;
-      if (this.pin.length === 4) this.lookupPin();
+      if (this.pin.length === 6) this.lookupPin();
     },
 
     deleteDigit() {

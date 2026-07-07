@@ -90,11 +90,11 @@
       <!-- ── IDLE / LOADING ─────────────────────────────────────────────── -->
       <div x-show="state === 'idle' || state === 'loading'" class="flex flex-col flex-1">
 
-        <p class="text-[13px] text-muted text-center mb-5">Enter your 4-digit PIN</p>
+        <p class="text-[13px] text-muted text-center mb-5">Enter your 6-digit PIN</p>
 
         <!-- PIN dots -->
-        <div class="flex justify-center gap-4 mb-6">
-          <template x-for="i in [0,1,2,3]" :key="i">
+        <div class="flex justify-center gap-3 mb-6">
+          <template x-for="i in [0,1,2,3,4,5]" :key="i">
             <div
               class="w-4 h-4 rounded-full border-2 transition-all duration-150"
               :class="pin.length > i ? 'bg-blush border-blush' : 'bg-transparent border-app-border'">
