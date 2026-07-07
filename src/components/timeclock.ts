@@ -87,7 +87,7 @@ export function timeclockData() {
 
     async unlock() {
       this.loginError = '';
-      const name = this.loginName.trim();
+      const name = this.loginName.trim().replace(/[\u2018\u2019]/g, "'");
       const password = this.loginPassword;
       if (!name) { this.loginError = 'Please enter your first and last name.'; return; }
       if (!password) { this.loginError = 'Please enter your password.'; return; }

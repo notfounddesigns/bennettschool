@@ -5,6 +5,9 @@ import { fmtFloat, nDaysAgo } from './helpers';
 export interface LoginResult {
   result: 'first_time' | 'ok';
   student: Student;
+  // The auth-login function nests its error under `data`; a few paths return a
+  // flat `error`. Read both so real messages surface instead of a generic one.
+  data?: { error?: string };
   error?: string;
 }
 export interface Student {
@@ -412,7 +415,7 @@ export async function loginEmployee(
     }),
   });
   const result = await res.json() as LoginResult;
-  if (!res.ok) throw new Error(result.error ?? 'Login failed. Please try again.');
+  if (!res.ok) throw new Error(result.data?.error ?? result.error ?? 'Login failed. Please try again.');
   return result;
 }
 
