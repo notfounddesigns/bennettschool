@@ -852,7 +852,7 @@
                           </div>
                           <!-- Today's entry -->
                           <template x-if="group.todayEntry">
-                            <div x-data="historyRowData" class="group/histrow flex items-center gap-3 pl-6.25 pr-4 py-2.5 bg-[#fafcfb] border-t border-app-border/50">
+                            <div class="group/histrow flex items-center gap-3 pl-6.25 pr-4 py-2.5 bg-[#fafcfb] border-t border-app-border/50">
                               <span class="w-24 shrink-0 tabular-nums text-charcoal text-[12px] font-medium flex items-center gap-1">
                                 <span x-text="group.todayEntry.date"></span>
                                 <button @click.stop="$dispatch('open-punch-photos-modal', { homebaseId: group.homebase_id, clockIn: group.todayEntry.clock_in })" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="View punch photos">
@@ -860,54 +860,22 @@
                                 </button>
                               </span>
                               <!-- Clock In -->
-                              <div class="w-28 shrink-0">
-                                <div x-show="editField !== 'clock_in'" class="flex items-center gap-1.5">
-                                  <span class="tabular-nums text-[12px] text-charcoal" x-text="new Date(group.todayEntry.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
-                                  <button @click.stop="startEditTime('clock_in', group.todayEntry.clock_in)" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors" title="Edit clock in">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'clock_in'" style="display:none" class="flex items-center gap-1">
-                                  <input type="time" x-model="editValue" @keydown.enter="saveTime(group.homebase_id, group.todayEntry.clock_in, group.todayEntry.date)" @keydown.escape="cancel()" class="w-22 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="saveTime(group.homebase_id, group.todayEntry.clock_in, group.todayEntry.date)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="w-28 shrink-0 tabular-nums text-[12px] text-charcoal" x-text="new Date(group.todayEntry.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
                               <!-- Clock Out -->
-                              <div class="hidden md:block w-28 shrink-0">
-                                <div x-show="editField !== 'clock_out'" class="flex items-center gap-1.5">
-                                  <span class="tabular-nums text-[12px] text-charcoal" x-text="group.todayEntry.clock_out ? new Date(group.todayEntry.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
-                                  <button @click.stop="startEditTime('clock_out', group.todayEntry.clock_out ?? '')" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors" title="Edit clock out">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'clock_out'" style="display:none" class="flex items-center gap-1">
-                                  <input type="time" x-model="editValue" @keydown.enter="saveTime(group.homebase_id, group.todayEntry.clock_in, group.todayEntry.date)" @keydown.escape="cancel()" class="w-22 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="saveTime(group.homebase_id, group.todayEntry.clock_in, group.todayEntry.date)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="hidden md:block w-28 shrink-0 tabular-nums text-[12px] text-charcoal" x-text="group.todayEntry.clock_out ? new Date(group.todayEntry.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
                               <!-- Worked Hours -->
                               <span class="w-28 shrink-0 tabular-nums text-[12px] text-charcoal" x-text="parseFloat(group.todayEntry.worked_hours ?? 0).toFixed(1) + ' hrs'"></span>
                               <!-- DE Hrs -->
-                              <div class="hidden sm:block w-28 shrink-0">
-                                <div x-show="editField !== 'de'" class="flex items-center gap-1.5">
-                                  <span class="tabular-nums text-[12px] text-charcoal" x-text="(group.deHoursByDate[group.todayEntry.date] ?? 0) > 0 ? (group.deHoursByDate[group.todayEntry.date] ?? 0).toFixed(1) + ' hrs' : '0.0 hrs'"></span>
-                                  <button @click.stop="startEditDe(group.deHoursByDate[group.todayEntry.date] ?? 0)" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors" title="Edit DE hours">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'de'" style="display:none" class="flex items-center gap-1">
-                                  <input type="number" x-model="editValue" min="0" step="0.5" @keydown.enter="saveDe(group.homebase_id, group.todayEntry.date, group.deHoursByDate[group.todayEntry.date] ?? 0)" @keydown.escape="cancel()" class="w-16 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="saveDe(group.homebase_id, group.todayEntry.date, group.deHoursByDate[group.todayEntry.date] ?? 0)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="hidden sm:block w-28 shrink-0 tabular-nums text-[12px] text-charcoal" x-text="(group.deHoursByDate[group.todayEntry.date] ?? 0) > 0 ? (group.deHoursByDate[group.todayEntry.date] ?? 0).toFixed(1) + ' hrs' : '0.0 hrs'"></span>
+                              <!-- Edit -->
+                              <button @click.stop="$dispatch('open-edit-timepunch', { id: group.homebase_id, name: group.name, date: group.todayEntry.date, clockIn: group.todayEntry.clock_in, deTotal: group.deHoursByDate[group.todayEntry.date] ?? 0 })" class="ml-auto w-6 h-6 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit timepunch">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
                             </div>
                           </template>
                           <!-- History entries -->
                           <template x-for="hist in group.historyEntries" :key="hist.clock_in">
-                            <div x-data="historyRowData" class="group/histrow flex items-center gap-3 pl-6.25 pr-4 py-2.5 bg-[#fafafa] border-t border-app-border/50">
+                            <div class="group/histrow flex items-center gap-3 pl-6.25 pr-4 py-2.5 bg-[#fafafa] border-t border-app-border/50">
                               <span class="w-24 shrink-0 tabular-nums text-muted text-[12px] flex items-center gap-1">
                                 <span x-text="hist.date"></span>
                                 <button @click.stop="$dispatch('open-punch-photos-modal', { homebaseId: group.homebase_id, clockIn: hist.clock_in })" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="View punch photos">
@@ -915,49 +883,17 @@
                                 </button>
                               </span>
                               <!-- Clock In -->
-                              <div class="w-28 shrink-0">
-                                <div x-show="editField !== 'clock_in'" class="flex items-center gap-1.5">
-                                  <span class="tabular-nums text-muted text-[12px]" x-text="new Date(hist.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
-                                  <button @click.stop="startEditTime('clock_in', hist.clock_in)" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors" title="Edit clock in">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'clock_in'" style="display:none" class="flex items-center gap-1">
-                                  <input type="time" x-model="editValue" @keydown.enter="saveTime(group.homebase_id, hist.clock_in, hist.date)" @keydown.escape="cancel()" class="w-22 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="saveTime(group.homebase_id, hist.clock_in, hist.date)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="new Date(hist.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
                               <!-- Clock Out -->
-                              <div class="hidden md:block w-28 shrink-0">
-                                <div x-show="editField !== 'clock_out'" class="flex items-center gap-1.5">
-                                  <span class="tabular-nums text-muted text-[12px]" x-text="hist.clock_out ? new Date(hist.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
-                                  <button @click.stop="startEditTime('clock_out', hist.clock_out ?? '')" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors" title="Edit clock out">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'clock_out'" style="display:none" class="flex items-center gap-1">
-                                  <input type="time" x-model="editValue" @keydown.enter="saveTime(group.homebase_id, hist.clock_in, hist.date)" @keydown.escape="cancel()" class="w-22 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="saveTime(group.homebase_id, hist.clock_in, hist.date)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="hidden md:block w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="hist.clock_out ? new Date(hist.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
                               <!-- Worked Hours -->
                               <span class="w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="parseFloat(hist.worked_hours ?? 0).toFixed(1) + ' hrs'"></span>
                               <!-- DE Hrs -->
-                              <div class="hidden sm:block w-28 shrink-0">
-                                <div x-show="editField !== 'de'" class="flex items-center gap-1.5">
-                                  <span class="tabular-nums text-muted text-[12px]" x-text="(group.deHoursByDate[hist.date] ?? 0) > 0 ? (group.deHoursByDate[hist.date] ?? 0).toFixed(1) + ' hrs' : '0.0 hrs'"></span>
-                                  <button @click.stop="startEditDe(group.deHoursByDate[hist.date] ?? 0)" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors" title="Edit DE hours">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'de'" style="display:none" class="flex items-center gap-1">
-                                  <input type="number" x-model="editValue" min="0" step="0.5" @keydown.enter="saveDe(group.homebase_id, hist.date, group.deHoursByDate[hist.date] ?? 0)" @keydown.escape="cancel()" class="w-16 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="saveDe(group.homebase_id, hist.date, group.deHoursByDate[hist.date] ?? 0)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="hidden sm:block w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="(group.deHoursByDate[hist.date] ?? 0) > 0 ? (group.deHoursByDate[hist.date] ?? 0).toFixed(1) + ' hrs' : '0.0 hrs'"></span>
+                              <!-- Edit -->
+                              <button @click.stop="$dispatch('open-edit-timepunch', { id: group.homebase_id, name: group.name, date: hist.date, clockIn: hist.clock_in, deTotal: group.deHoursByDate[hist.date] ?? 0 })" class="ml-auto w-6 h-6 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit timepunch">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
                             </div>
                           </template>
                         </div>
@@ -976,52 +912,20 @@
                             <span class="w-16 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted text-right">Score</span>
                           </div>
                           <template x-for="grade in group.grades" :key="grade.date + '|' + grade.project + '|' + grade.score">
-                            <div x-data="gradeRowData" class="group/graderow flex items-center gap-3 pl-6 pr-4 py-2 border-t border-app-border/50 bg-[#fafafa]">
+                            <div class="group/graderow flex items-center gap-3 pl-6 pr-4 py-2 border-t border-app-border/50 bg-[#fafafa]">
                               <span class="w-24 shrink-0 tabular-nums text-muted text-[12px]" x-text="grade.date"></span>
                               <!-- Project -->
-                              <div class="w-40">
-                                <div x-show="editField !== 'project'" class="flex items-center gap-1.5">
-                                  <span class="min-w-0 text-[12px] text-charcoal truncate" x-text="grade.project || '—'"></span>
-                                  <button @click.stop="startEdit('project', grade.project)" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit project">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'project'" style="display:none" class="flex items-center gap-1">
-                                  <input type="text" x-model="editValue" @keydown.enter="save(group.homebase_id, grade)" @keydown.escape="cancel()" class="w-full max-w-40 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="save(group.homebase_id, grade)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="w-40 min-w-0 text-[12px] text-charcoal truncate" x-text="grade.project || '—'"></span>
                               <!-- Category -->
-                              <div class="hidden md:block flex-1 min-w-0 shrink-0">
-                                <div x-show="editField !== 'category'" class="flex items-center gap-1.5">
-                                  <span class="min-w-0 text-[12px] text-muted truncate" x-text="grade.category || '—'"></span>
-                                  <button @click.stop="startEdit('category', grade.category)" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit category">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'category'" style="display:none" class="flex items-center gap-1">
-                                  <input type="text" x-model="editValue" @keydown.enter="save(group.homebase_id, grade)" @keydown.escape="cancel()" class="w-24 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="save(group.homebase_id, grade)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="hidden md:block flex-1 min-w-0 shrink-0 text-[12px] text-muted truncate" x-text="grade.category || '—'"></span>
                               <!-- Score -->
-                              <div class="w-20 shrink-0">
-                                <div x-show="editField !== 'score'" class="flex items-center justify-end gap-1.5">
-                                  <span class="tabular-nums text-[12px] font-medium text-right"
-                                    :class="grade.score >= 90 ? 'text-sage' : grade.score >= 75 ? 'text-charcoal' : 'text-app-error'"
-                                    x-text="grade.score + '%'"></span>
-                                  <button @click.stop="startEdit('score', grade.score)" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit score">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                                </div>
-                                <div x-show="editField === 'score'" style="display:none" class="flex items-center justify-end gap-1">
-                                  <input type="number" x-model="editValue" min="0" step="0.5" @keydown.enter="save(group.homebase_id, grade)" @keydown.escape="cancel()" class="w-14 px-1.5 py-0.75 text-[12px] border border-blush rounded-sm bg-white text-charcoal outline-none" />
-                                  <button @click.stop="save(group.homebase_id, grade)" :disabled="saving" class="w-5 h-5 flex items-center justify-center rounded-full bg-sage/20 text-sage hover:bg-sage/35 disabled:opacity-40 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-                                  <button @click.stop="cancel()" class="w-5 h-5 flex items-center justify-center rounded-full bg-app-error/15 text-app-error hover:bg-app-error/25 transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                                </div>
-                              </div>
+                              <span class="w-20 shrink-0 tabular-nums text-[12px] font-medium text-right"
+                                :class="grade.score >= 90 ? 'text-sage' : grade.score >= 75 ? 'text-charcoal' : 'text-app-error'"
+                                x-text="grade.score + '%'"></span>
+                              <!-- Edit -->
+                              <button @click.stop="$dispatch('open-edit-grade', { id: group.homebase_id, name: group.name, grade: grade })" class="ml-auto w-6 h-6 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit grade">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
                             </div>
                           </template>
                         </div>
@@ -1444,7 +1348,7 @@
       x-data="addEntryModalData"
       class="modal border-none rounded-card shadow-(--shadow-lg) p-0 w-[clamp(300px,92vw,460px)] max-h-[90vh] overflow-y-auto bg-modal-bg m-auto">
       <div class="px-5.5 py-4.5 border-b border-app-border">
-        <span class="font-serif text-lg text-cream">Add Entry</span>
+        <span class="font-serif text-lg text-cream" x-text="dialogTitle">Add Entry</span>
       </div>
       <div class="px-5.5 py-5 flex flex-col gap-4">
         <!-- Student (read-only) -->
@@ -1452,8 +1356,8 @@
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5">Student</label>
           <div class="px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream/30 text-charcoal text-[13px] capitalize" x-text="displayName"></div>
         </div>
-        <!-- Type selector -->
-        <div>
+        <!-- Type selector (add mode only) -->
+        <div x-show="mode === 'add'">
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-type">Type</label>
           <select id="add-entry-type" x-model="type"
             class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none">
@@ -1465,8 +1369,8 @@
         <!-- Date (shared) -->
         <div>
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-date">Date</label>
-          <input id="add-entry-date" type="date" x-model="date"
-            class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
+          <input id="add-entry-date" type="date" x-model="date" :disabled="mode === 'edit'"
+            class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none disabled:bg-cream/30 disabled:cursor-default" />
         </div>
         <!-- Timepunch fields -->
         <div x-show="type === 'timepunch'" class="flex flex-col gap-4">
@@ -1502,6 +1406,12 @@
             <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-worked">Hours Worked</label>
             <input id="add-entry-worked" type="text" readonly :value="workedHours || '—'"
               class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream/30 text-charcoal outline-none cursor-default" />
+          </div>
+          <!-- DE Hours for this day (edit mode only) -->
+          <div x-show="mode === 'edit'" style="display:none">
+            <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-tp-de">DE Hours</label>
+            <input id="add-entry-tp-de" type="number" x-model="hours" min="0" step="0.5" placeholder="0"
+              class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
           </div>
         </div>
         <!-- DE Hours fields -->

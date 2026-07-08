@@ -639,6 +639,79 @@ export async function updateTimeclockEntry(
   if (error) throw new Error('Failed to update timeclock entry');
 }
 
+export interface TimeclockEntryDetail {
+  id: string;
+  clock_in: string;
+  clock_out: string | null;
+  break_id: string | null;
+  break_start: string | null;
+  break_end: string | null;
+}
+
+export async function fetchTimeclockEntryDetail(
+  homebaseId: number,
+  clockIn: string
+): Promise<TimeclockEntryDetail | null> {
+  const { data, error } = await supabase
+    .from('timeclock_entries')
+    .select('id, clock_in, clock_out, timeclock_breaks(id, break_start, break_end)')
+    .eq('homebase_id', homebaseId)
+    .eq('clock_in', clockIn)
+    .order('clock_in', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const entry = data as {
+    id: string;
+    clock_in: string;
+    clock_out: string | null;
+    timeclock_breaks: Array<{ id: string; break_start: string; break_end: string | null }>;
+  };
+  const brk = [...entry.timeclock_breaks].sort((a, b) => a.break_start.localeCompare(b.break_start))[0] ?? null;
+  return {
+    id: entry.id,
+    clock_in: entry.clock_in,
+    clock_out: entry.clock_out,
+    break_id: brk?.id ?? null,
+    break_start: brk?.break_start ?? null,
+    break_end: brk?.break_end ?? null,
+  };
+}
+
+export async function updateTimeclockEntryById(
+  entryId: string,
+  updates: { clock_in?: string; clock_out?: string | null }
+): Promise<void> {
+  const { error } = await supabase
+    .from('timeclock_entries')
+    .update(updates)
+    .eq('id', entryId);
+  if (error) throw new Error('Failed to update timeclock entry');
+}
+
+// Create or update the break for an entry. Clearing a break (empty values) is
+// not supported — the breaks table has no delete policy and break_start is NOT NULL.
+export async function upsertTimeclockBreak(
+  entryId: string,
+  breakId: string | null,
+  breakStart: string | null,
+  breakEnd: string | null
+): Promise<void> {
+  if (!breakStart || !breakEnd) return;
+  if (breakId) {
+    const { error } = await supabase
+      .from('timeclock_breaks')
+      .update({ break_start: breakStart, break_end: breakEnd })
+      .eq('id', breakId);
+    if (error) throw new Error('Failed to update break');
+  } else {
+    const { error } = await supabase
+      .from('timeclock_breaks')
+      .insert({ entry_id: entryId, break_start: breakStart, break_end: breakEnd });
+    if (error) throw new Error('Failed to add break');
+  }
+}
+
 export async function addTimeclockEntry(params: {
   homebase_id: number;
   date: string;

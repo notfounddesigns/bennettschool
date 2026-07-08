@@ -19,8 +19,10 @@ import {
   setStudentPin,
   updateStudentName,
   removeStudent,
-  updateTimeclockEntry,
   addTimeclockEntry,
+  fetchTimeclockEntryDetail,
+  updateTimeclockEntryById,
+  upsertTimeclockBreak,
   subscribeToTimeclock,
   fetchRoles,
   updateStudentRole,
@@ -61,6 +63,12 @@ export interface StudentGroup {
 
 function localDateStr(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ISO timestamp → "HH:MM" in local time, for <input type="time"> values.
+function isoToTimeInput(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 let _timeclockChannel: ReturnType<typeof subscribeToTimeclock> | null = null;
@@ -1089,150 +1097,13 @@ export function removeStudentData() {
   };
 }
 
-// ── History Row (in-place edit for clock-in, clock-out, DE hours) ─────────────
-
-export function historyRowData() {
-  return {
-    editField: null as null | 'clock_in' | 'clock_out' | 'de',
-    editValue: '',
-    saving: false,
-
-    startEditTime(field: 'clock_in' | 'clock_out', ts: string) {
-      if (!ts) {
-        this.editValue = '';
-      } else {
-        const d = new Date(ts);
-        this.editValue = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-      }
-      this.editField = field;
-    },
-
-    startEditDe(current: number) {
-      this.editValue = current > 0 ? String(current) : '';
-      this.editField = 'de';
-    },
-
-    cancel() {
-      this.editField = null;
-      this.editValue = '';
-    },
-
-    async saveTime(homebaseId: number, originalClockIn: string, date: string) {
-      if (!this.editValue) { this.cancel(); return; }
-      const [hours, minutes] = this.editValue.split(':').map(Number);
-      if (isNaN(hours) || isNaN(minutes)) { this.cancel(); return; }
-      const [year, month, day] = date.split('-').map(Number);
-      const newDate = new Date(year, month - 1, day, hours, minutes);
-      const field = this.editField as 'clock_in' | 'clock_out';
-
-      this.saving = true;
-      app().showLoading();
-      try {
-        await updateTimeclockEntry(homebaseId, originalClockIn, { [field]: newDate.toISOString() });
-        void logAudit('timeclock_edit', {
-          targetId: homebaseId,
-          description: `Edited ${field === 'clock_in' ? 'clock-in' : 'clock-out'} time for ${date}`,
-          metadata: { field, date, newValue: newDate.toISOString() },
-        });
-        this.cancel();
-        await (Alpine.store('mgmt') as MgmtStore).load();
-      } catch {
-        app().showSnackbar('Could not update time. Please try again.', 'error');
-      } finally {
-        this.saving = false;
-        app().hideLoading();
-      }
-    },
-
-    async saveDe(homebaseId: number, date: string, originalTotal: number) {
-      const target = parseFloat(this.editValue);
-      if (isNaN(target) || target < 0) { this.cancel(); return; }
-      const delta = target - originalTotal;
-      if (delta === 0) { this.cancel(); return; }
-
-      this.saving = true;
-      app().showLoading();
-      try {
-        await submitHours({
-          homebase_id: homebaseId,
-          type_id: 2,
-          date,
-          hours: String(delta),
-          module: '',
-          platform: '',
-          verified: true,
-        });
-        this.cancel();
-        await (Alpine.store('mgmt') as MgmtStore).load();
-      } catch {
-        app().showSnackbar('Could not update DE hours. Please try again.', 'error');
-      } finally {
-        this.saving = false;
-        app().hideLoading();
-      }
-    },
-  };
-}
-
-// ── Grade Row (in-place edit for project, category, score) ───────────────────
-
-export function gradeRowData() {
-  return {
-    editField: null as null | 'project' | 'category' | 'score',
-    editValue: '',
-    saving: false,
-
-    startEdit(field: 'project' | 'category' | 'score', current: string | number) {
-      this.editValue = String(current);
-      this.editField = field;
-    },
-
-    cancel() {
-      this.editField = null;
-      this.editValue = '';
-    },
-
-    async save(homebaseId: number, grade: GradeEntry) {
-      const field = this.editField;
-      if (!field) return;
-
-      let updates: Partial<{ project: string; category: string; score: number }>;
-      if (field === 'score') {
-        const score = parseFloat(this.editValue);
-        if (isNaN(score) || score < 0) { this.cancel(); return; }
-        if (score === grade.score) { this.cancel(); return; }
-        updates = { score };
-      } else {
-        const value = this.editValue.trim();
-        if (!value || value === grade[field]) { this.cancel(); return; }
-        updates = { [field]: value };
-      }
-
-      this.saving = true;
-      app().showLoading();
-      try {
-        await updateGradeEntry(homebaseId, { date: grade.date, project: grade.project, category: grade.category }, updates);
-        void logAudit('grade_update', {
-          targetId: homebaseId,
-          description: `Edited ${field} on a grade entry (${grade.project} / ${grade.category}, ${grade.date})`,
-          metadata: { field, date: grade.date, before: grade[field], after: updates[field] },
-        });
-        this.cancel();
-        await (Alpine.store('mgmt') as MgmtStore).load();
-      } catch {
-        app().showSnackbar('Could not update grade. Please try again.', 'error');
-      } finally {
-        this.saving = false;
-        app().hideLoading();
-      }
-    },
-  };
-}
-
 // ── Add Entry Dialog (per-student row in Timeclock view) ─────────────────────
 
 export function addEntryModalData() {
   return {
+    mode: 'add' as 'add' | 'edit',
+    // In edit mode, which record is being edited (locks the type / dialog layout).
+    editKind: null as null | 'timepunch' | 'grade',
     homebaseId: 0,
     studentName: '',
     type: 'timepunch' as 'timepunch' | 'de_hours' | 'grades',
@@ -1250,9 +1121,19 @@ export function addEntryModalData() {
     project: '',
     category: '',
     notes: '',
+    // Edit-mode bookkeeping used to target the row being updated.
+    entryId: '' as string,
+    breakId: null as string | null,
+    originalDeTotal: 0,
+    originalGrade: { date: '', project: '', category: '' },
 
     get displayName() {
       return toTitleCase(this.studentName);
+    },
+
+    get dialogTitle() {
+      if (this.mode === 'edit') return this.editKind === 'grade' ? 'Edit Grade' : 'Edit Timepunch';
+      return 'Add Entry';
     },
 
     // Read-only worked-hours calculation: (clock out − clock in) − break duration.
@@ -1274,27 +1155,92 @@ export function addEntryModalData() {
       return (worked / 60).toFixed(2);
     },
 
+    reset() {
+      this.mode = 'add';
+      this.editKind = null;
+      this.type = 'timepunch';
+      this.error = '';
+      this.date = todayIso();
+      this.clockIn = '';
+      this.clockOut = '';
+      this.breakStart = '';
+      this.breakEnd = '';
+      this.hours = '';
+      this.module = '';
+      this.platform = '';
+      this.score = '';
+      this.project = '';
+      this.category = '';
+      this.notes = '';
+      this.entryId = '';
+      this.breakId = null;
+      this.originalDeTotal = 0;
+      this.originalGrade = { date: '', project: '', category: '' };
+    },
+
+    openDialog() {
+      const dialog = document.getElementById('add-entry-dialog') as HTMLDialogElement;
+      dialog?.showModal();
+    },
+
     init() {
       window.addEventListener('open-add-entry', (e: Event) => {
         const { id, name } = (e as CustomEvent<{ id: number; name: string }>).detail;
+        this.reset();
         this.homebaseId = id;
         this.studentName = name;
+        this.openDialog();
+      });
+
+      window.addEventListener('open-edit-timepunch', async (e: Event) => {
+        const { id, name, date, clockIn, deTotal } = (e as CustomEvent<{
+          id: number; name: string; date: string; clockIn: string; deTotal: number;
+        }>).detail;
+        this.reset();
+        this.mode = 'edit';
+        this.editKind = 'timepunch';
         this.type = 'timepunch';
-        this.error = '';
-        this.date = todayIso();
-        this.clockIn = '';
-        this.clockOut = '';
-        this.breakStart = '';
-        this.breakEnd = '';
-        this.hours = '';
-        this.module = '';
-        this.platform = '';
-        this.score = '';
-        this.project = '';
-        this.category = '';
-        this.notes = '';
-        const dialog = document.getElementById('add-entry-dialog') as HTMLDialogElement;
-        dialog?.showModal();
+        this.homebaseId = id;
+        this.studentName = name;
+        this.date = date;
+        this.originalDeTotal = deTotal ?? 0;
+        this.hours = (deTotal ?? 0) > 0 ? String(deTotal) : '';
+        this.openDialog();
+        this.loading = true;
+        try {
+          const detail = await fetchTimeclockEntryDetail(id, clockIn);
+          if (detail) {
+            this.entryId = detail.id;
+            this.breakId = detail.break_id;
+            this.clockIn = isoToTimeInput(detail.clock_in);
+            this.clockOut = detail.clock_out ? isoToTimeInput(detail.clock_out) : '';
+            this.breakStart = detail.break_start ? isoToTimeInput(detail.break_start) : '';
+            this.breakEnd = detail.break_end ? isoToTimeInput(detail.break_end) : '';
+          } else {
+            this.error = 'Could not load this entry.';
+          }
+        } catch {
+          this.error = 'Could not load this entry.';
+        } finally {
+          this.loading = false;
+        }
+      });
+
+      window.addEventListener('open-edit-grade', (e: Event) => {
+        const { id, name, grade } = (e as CustomEvent<{ id: number; name: string; grade: GradeEntry }>).detail;
+        this.reset();
+        this.mode = 'edit';
+        this.editKind = 'grade';
+        this.type = 'grades';
+        this.homebaseId = id;
+        this.studentName = name;
+        this.date = grade.date;
+        this.project = grade.project ?? '';
+        this.category = grade.category ?? '';
+        this.score = grade.score != null ? String(grade.score) : '';
+        this.notes = grade.notes ?? '';
+        this.originalGrade = { date: grade.date, project: grade.project, category: grade.category };
+        this.openDialog();
       });
     },
 
@@ -1303,133 +1249,250 @@ export function addEntryModalData() {
       dialog?.close();
     },
 
+    // Combine the selected date with an "HH:MM" time input into an ISO timestamp.
+    toIso(t: string): string {
+      const [h, m] = t.split(':').map(Number);
+      const [y, mo, d] = this.date.split('-').map(Number);
+      return new Date(y, mo - 1, d, h, m).toISOString();
+    },
+
+    // Validate the punch fields and return the ISO values, or null (with this.error set).
+    validatePunch(): { clockInIso: string; clockOutIso: string; breakStartIso: string | null; breakEndIso: string | null } | null {
+      if (!this.date || !this.clockIn || !this.clockOut) {
+        this.error = 'Date, Clock In, and Clock Out are required.';
+        return null;
+      }
+      const clockInIso = this.toIso(this.clockIn);
+      const clockOutIso = this.toIso(this.clockOut);
+      if (clockOutIso <= clockInIso) {
+        this.error = 'Clock Out must be after Clock In.';
+        return null;
+      }
+      const hasBreakStart = !!this.breakStart;
+      const hasBreakEnd = !!this.breakEnd;
+      if (hasBreakStart !== hasBreakEnd) {
+        this.error = 'Both Break Start and Break End are required to record a break.';
+        return null;
+      }
+      let breakStartIso: string | null = null;
+      let breakEndIso: string | null = null;
+      if (hasBreakStart && hasBreakEnd) {
+        breakStartIso = this.toIso(this.breakStart);
+        breakEndIso = this.toIso(this.breakEnd);
+        if (breakEndIso <= breakStartIso) {
+          this.error = 'Break End must be after Break Start.';
+          return null;
+        }
+        if (breakStartIso < clockInIso || breakEndIso > clockOutIso) {
+          this.error = 'Break must fall within Clock In and Clock Out.';
+          return null;
+        }
+      }
+      return { clockInIso, clockOutIso, breakStartIso, breakEndIso };
+    },
+
     async submit() {
       this.error = '';
-      if (this.type === 'timepunch') {
-        if (!this.date || !this.clockIn || !this.clockOut) {
-          this.error = 'Date, Clock In, and Clock Out are required.';
-          return;
-        }
-        const toIso = (t: string): string => {
-          const [h, m] = t.split(':').map(Number);
-          const [y, mo, d] = this.date.split('-').map(Number);
-          return new Date(y, mo - 1, d, h, m).toISOString();
-        };
-        const clockInIso = toIso(this.clockIn);
-        const clockOutIso = toIso(this.clockOut);
-        if (clockOutIso <= clockInIso) {
-          this.error = 'Clock Out must be after Clock In.';
-          return;
-        }
-        const hasBreakStart = !!this.breakStart;
-        const hasBreakEnd = !!this.breakEnd;
-        if (hasBreakStart !== hasBreakEnd) {
-          this.error = 'Both Break Start and Break End are required to record a break.';
-          return;
-        }
-        let breakStartIso: string | null = null;
-        let breakEndIso: string | null = null;
-        if (hasBreakStart && hasBreakEnd) {
-          breakStartIso = toIso(this.breakStart);
-          breakEndIso = toIso(this.breakEnd);
-          if (breakEndIso <= breakStartIso) {
-            this.error = 'Break End must be after Break Start.';
-            return;
-          }
-          if (breakStartIso < clockInIso || breakEndIso > clockOutIso) {
-            this.error = 'Break must fall within Clock In and Clock Out.';
-            return;
-          }
-        }
-        this.loading = true;
-        app().showLoading();
-        try {
-          await addTimeclockEntry({
-            homebase_id: this.homebaseId,
-            date: this.date,
-            clock_in: clockInIso,
-            clock_out: clockOutIso,
-            break_start: breakStartIso,
-            break_end: breakEndIso,
-          });
-          void logAudit('timeclock_add', {
-            targetId: this.homebaseId,
-            targetName: this.studentName,
-            description: `Added a timeclock entry for ${this.date} (${this.workedHours} hrs)`,
-            metadata: {
-              id: this.homebaseId,
-              name: this.studentName,
-              date: this.date,
-              clock_in: clockInIso,
-              clock_out: clockOutIso,
-              break_start: breakStartIso,
-              break_end: breakEndIso,
-              worked_hours: this.workedHours,
-            },
-          });
-          this.closeDialog();
-          app().showSnackbar('Timepunch added.', 'success');
-          const mgmt = Alpine.store('mgmt') as MgmtStore;
-          await mgmt.load();
-        } catch (err: unknown) {
-          this.error = err instanceof Error ? err.message : 'Could not save. Please try again.';
-        } finally {
-          this.loading = false;
-          app().hideLoading();
-        }
+      if (this.mode === 'edit' && this.editKind === 'timepunch') {
+        await this.submitEditTimepunch();
+      } else if (this.mode === 'edit' && this.editKind === 'grade') {
+        await this.submitEditGrade();
+      } else if (this.type === 'timepunch') {
+        await this.submitAddTimepunch();
       } else if (this.type === 'de_hours') {
-        if (!this.date || !this.hours) {
-          this.error = 'Date and Hours are required.';
-          return;
-        }
-        this.loading = true;
-        app().showLoading();
-        try {
+        await this.submitAddDeHours();
+      } else {
+        await this.submitAddGrade();
+      }
+    },
+
+    async submitAddTimepunch() {
+      const punch = this.validatePunch();
+      if (!punch) return;
+      this.loading = true;
+      app().showLoading();
+      try {
+        await addTimeclockEntry({
+          homebase_id: this.homebaseId,
+          date: this.date,
+          clock_in: punch.clockInIso,
+          clock_out: punch.clockOutIso,
+          break_start: punch.breakStartIso,
+          break_end: punch.breakEndIso,
+        });
+        void logAudit('timeclock_add', {
+          targetId: this.homebaseId,
+          targetName: this.studentName,
+          description: `Added a timeclock entry for ${this.date} (${this.workedHours} hrs)`,
+          metadata: {
+            id: this.homebaseId,
+            name: this.studentName,
+            date: this.date,
+            clock_in: punch.clockInIso,
+            clock_out: punch.clockOutIso,
+            break_start: punch.breakStartIso,
+            break_end: punch.breakEndIso,
+            worked_hours: this.workedHours,
+          },
+        });
+        this.closeDialog();
+        app().showSnackbar('Timepunch added.', 'success');
+        await (Alpine.store('mgmt') as MgmtStore).load();
+      } catch (err: unknown) {
+        this.error = err instanceof Error ? err.message : 'Could not save. Please try again.';
+      } finally {
+        this.loading = false;
+        app().hideLoading();
+      }
+    },
+
+    async submitEditTimepunch() {
+      if (!this.entryId) {
+        this.error = 'This entry is still loading. Please try again.';
+        return;
+      }
+      const punch = this.validatePunch();
+      if (!punch) return;
+      const newDe = this.hours ? parseFloat(this.hours) : 0;
+      if (isNaN(newDe) || newDe < 0) {
+        this.error = 'DE Hours must be a positive number.';
+        return;
+      }
+      this.loading = true;
+      app().showLoading();
+      try {
+        await updateTimeclockEntryById(this.entryId, {
+          clock_in: punch.clockInIso,
+          clock_out: punch.clockOutIso,
+        });
+        await upsertTimeclockBreak(this.entryId, this.breakId, punch.breakStartIso, punch.breakEndIso);
+        // DE hours are stored as adjustment rows; write only the delta.
+        const deDelta = newDe - this.originalDeTotal;
+        if (deDelta !== 0) {
           await submitHours({
             homebase_id: this.homebaseId,
             type_id: 2,
             date: this.date,
-            hours: this.hours,
-            module: this.module,
-            platform: this.platform,
+            hours: String(deDelta),
+            module: '',
+            platform: '',
             verified: true,
           });
-          this.closeDialog();
-          app().showSnackbar('DE hours added.', 'success');
-          const mgmt = Alpine.store('mgmt') as MgmtStore;
-          await mgmt.load();
-        } catch (err: unknown) {
-          this.error = err instanceof Error ? err.message : 'Could not save. Please try again.';
-        } finally {
-          this.loading = false;
-          app().hideLoading();
         }
-      } else {
-        if (!this.date || !this.score) {
-          this.error = 'Date and Score are required.';
-          return;
-        }
-        this.loading = true;
-        app().showLoading();
-        try {
-          await submitGradeEntry({
-            homebase_id: this.homebaseId,
+        void logAudit('timeclock_edit', {
+          targetId: this.homebaseId,
+          targetName: this.studentName,
+          description: `Edited timeclock entry for ${this.date} (${this.workedHours} hrs)`,
+          metadata: {
+            id: this.homebaseId,
+            name: this.studentName,
             date: this.date,
-            project: this.project,
-            category: this.category,
-            score: Number(this.score),
-            notes: this.notes || null,
-          });
-          this.closeDialog();
-          app().showSnackbar('Grade saved.', 'success');
-          const mgmt = Alpine.store('mgmt') as MgmtStore;
-          await mgmt.load();
-        } catch {
-          this.error = 'Could not save. Please try again.';
-        } finally {
-          this.loading = false;
-          app().hideLoading();
-        }
+            clock_in: punch.clockInIso,
+            clock_out: punch.clockOutIso,
+            break_start: punch.breakStartIso,
+            break_end: punch.breakEndIso,
+            worked_hours: this.workedHours,
+            de_hours: newDe,
+          },
+        });
+        this.closeDialog();
+        app().showSnackbar('Timepunch updated.', 'success');
+        await (Alpine.store('mgmt') as MgmtStore).load();
+      } catch (err: unknown) {
+        this.error = err instanceof Error ? err.message : 'Could not save. Please try again.';
+      } finally {
+        this.loading = false;
+        app().hideLoading();
+      }
+    },
+
+    async submitAddDeHours() {
+      if (!this.date || !this.hours) {
+        this.error = 'Date and Hours are required.';
+        return;
+      }
+      this.loading = true;
+      app().showLoading();
+      try {
+        await submitHours({
+          homebase_id: this.homebaseId,
+          type_id: 2,
+          date: this.date,
+          hours: this.hours,
+          module: this.module,
+          platform: this.platform,
+          verified: true,
+        });
+        this.closeDialog();
+        app().showSnackbar('DE hours added.', 'success');
+        await (Alpine.store('mgmt') as MgmtStore).load();
+      } catch (err: unknown) {
+        this.error = err instanceof Error ? err.message : 'Could not save. Please try again.';
+      } finally {
+        this.loading = false;
+        app().hideLoading();
+      }
+    },
+
+    async submitAddGrade() {
+      if (!this.date || !this.score) {
+        this.error = 'Date and Score are required.';
+        return;
+      }
+      this.loading = true;
+      app().showLoading();
+      try {
+        await submitGradeEntry({
+          homebase_id: this.homebaseId,
+          date: this.date,
+          project: this.project,
+          category: this.category,
+          score: Number(this.score),
+          notes: this.notes || null,
+        });
+        this.closeDialog();
+        app().showSnackbar('Grade saved.', 'success');
+        await (Alpine.store('mgmt') as MgmtStore).load();
+      } catch {
+        this.error = 'Could not save. Please try again.';
+      } finally {
+        this.loading = false;
+        app().hideLoading();
+      }
+    },
+
+    async submitEditGrade() {
+      if (!this.score) {
+        this.error = 'Score is required.';
+        return;
+      }
+      const score = Number(this.score);
+      if (isNaN(score) || score < 0) {
+        this.error = 'Score must be a positive number.';
+        return;
+      }
+      this.loading = true;
+      app().showLoading();
+      try {
+        await updateGradeEntry(this.homebaseId, this.originalGrade, {
+          project: this.project,
+          category: this.category,
+          score,
+        });
+        void logAudit('grade_update', {
+          targetId: this.homebaseId,
+          targetName: this.studentName,
+          description: `Edited a grade entry (${this.project} / ${this.category}, ${this.date})`,
+          metadata: { date: this.date, project: this.project, category: this.category, score },
+        });
+        this.closeDialog();
+        app().showSnackbar('Grade updated.', 'success');
+        await (Alpine.store('mgmt') as MgmtStore).load();
+      } catch {
+        this.error = 'Could not save. Please try again.';
+      } finally {
+        this.loading = false;
+        app().hideLoading();
       }
     },
   };

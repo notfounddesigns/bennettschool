@@ -75,6 +75,10 @@
 
 ## Refactor / Code Quality
 
+
+- [x] Instead of in-place edits for each student's timepunch/DE hours, remove each edit button per column and 
+  add only 1 edit button per row. This will display the 'Add Timepunch Hours / DE Hours / Grades' modal with 
+  pre-populated with the data for that row that needs to be edited
 - [ ] Find areas in the codebase that can be refactored for code quality, maintainability, or performance related reasons
   - [ ] Can `index.html` be split into smaller components?
   - [ ] Can any of the `component` or `lib` `*.ts` files be split into smaller modules?
