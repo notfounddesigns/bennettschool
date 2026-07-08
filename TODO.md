@@ -2,6 +2,17 @@
 
 ## New Features
 
+- [x] Add the option for adding timepunch hours to the 'Add DE hours or grade' modal
+  - Timepunch hours should be the default selection
+  - Needs these inputs:
+    - Date
+    - Clock In
+    - Clock Out
+    - Break Start
+    - Break End
+    - Hours Worked (Read-only calculation based off time punch & break data entered)
+  - Create audit log message
+  
 - [ ] Update the student dashboard UI
   - [x] Update UI to match screenshot design
   - [x] Combine In Person hours and DE hours into 1 table with a type (In Person or DE) col

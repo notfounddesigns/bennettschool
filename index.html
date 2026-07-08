@@ -1457,6 +1457,7 @@
           <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-type">Type</label>
           <select id="add-entry-type" x-model="type"
             class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none">
+            <option value="timepunch">Timepunch Hours</option>
             <option value="de_hours">DE Hours</option>
             <option value="grades">Grade</option>
           </select>
@@ -1467,8 +1468,44 @@
           <input id="add-entry-date" type="date" x-model="date"
             class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
         </div>
+        <!-- Timepunch fields -->
+        <div x-show="type === 'timepunch'" class="flex flex-col gap-4">
+          <div class="flex gap-4">
+            <div class="flex-1">
+              <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-clock-in">Clock In</label>
+              <input id="add-entry-clock-in" type="time" x-model="clockIn"
+                class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
+            </div>
+            <div class="flex-1">
+              <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-clock-out">Clock Out</label>
+              <input id="add-entry-clock-out" type="time" x-model="clockOut"
+                class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="flex-1">
+              <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-break-start">
+                Break Start <span class="font-normal normal-case tracking-normal">(optional)</span>
+              </label>
+              <input id="add-entry-break-start" type="time" x-model="breakStart"
+                class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
+            </div>
+            <div class="flex-1">
+              <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-break-end">
+                Break End <span class="font-normal normal-case tracking-normal">(optional)</span>
+              </label>
+              <input id="add-entry-break-end" type="time" x-model="breakEnd"
+                class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-worked">Hours Worked</label>
+            <input id="add-entry-worked" type="text" readonly :value="workedHours || '—'"
+              class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream/30 text-charcoal outline-none cursor-default" />
+          </div>
+        </div>
         <!-- DE Hours fields -->
-        <div x-show="type === 'de_hours'" class="flex flex-col gap-4">
+        <div x-show="type === 'de_hours'" style="display:none" class="flex flex-col gap-4">
           <div>
             <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-hours">Hours</label>
             <input id="add-entry-hours" type="number" x-model="hours" min="0" step="0.5" placeholder="0"

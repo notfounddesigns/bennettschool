@@ -13,7 +13,8 @@ export function loginData() {
 
     async submit() {
       this.error = '';
-      const name = (this.name as string).trim();
+      // Normalize iPad smart-quote apostrophes so names like "O'Neal" match.
+      const name = (this.name as string).trim().replace(/[‘’]/g, "'");
       const password = this.password as string;
 
       if (!name) { this.error = 'Please enter your first and last name.'; return; }

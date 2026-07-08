@@ -20,6 +20,7 @@ import {
   updateStudentName,
   removeStudent,
   updateTimeclockEntry,
+  addTimeclockEntry,
   subscribeToTimeclock,
   fetchRoles,
   updateStudentRole,
@@ -97,6 +98,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   logout: 'Signed out',
   grade_update: 'Edited a grade entry',
   timeclock_edit: 'Edited a timeclock entry',
+  timeclock_add: 'Added a timeclock entry',
   role_change: 'Updated a student profile',
   pin_reset: 'Reset a PIN',
   password_reset: 'Set a password',
@@ -1233,10 +1235,14 @@ export function addEntryModalData() {
   return {
     homebaseId: 0,
     studentName: '',
-    type: 'de_hours' as 'de_hours' | 'grades',
+    type: 'timepunch' as 'timepunch' | 'de_hours' | 'grades',
     loading: false,
     error: '',
     date: todayIso(),
+    clockIn: '',
+    clockOut: '',
+    breakStart: '',
+    breakEnd: '',
     hours: '',
     module: '',
     platform: '',
@@ -1249,14 +1255,37 @@ export function addEntryModalData() {
       return toTitleCase(this.studentName);
     },
 
+    // Read-only worked-hours calculation: (clock out − clock in) − break duration.
+    get workedHours() {
+      const toMin = (t: string): number | null => {
+        if (!t) return null;
+        const [h, m] = t.split(':').map(Number);
+        if (isNaN(h) || isNaN(m)) return null;
+        return h * 60 + m;
+      };
+      const ci = toMin(this.clockIn);
+      const co = toMin(this.clockOut);
+      if (ci == null || co == null || co <= ci) return '';
+      let worked = co - ci;
+      const bs = toMin(this.breakStart);
+      const be = toMin(this.breakEnd);
+      if (bs != null && be != null && be > bs) worked -= be - bs;
+      if (worked <= 0) return '';
+      return (worked / 60).toFixed(2);
+    },
+
     init() {
       window.addEventListener('open-add-entry', (e: Event) => {
         const { id, name } = (e as CustomEvent<{ id: number; name: string }>).detail;
         this.homebaseId = id;
         this.studentName = name;
-        this.type = 'de_hours';
+        this.type = 'timepunch';
         this.error = '';
         this.date = todayIso();
+        this.clockIn = '';
+        this.clockOut = '';
+        this.breakStart = '';
+        this.breakEnd = '';
         this.hours = '';
         this.module = '';
         this.platform = '';
@@ -1276,7 +1305,79 @@ export function addEntryModalData() {
 
     async submit() {
       this.error = '';
-      if (this.type === 'de_hours') {
+      if (this.type === 'timepunch') {
+        if (!this.date || !this.clockIn || !this.clockOut) {
+          this.error = 'Date, Clock In, and Clock Out are required.';
+          return;
+        }
+        const toIso = (t: string): string => {
+          const [h, m] = t.split(':').map(Number);
+          const [y, mo, d] = this.date.split('-').map(Number);
+          return new Date(y, mo - 1, d, h, m).toISOString();
+        };
+        const clockInIso = toIso(this.clockIn);
+        const clockOutIso = toIso(this.clockOut);
+        if (clockOutIso <= clockInIso) {
+          this.error = 'Clock Out must be after Clock In.';
+          return;
+        }
+        const hasBreakStart = !!this.breakStart;
+        const hasBreakEnd = !!this.breakEnd;
+        if (hasBreakStart !== hasBreakEnd) {
+          this.error = 'Both Break Start and Break End are required to record a break.';
+          return;
+        }
+        let breakStartIso: string | null = null;
+        let breakEndIso: string | null = null;
+        if (hasBreakStart && hasBreakEnd) {
+          breakStartIso = toIso(this.breakStart);
+          breakEndIso = toIso(this.breakEnd);
+          if (breakEndIso <= breakStartIso) {
+            this.error = 'Break End must be after Break Start.';
+            return;
+          }
+          if (breakStartIso < clockInIso || breakEndIso > clockOutIso) {
+            this.error = 'Break must fall within Clock In and Clock Out.';
+            return;
+          }
+        }
+        this.loading = true;
+        app().showLoading();
+        try {
+          await addTimeclockEntry({
+            homebase_id: this.homebaseId,
+            date: this.date,
+            clock_in: clockInIso,
+            clock_out: clockOutIso,
+            break_start: breakStartIso,
+            break_end: breakEndIso,
+          });
+          void logAudit('timeclock_add', {
+            targetId: this.homebaseId,
+            targetName: this.studentName,
+            description: `Added a timeclock entry for ${this.date} (${this.workedHours} hrs)`,
+            metadata: {
+              id: this.homebaseId,
+              name: this.studentName,
+              date: this.date,
+              clock_in: clockInIso,
+              clock_out: clockOutIso,
+              break_start: breakStartIso,
+              break_end: breakEndIso,
+              worked_hours: this.workedHours,
+            },
+          });
+          this.closeDialog();
+          app().showSnackbar('Timepunch added.', 'success');
+          const mgmt = Alpine.store('mgmt') as MgmtStore;
+          await mgmt.load();
+        } catch (err: unknown) {
+          this.error = err instanceof Error ? err.message : 'Could not save. Please try again.';
+        } finally {
+          this.loading = false;
+          app().hideLoading();
+        }
+      } else if (this.type === 'de_hours') {
         if (!this.date || !this.hours) {
           this.error = 'Date and Hours are required.';
           return;

@@ -639,6 +639,38 @@ export async function updateTimeclockEntry(
   if (error) throw new Error('Failed to update timeclock entry');
 }
 
+export async function addTimeclockEntry(params: {
+  homebase_id: number;
+  date: string;
+  clock_in: string;
+  clock_out: string;
+  break_start?: string | null;
+  break_end?: string | null;
+}): Promise<void> {
+  const { data, error } = await supabase
+    .from('timeclock_entries')
+    .insert({
+      homebase_id: params.homebase_id,
+      date: params.date,
+      clock_in: params.clock_in,
+      clock_out: params.clock_out,
+    })
+    .select('id')
+    .single();
+  if (error || !data) throw new Error('Failed to add timeclock entry');
+
+  if (params.break_start && params.break_end) {
+    const { error: breakError } = await supabase
+      .from('timeclock_breaks')
+      .insert({
+        entry_id: (data as { id: string }).id,
+        break_start: params.break_start,
+        break_end: params.break_end,
+      });
+    if (breakError) throw new Error('Failed to add break');
+  }
+}
+
 export async function fetchAllGrades(): Promise<Record<number, GradeEntry[]>> {
   const { data, error } = await supabase
     .from('grades')
@@ -824,6 +856,7 @@ export type AuditAction =
   | 'login' | 'logout'
   | 'grade_update'
   | 'timeclock_edit'
+  | 'timeclock_add'
   | 'role_change'
   | 'pin_reset' | 'password_reset' | 'password_clear'
   | 'student_removed' | 'student_reactivated'
