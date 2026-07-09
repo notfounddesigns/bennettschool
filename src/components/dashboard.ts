@@ -40,7 +40,7 @@ export function createDashboardStore(): DashboardStore {
 
     get hrsRemaining() {
       if (!this.data) return '— h remaining';
-      return `${fmtFloat(this.data.hrsToGrad - this.data.totalHrsAll)} h remaining`;
+      return `${fmtFloat(this.data.hrsToGrad)} h remaining`;
     },
 
     get formattedInPersonHrs() {
