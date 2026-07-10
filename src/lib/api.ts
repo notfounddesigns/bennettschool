@@ -50,6 +50,7 @@ export interface StudentDashboard {
   deHrs: number;
   inPersonHrsList: HourEntry[];
   deHrsList: DeEntry[];
+  timeclockHrsList: HourEntry[];
   grades: GradeEntry[];
 }
 
@@ -98,6 +99,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     { data: profile, error: profileError },
     { data: hours, error: hoursError },
     { data: gradesData },
+    { data: timeclockData, error: timeclockError },
   ] = await Promise.all([
     supabase
       .from('profiles_view')
@@ -114,11 +116,20 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .select('date, project, category, score, notes')
       .eq('homebase_id', employeeUserId)
       .order('date', { ascending: false }),
+    supabase
+      .from('timeclock_status')
+      .select('date, worked_hours')
+      .eq('homebase_id', employeeUserId)
+      .gte('date', daysAgo7)
+      .not('clock_out', 'is', null),
   ]);
 
   if (profileError || hoursError) {
     console.error('Error fetching dashboard summary…', profileError ?? hoursError);
     throw new Error('Failed to load dashboard');
+  }
+  if (timeclockError) {
+    console.error('Error fetching timeclock entries…', timeclockError);
   }
 
   const profileHours = (profile as { hours: Array<{ type_id: number; hours: number }> }).hours ?? [];
@@ -142,6 +153,13 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
 
+  const rawTimeclock = (timeclockData as Array<{ date: string; worked_hours: number | null }>) ?? [];
+
+  const timeclockHrsList: HourEntry[] = rawTimeclock
+    .filter(t => (t.worked_hours ?? 0) > 0)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map(({ date, worked_hours }) => ({ date, hours: Math.round((worked_hours ?? 0) * 100) / 100 }));
+
   const p = profile as { total_hrs: number; hrs_to_graduate: number; percent_complete: number };
 
   return {
@@ -152,6 +170,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     deHrs,
     inPersonHrsList,
     deHrsList,
+    timeclockHrsList,
     grades: (gradesData as GradeEntry[]) ?? [],
   };
 }

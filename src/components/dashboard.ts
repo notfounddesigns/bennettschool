@@ -65,7 +65,7 @@ export function dashboardDisplayData() {
 
     get hoursHtml() {
       const dash = Alpine.store('dashboard') as DashboardStore;
-      return renderHoursTable(dash.data?.inPersonHrsList ?? [], dash.data?.deHrsList ?? []);
+      return renderHoursTable(dash.data?.inPersonHrsList ?? [], dash.data?.deHrsList ?? [], dash.data?.timeclockHrsList ?? []);
     },
     get gradesHtml() {
       const dash = Alpine.store('dashboard') as DashboardStore;
@@ -78,14 +78,21 @@ export function dashboardDisplayData() {
 
 interface CombinedHourRow {
   date: string;
-  type: 'In Person' | 'DE';
+  type: 'In Person' | 'DE' | 'Time Clock';
   hours: number;
 }
 
-export function renderHoursTable(inPerson: HourEntry[], de: DeEntry[]): string {
+const HOUR_TYPE_BADGE_CLASSES: Record<CombinedHourRow['type'], string> = {
+  'In Person': 'bg-sage-light text-[#2D6A55]',
+  'DE': 'bg-[#FEF3C7] text-[#92400E]',
+  'Time Clock': 'bg-[#DBEAFE] text-[#1E40AF]',
+};
+
+export function renderHoursTable(inPerson: HourEntry[], de: DeEntry[], timeclock: HourEntry[] = []): string {
   const combined: CombinedHourRow[] = [
     ...inPerson.map(e => ({ date: e.date, type: 'In Person' as const, hours: e.hours })),
     ...de.map(e => ({ date: e.date, type: 'DE' as const, hours: e.hours })),
+    ...timeclock.map(e => ({ date: e.date, type: 'Time Clock' as const, hours: e.hours })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   if (combined.length === 0) {
@@ -97,7 +104,7 @@ export function renderHoursTable(inPerson: HourEntry[], de: DeEntry[]): string {
       e => `<tr>
         <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">${formatSimpleDate(e.date)}</td>
         <td class="px-4 py-2.5 text-[13px] border-b border-app-border">
-          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full tracking-wide ${e.type === 'In Person' ? 'bg-sage-light text-[#2D6A55]' : 'bg-[#FEF3C7] text-[#92400E]'}">${e.type}</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full tracking-wide ${HOUR_TYPE_BADGE_CLASSES[e.type]}">${e.type}</span>
         </td>
         <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">${e.hours}h</td>
       </tr>`,
