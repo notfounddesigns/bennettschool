@@ -71,7 +71,7 @@ restoreSession() or login success
 
 ## Supabase Edge Function Calls
 
-All edge function calls go through the `PROXY` constant (`${SUPABASE_URL}/functions/v1`) defined in `src/lib/supabase.ts`. Always include `AUTH_HEADERS`, which carries a ****** header and `Content-Type: application/json`. It is exported from `src/lib/supabase.ts`. The `homebaseFetch(path)` helper in `src/lib/api.ts` wraps the HomeBase proxy endpoint.
+All edge function calls go through the `PROXY` constant (`${SUPABASE_URL}/functions/v1`) defined in `src/lib/supabase.ts`. Always include `AUTH_HEADERS` (an `Authorization` header using the Supabase anon key plus `Content-Type: application/json`). It is exported from `src/lib/supabase.ts`. The `homebaseFetch(path)` helper in `src/lib/api.ts` wraps the HomeBase proxy endpoint.
 
 ## What to Avoid
 
