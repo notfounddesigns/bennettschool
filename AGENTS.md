@@ -62,7 +62,7 @@ Use `fmtFloat(val, precision=2)` (from `src/lib/helpers.ts`) for all hour values
 ## Data Flow
 
 ```
-Login → auth-login edge fn → Student object → localStorage + app store
+Login → auth-login edge fn → employee object (Student type) → localStorage + app store
   ↓
 restoreSession() or login success
   ├─ isManager (role_id === 3)? → showScreen('mgmt')      → MgmtStore.load()
