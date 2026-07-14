@@ -40,7 +40,8 @@ export function createDashboardStore(): DashboardStore {
 
     get hrsRemaining() {
       if (!this.data) return '— h remaining';
-      return `${fmtFloat(this.data.hrsToGrad)} h remaining`;
+      if (this.data.hrsToGrad <= 0) return 'Graduated 🎉🎉'
+      else return `${fmtFloat(this.data.hrsToGrad)} h remaining`;
     },
 
     get formattedInPersonHrs() {

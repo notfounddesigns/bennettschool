@@ -42,7 +42,9 @@ import {
   type TimeclockStatusEntry,
   type Role,
   type GradeEntry,
+  type Student,
 } from '../lib/api';
+import type { DashboardStore } from './dashboard';
 
 export interface StudentGroup {
   homebase_id: number;
@@ -115,6 +117,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   student_reactivated: 'Reactivated a student',
   needs_attention_resolved: 'Resolved a Needs Attention item',
   needs_attention_resolve_all: 'Resolved all Needs Attention items',
+  view_as_student: 'Viewed a student dashboard',
 };
 
 const ATTENTION_TYPE_LABELS: Record<NeedsAttentionType, string> = {
@@ -129,6 +132,7 @@ export interface MgmtStore {
   loading: boolean;
   employees: MgmtEmployee[];
   currentStudents: TimeclockStatusEntry[];
+  selectedStudent: MgmtEmployee | null;
   deHours: Record<string, number>;
   allGrades: Record<number, GradeEntry[]>;
   lastSync: SyncRecord | null;
@@ -144,7 +148,9 @@ export interface MgmtStore {
   auditActionLabel(action: AuditAction): string;
   auditTimestamp(iso: string): string;
   handleRowClick(group: StudentGroup): void;
+  viewAsStudent(emp: MgmtEmployee): void;
   readonly groupedStudents: StudentGroup[];
+  readonly selectedGroup: StudentGroup | null;
   readonly clockedInCount: number;
   readonly unresolvedAttentionItems: NeedsAttentionRecord[];
   readonly todayTimeclockStats: { hours: number; students: number };
@@ -156,6 +162,7 @@ export function createMgmtStore(): MgmtStore {
     loading: false,
     employees: [],
     currentStudents: [],
+    selectedStudent: null,
     deHours: {},
     allGrades: {},
     lastSync: null,
@@ -245,6 +252,7 @@ export function createMgmtStore(): MgmtStore {
         ]);
         this.employees = employees;
         this.currentStudents = students;
+        this.selectedStudent = employees[0] ?? null;
         this.lastSync = lastSync;
         this.overviewStats = overviewStats;
         this.deHours = deHours;
@@ -271,8 +279,31 @@ export function createMgmtStore(): MgmtStore {
     },
 
     handleRowClick(group: StudentGroup) {
+      this.selectedStudent = this.employees.find(emp => emp.homebase_id === group.homebase_id) ?? null;
       // Accordion: collapse if already open, otherwise open only this row.
       this.expandedId = this.expandedId === group.homebase_id ? null : group.homebase_id;
+    },
+    
+    // Manager action: open the selected student's dashboard in read-only
+    // "view as" mode. The manager stays logged in; exiting returns here.
+    async viewAsStudent(emp: MgmtEmployee) {
+      const appStore = app();
+      const manager = appStore.currentEmployee;
+      const student: Student = {
+        homebase_id: emp.homebase_id,
+        name: emp.name,
+        role_id: emp.role_id,
+      };
+      appStore.viewAsStudent(student);
+      await (Alpine.store('dashboard') as DashboardStore).load(emp.homebase_id);
+      void logAuditEvent({
+        actor_id: manager?.homebase_id ?? null,
+        actor_name: manager?.name ?? null,
+        action: 'view_as_student',
+        target_id: emp.homebase_id,
+        target_name: emp.name,
+        description: `${manager?.name ?? 'A manager'} viewed ${emp.name}'s dashboard`,
+      }).catch(() => {});
     },
 
     get groupedStudents(): StudentGroup[] {
@@ -302,6 +333,11 @@ export function createMgmtStore(): MgmtStore {
           );
           const todayEntry = sorted.find(e => e.date === today) ?? null;
           const historyEntries = sorted.filter(e => e.date !== today);
+          // get prevDayHrs, check to see if date is actually yesterday's date
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = localDateStr(yesterday);
+          const prevDayHrs = historyEntries.find(e => e.date === yesterdayStr)?.worked_hours ?? 0;
           const name = entries[0]?.name ?? empMap.get(homebase_id)?.name ?? `Student ${homebase_id}`;
           const initials = name.split(' ').map(p => p[0] ?? '').slice(0, 2).join('').toUpperCase();
           const deHoursByDate: Record<string, number> = {};
@@ -310,17 +346,19 @@ export function createMgmtStore(): MgmtStore {
             if (val) deHoursByDate[e.date] = val;
           }
           const emp = empMap.get(homebase_id);
+          console.log(historyEntries);
           return {
             homebase_id,
             name,
             initials,
             role_id: emp?.role_id ?? 1,
             role_name: emp?.role_name ?? '',
-            totalInPersonHrs: parseFloat(emp?.in_person_hrs ?? '0') || 0,
+            totalInPersonHrs: emp?.total_hrs || 0,
             totalDeHrs: parseFloat(emp?.de_hrs ?? '0') || 0,
             hrsToGraduate: emp?.hrs_to_graduate ?? 0,
             percentComplete: emp?.percent_complete ?? 0,
             todayEntry,
+            prevDayHrs,
             historyEntries,
             deHoursByDate,
             grades: (this.allGrades as Record<number, GradeEntry[]>)[homebase_id] ?? [],
@@ -333,6 +371,12 @@ export function createMgmtStore(): MgmtStore {
           if (aActive !== bActive) return bActive - aActive;
           return a.name.localeCompare(b.name);
         });
+    },
+
+    get selectedGroup(): StudentGroup | null {
+      const sel = this.selectedStudent as MgmtEmployee | null;
+      if (!sel) return null;
+      return this.groupedStudents.find(g => g.homebase_id === sel.homebase_id) ?? null;
     },
 
     get todayTimeclockStats(): { hours: number; students: number } {

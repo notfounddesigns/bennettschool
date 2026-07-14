@@ -59,7 +59,7 @@ export interface MgmtEmployee {
   name: string;
   role_id: number;
   role_name: string;
-  in_person_hrs: string;
+  in_person_hrs: string | number;
   de_hrs: string;
   total_hrs: number;
   hrs_to_graduate: number;
@@ -93,7 +93,8 @@ export async function homebaseFetch(path: string): Promise<HomebaseEmployee[]> {
 }
 
 export async function fetchStudentDashboard(employeeUserId: number): Promise<StudentDashboard> {
-  const daysAgo7 = nDaysAgo(7);
+  // update to get number of days since first day of month
+  const daysAgoMonthStart = nDaysAgo(new Date().getDate() - 1);
 
   const [
     { data: profile, error: profileError },
@@ -110,7 +111,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .from('hours')
       .select('type_id, hours, date, module, platform, verified')
       .eq('homebase_id', employeeUserId)
-      .gte('date', daysAgo7),
+      .gte('date', daysAgoMonthStart),
     supabase
       .from('grades')
       .select('date, project, category, score, notes')
@@ -120,7 +121,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .from('timeclock_status')
       .select('date, worked_hours')
       .eq('homebase_id', employeeUserId)
-      .gte('date', daysAgo7)
+      .gte('date', daysAgoMonthStart)
       .not('clock_out', 'is', null),
   ]);
 
@@ -258,7 +259,7 @@ export interface TimeclockStatusEntry {
 export async function fetchCurrentStudents(): Promise<TimeclockStatusEntry[]> {
   const { data, error } = await supabase
     .from('timeclock_status')
-    .select(`homebase_id, name, date, clock_in, clock_out, is_clocked_in, on_break, worked_hours`)
+    .select(`homebase_id, name, date, clock_in, clock_out, is_clocked_in, on_break, break_start, break_end, worked_hours`)
     .order('clock_in', { ascending: false });
 
   if (error) throw new Error('Failed to load timeclock entries');
@@ -952,7 +953,8 @@ export type AuditAction =
   | 'role_change'
   | 'pin_reset' | 'password_reset' | 'password_clear'
   | 'student_removed' | 'student_reactivated'
-  | 'needs_attention_resolved' | 'needs_attention_resolve_all';
+  | 'needs_attention_resolved' | 'needs_attention_resolve_all'
+  | 'view_as_student';
 
 export interface AuditLogRecord {
   id: string;
