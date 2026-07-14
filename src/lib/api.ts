@@ -870,6 +870,62 @@ export async function fetchCompareData(): Promise<CompareRow[]> {
   return rows.sort((a, b) => a.name.localeCompare(b.name) || a.date.localeCompare(b.date));
 }
 
+// ── Hours tab (queries/*.sql, wrapped as views) ─────────────────────────────
+
+export interface HoursByProfileRow {
+  id: string;
+  name: string;
+  homebase_id: number;
+  in_person_hours: number;
+  de_hours: number;
+  total_hours: number;
+}
+
+export async function fetchHoursByProfile(): Promise<HoursByProfileRow[]> {
+  const { data, error } = await supabase
+    .from('v_hours_by_profile')
+    .select('id, name, homebase_id, in_person_hours, de_hours, total_hours')
+    .order('name');
+  if (error) throw new Error('Failed to load hours by profile');
+  return (data ?? []) as HoursByProfileRow[];
+}
+
+export interface TimeclockHoursSinceJuly1Row {
+  id: string;
+  name: string;
+  homebase_id: number;
+  net_hours: number;
+}
+
+export async function fetchTimeclockHoursSinceJuly1(): Promise<TimeclockHoursSinceJuly1Row[]> {
+  const { data, error } = await supabase
+    .from('v_timeclock_hours_since_july_1')
+    .select('id, name, homebase_id, net_hours')
+    .order('name');
+  if (error) throw new Error('Failed to load timeclock hours since July 1');
+  return (data ?? []) as TimeclockHoursSinceJuly1Row[];
+}
+
+export interface DuplicateHoursRow {
+  homebase_id: number;
+  name: string;
+  date: string;
+  type_id: number;
+  module: string | null;
+  duplicate_count: number;
+  entry_ids: string[];
+  hours_values: number[];
+}
+
+export async function fetchDuplicateHours(): Promise<DuplicateHoursRow[]> {
+  const { data, error } = await supabase
+    .from('v_duplicate_student_hours')
+    .select('homebase_id, name, date, type_id, module, duplicate_count, entry_ids, hours_values')
+    .order('name');
+  if (error) throw new Error('Failed to load duplicate hours');
+  return (data ?? []) as DuplicateHoursRow[];
+}
+
 export function subscribeToTimeclock(onChanged: () => void) {
   return supabase
     .channel('timeclock-watch')
