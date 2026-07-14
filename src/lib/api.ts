@@ -205,7 +205,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
     percent_complete: number;
     hours: Array<{ type_id: number; hours: number }>;
   }>)
-  .filter(emp => emp.role_id === 1 && activeIds.has(emp.homebase_id))
+  .filter(emp => emp.role_id !== 3 && activeIds.has(emp.homebase_id))
   .map(emp => {
     const inPersonHrs = emp.hours
       .filter(h => h.type_id !== 2)
