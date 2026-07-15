@@ -104,13 +104,14 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   ] = await Promise.all([
     supabase
       .from('profiles_view')
-      .select(`homebase_id, name, total_hrs, hrs_to_graduate, percent_complete, hours(type_id, hours)`)
+      .select(`homebase_id, name, new_hrs, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours(type_id, hours)`)
       .eq('homebase_id', employeeUserId)
       .single(),
     supabase
       .from('hours')
       .select('type_id, hours, date, module, platform, verified')
       .eq('homebase_id', employeeUserId)
+      .neq('type_id', 3)
       .gte('date', daysAgoMonthStart),
     supabase
       .from('grades')
@@ -125,22 +126,32 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .not('clock_out', 'is', null),
   ]);
 
-  if (profileError || hoursError) {
-    console.error('Error fetching dashboard summary…', profileError ?? hoursError);
+  if (profileError) {
+    console.error('Error fetching dashboard summary…', profileError);
     throw new Error('Failed to load dashboard');
   }
   if (timeclockError) {
     console.error('Error fetching timeclock entries…', timeclockError);
   }
+  if (hoursError) {
+    console.error('Error fetching hours…', hoursError);
+  }
 
-  const profileHours = (profile as { hours: Array<{ type_id: number; hours: number }> }).hours ?? [];
+  // const profileHours = (profile as { hours: Array<{ type_id: number; hours: number }> }).hours ?? [];
 
-  const inPersonHrs = profileHours
-    .filter(h => h.type_id === 1)
-    .reduce((sum, h) => sum + (h.hours ?? 0), 0);
-  const deHrs = profileHours
-    .filter(h => h.type_id === 2)
-    .reduce((sum, h) => sum + (h.hours ?? 0), 0);
+  // const inPersonHrs = profileHours
+  //   .filter(h => h.type_id === 1)
+  //   .reduce((sum, h) => sum + (h.hours ?? 0), 0);
+    
+  // deHrs,
+  // inPersonHrsList,
+  // deHrsList,
+  
+  // const deHrs = 
+    
+  // const deHrs = profileHours
+  //   .filter(h => h.type_id === 2)
+  //   .reduce((sum, h) => sum + (h.hours ?? 0), 0);
 
   const rawHours = (hours as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
 
@@ -161,14 +172,14 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, worked_hours }) => ({ date, hours: Math.round((worked_hours ?? 0) * 100) / 100 }));
 
-  const p = profile as { total_hrs: number; hrs_to_graduate: number; percent_complete: number };
+  const p = profile as { total_hrs: number; new_hrs: number; de_hrs: number; hrs_to_graduate: number; percent_complete: number };
 
   return {
     totalHrsAll: p.total_hrs ?? 0,
     hrsToGrad: p.hrs_to_graduate ?? 0,
     percentComplete: p.percent_complete ?? 0,
-    inPersonHrs,
-    deHrs,
+    inPersonHrs: p.new_hrs,
+    deHrs: p.de_hrs ?? 0,
     inPersonHrsList,
     deHrsList,
     timeclockHrsList,
@@ -180,7 +191,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   const [{ data, error }, { data: profileData }] = await Promise.all([
     supabase
       .from('profiles_view')
-      .select(`homebase_id, name, role_id, role_name, total_hrs, hrs_to_graduate, percent_complete, hours`)
+      .select(`homebase_id, name, role_id, role_name, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours`)
       .order('name'),
     supabase
       .from('profiles')
@@ -200,6 +211,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
     name: string;
     role_id: number;
     role_name: string;
+    de_hrs: number;
     total_hrs: number;
     hrs_to_graduate: number;
     percent_complete: number;
@@ -210,17 +222,13 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
     const inPersonHrs = emp.hours
       .filter(h => h.type_id !== 2)
       .reduce((sum, h) => sum + (h.hours ?? 0), 0);
-    const deHrs = emp.hours
-      .filter(h => h.type_id === 2)
-      .reduce((sum, h) => sum + (h.hours ?? 0), 0);
-
     return {
       homebase_id: emp.homebase_id,
       name: emp.name,
       role_id: emp.role_id,
       role_name: emp.role_name ?? '',
       in_person_hrs: fmtFloat(inPersonHrs),
-      de_hrs: fmtFloat(deHrs),
+      de_hrs: fmtFloat(emp.de_hrs),
       total_hrs: emp.total_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
       percent_complete: emp.percent_complete ?? 0,

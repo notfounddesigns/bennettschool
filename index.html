@@ -206,12 +206,16 @@
 
         <!-- Graduation progress -->
         <div>
-          <p class="inline-flex items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-3">
+          <p class="inline-flex w-full items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-3">
             Graduation Progress
             &nbsp;--&nbsp;
             <span
-              class="font-serif text-[28px] leading-none ml-1 text-sage"
+              class="font-serif text-[28px] leading-none ml-1 text-sage "
               x-text="($store.dashboard.data?.percentComplete ?? 0) + '%'">
+            </span>
+            <span class="flex items-center ml-auto font-serif text-[28px] leading-none text-blush bg-cream rounded-[16px] px-3 py-2.5 gap-1 border border-app-border text-center">
+              <span class="items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">Total Hrs:&nbsp;</span>
+              <span x-text="$store.dashboard.formattedTotalHrs"></span>
             </span>
           </p>
           <div class="h-1.5 bg-app-border rounded-full overflow-hidden">
@@ -227,7 +231,8 @@
         </div>
 
         <!-- Stats row -->
-        <div class="grid grid-cols-3 gap-2.5 max-sm:grid-cols-1">
+        <span class="inline-flex w-full items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">This Month</span>
+        <div class="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
           <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
             <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">In Person</div>
             <div class="font-serif text-[28px] text-blush leading-none">
@@ -240,12 +245,12 @@
               <span x-text="$store.dashboard.formattedDeHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
             </div>
           </div>
-          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
+          <!-- <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
             <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">Total</div>
             <div class="font-serif text-[28px] text-blush leading-none">
               <span x-text="$store.dashboard.formattedTotalHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
             </div>
-          </div>
+          </div> -->
         </div>
 
         <!-- Profile row -->
@@ -291,7 +296,7 @@
 
         <!-- Tab panels -->
         <div x-show="activeTab === 'hours'" class="overflow-x-auto">
-          <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-2">Last 7 Days</p>
+          <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-2">This Month</p>
           <div x-html="hoursHtml"></div>
         </div>
         <div x-show="activeTab === 'grades'" class="overflow-x-auto">
@@ -712,8 +717,8 @@
 
                       <!-- Total Hours with  in-person & DE below -->
                       <div class="hidden lg:block text-center w-48 shrink-0">
-                        <div class="text-[13px] text-charcoal tabular-nums" x-text="(group.totalInPersonHrs + group.totalDeHrs).toFixed(1) + ' hrs'"></div>
-                        <!-- <div class="text-[11px] text-muted tabular-nums mt-0.5" x-text="group.totalInPersonHrs.toFixed(1) + ' In-Person' + ' ' + group.totalDeHrs.toFixed(1) + ' DE'"></div> -->
+                        <div class="text-[13px] text-charcoal tabular-nums" x-text="(group.totalInPersonHrs + group.deHrs).toFixed(1) + ' hrs'"></div>
+                        <div class="text-[11px] text-muted tabular-nums mt-0.5" x-text="group.totalInPersonHrs.toFixed(1) + ' In-Person' + ' ' + group.deHrs.toFixed(1) + ' DE'"></div>
                       </div>
 
                       <!-- Hours to Graduate -->

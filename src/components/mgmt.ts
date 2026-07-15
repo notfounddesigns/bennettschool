@@ -4,7 +4,6 @@ import {
   fetchCurrentStudents,
   fetchLastSync,
   fetchOverviewStats,
-  fetchDeHoursByDate,
   fetchAllGrades,
   loadStudents,
   syncHoursByDate,
@@ -53,7 +52,7 @@ export interface StudentGroup {
   role_id: number;
   role_name: string;
   totalInPersonHrs: number;
-  totalDeHrs: number;
+  deHrs: number;
   hrsToGraduate: number;
   percentComplete: number;
   todayEntry: TimeclockStatusEntry | null;
@@ -240,22 +239,21 @@ export function createMgmtStore(): MgmtStore {
     async load() {
       app().showLoading();
       try {
-        const [employees, students, lastSync, overviewStats, deHours, allGrades, needsAttentionItems, auditLog] = await Promise.all([
+        const [employees, students, lastSync, overviewStats, allGrades, needsAttentionItems, auditLog] = await Promise.all([
           fetchEmployeeTable(),
           fetchCurrentStudents(),
           fetchLastSync(),
           fetchOverviewStats(),
-          fetchDeHoursByDate(),
           fetchAllGrades(),
           fetchNeedsAttentionItems(),
           fetchAuditLog(),
         ]);
         this.employees = employees;
+        console.log('Employees: ', employees);
         this.currentStudents = students;
         this.selectedStudent = employees[0] ?? null;
         this.lastSync = lastSync;
         this.overviewStats = overviewStats;
-        this.deHours = deHours;
         this.allGrades = allGrades;
         this.needsAttentionItems = needsAttentionItems;
         this.auditLog = auditLog;
@@ -346,7 +344,6 @@ export function createMgmtStore(): MgmtStore {
             if (val) deHoursByDate[e.date] = val;
           }
           const emp = empMap.get(homebase_id);
-          console.log(historyEntries);
           return {
             homebase_id,
             name,
@@ -354,7 +351,7 @@ export function createMgmtStore(): MgmtStore {
             role_id: emp?.role_id ?? 1,
             role_name: emp?.role_name ?? '',
             totalInPersonHrs: emp?.total_hrs || 0,
-            totalDeHrs: parseFloat(emp?.de_hrs ?? '0') || 0,
+            deHrs: parseFloat(emp?.de_hrs ?? '0') || 0,
             hrsToGraduate: emp?.hrs_to_graduate ?? 0,
             percentComplete: emp?.percent_complete ?? 0,
             todayEntry,
