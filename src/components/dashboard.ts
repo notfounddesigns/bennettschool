@@ -53,7 +53,7 @@ export function createDashboardStore(): DashboardStore {
     },
 
     get formattedTotalHrs() {
-      return this.data ? fmtFloat(this.data.totalHrsAll) : '—';
+      return this.data ? fmtFloat(this.data.totalHrsAll + this.data.deHrs) : '—';
     },
   };
 }

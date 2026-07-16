@@ -137,22 +137,6 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     console.error('Error fetching hours…', hoursError);
   }
 
-  // const profileHours = (profile as { hours: Array<{ type_id: number; hours: number }> }).hours ?? [];
-
-  // const inPersonHrs = profileHours
-  //   .filter(h => h.type_id === 1)
-  //   .reduce((sum, h) => sum + (h.hours ?? 0), 0);
-    
-  // deHrs,
-  // inPersonHrsList,
-  // deHrsList,
-  
-  // const deHrs = 
-    
-  // const deHrs = profileHours
-  //   .filter(h => h.type_id === 2)
-  //   .reduce((sum, h) => sum + (h.hours ?? 0), 0);
-
   const rawHours = (hours as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
 
   const inPersonHrsList: HourEntry[] = rawHours

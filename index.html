@@ -202,59 +202,9 @@
       class="flex justify-center w-full h-full overflow-y-auto px-[clamp(1rem,8vw,10rem)]"
       style="display: none;">
 
-      <div class="bg-white border border-app-border rounded-card p-5 shadow-card w-full max-w-2xl h-fit my-4 flex flex-col gap-4">
-
-        <!-- Graduation progress -->
-        <div>
-          <p class="inline-flex w-full items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-3">
-            Graduation Progress
-            &nbsp;--&nbsp;
-            <span
-              class="font-serif text-[28px] leading-none ml-1 text-sage "
-              x-text="($store.dashboard.data?.percentComplete ?? 0) + '%'">
-            </span>
-            <span class="flex items-center ml-auto font-serif text-[28px] leading-none text-blush bg-cream rounded-[16px] px-3 py-2.5 gap-1 border border-app-border text-center">
-              <span class="items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">Total Hrs:&nbsp;</span>
-              <span x-text="$store.dashboard.formattedTotalHrs"></span>
-            </span>
-          </p>
-          <div class="h-1.5 bg-app-border rounded-full overflow-hidden">
-            <div
-              class="progress-fill h-full rounded-full bg-sage"
-              :style="'width:' + ($store.dashboard.data?.percentComplete ?? 0) + '%'">
-            </div>
-          </div>
-          <div class="flex justify-between text-xs text-muted mt-1.5">
-            <span>Progress to 1,500 h</span>
-            <span x-text="$store.dashboard.hrsRemaining"></span>
-          </div>
-        </div>
-
-        <!-- Stats row -->
-        <span class="inline-flex w-full items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">This Month</span>
-        <div class="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
-          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
-            <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">In Person</div>
-            <div class="font-serif text-[28px] text-blush leading-none">
-              <span x-text="$store.dashboard.formattedInPersonHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
-            </div>
-          </div>
-          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
-            <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">DE Hours</div>
-            <div class="font-serif text-[28px] text-blush leading-none">
-              <span x-text="$store.dashboard.formattedDeHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
-            </div>
-          </div>
-          <!-- <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
-            <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">Total</div>
-            <div class="font-serif text-[28px] text-blush leading-none">
-              <span x-text="$store.dashboard.formattedTotalHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
-            </div>
-          </div> -->
-        </div>
-
+      <div class="bg-white border border-app-border rounded-card p-5 shadow-card w-full max-w-2xl my-4 flex flex-col gap-4">
         <!-- Profile row -->
-        <div class="flex items-center justify-center sm:justify-start gap-3 flex-wrap pt-1">
+        <div class="flex items-center justify-center gap-3 flex-wrap pt-1">
           <div
             class="w-14 h-14 rounded-full bg-blush text-white flex items-center justify-center font-bold text-sm shrink-0"
             x-text="$store.app.avatarInitials">
@@ -275,6 +225,41 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M18 8L22 12M22 12L18 16M22 12H9M15 4.20404C13.7252 3.43827 12.2452 3 10.6667 3C5.8802 3 2 7.02944 2 12C2 16.9706 5.8802 21 10.6667 21C12.2452 21 13.7252 20.5617 15 19.796" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
               Sign Out
             </button>
+          </div>
+        </div>
+        
+        <!-- Graduation progress -->
+        <div class="w-full md:w-3/4 mx-auto">
+          <span class="w-full flex flex-col justify-center items-center font-serif text-[28px] leading-none text-sage bg-sage-light rounded-t-xl px-3 pt-2.5 pb-3.5 gap-1 border border-b-0 border-app-border text-center">
+            <span class="items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">Total Hrs</span>
+            <span x-text="$store.dashboard.formattedTotalHrs"></span>
+          </span>
+          <div class="h-1.5 bg-sage-light rounded-b-xl overflow-hidden border-x border-b border-app-border">
+            <div
+              class="progress-fill h-full bg-sage"
+              :style="'width:' + ($store.dashboard.data?.percentComplete ?? 0) + '%'">
+            </div>
+          </div>
+          <div class="flex justify-between text-xs text-muted mt-1.5">
+            <span>Progress to 1,500 h</span>
+            <span x-text="$store.dashboard.hrsRemaining"></span>
+          </div>
+        </div>
+
+        <!-- Stats row -->
+        <span class="w-full text-center items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">This Month</span>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
+            <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">In Person</div>
+            <div class="font-serif text-[28px] text-blush leading-none">
+              <span x-text="$store.dashboard.formattedInPersonHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
+            </div>
+          </div>
+          <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
+            <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">DE Hours</div>
+            <div class="font-serif text-[28px] text-blush leading-none">
+              <span x-text="$store.dashboard.formattedDeHrs"></span><span class="text-sm text-muted font-sans font-normal"> h</span>
+            </div>
           </div>
         </div>
 
@@ -679,8 +664,8 @@
                 <!-- Column header -->
                 <div class="sticky top-0 z-10 flex items-center gap-4 px-4 py-2.5 bg-cream border-b border-app-border">
                   <span class="w-40 md:w-56 xl:w-72 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Student</span>
-                  <span class="hidden lg:block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Prev Day Hrs</span>
-                  <span class="hidden lg:block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Total Hrs</span>
+                  <span class="block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Prev Day Hrs</span>
+                  <span class="block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Total Hrs</span>
                   <span class="hidden lg:block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Hrs Remaining</span>
                   <span class="hidden md:block min-w-0 flex-1 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Status</span>
                   <!-- <div class="w-5 shrink-0"></div> -->
@@ -711,12 +696,12 @@
                       </div>
                       
                       <!-- Previous Day Hours -->
-                      <div class="hidden lg:block text-center w-48 shrink-0">
+                      <div class="block text-center w-48 shrink-0">
                         <div class="text-[13px] text-charcoal tabular-nums" x-text="group.prevDayHrs.toFixed(1) + ' hrs'"></div>
                       </div>
 
                       <!-- Total Hours with  in-person & DE below -->
-                      <div class="hidden lg:block text-center w-48 shrink-0">
+                      <div class="block text-center w-48 shrink-0">
                         <div class="text-[13px] text-charcoal tabular-nums" x-text="(group.totalInPersonHrs + group.deHrs).toFixed(1) + ' hrs'"></div>
                         <div class="text-[11px] text-muted tabular-nums mt-0.5" x-text="group.totalInPersonHrs.toFixed(1) + ' In-Person' + ' ' + group.deHrs.toFixed(1) + ' DE'"></div>
                       </div>
@@ -746,133 +731,7 @@
                           <span class="w-1.5 h-1.5 rounded-full bg-muted/60 inline-block"></span>Clocked Out
                         </span>
                       </div>
-
-                      <!-- Action buttons + chevron -->
-                      <!-- <div class="shrink-0 flex items-center justify-center gap-0.5 min-w-0 flex-1">
-                        <div class="flex items-center gap-0.5">
-                          <button @click.stop="$store.mgmt.viewAsStudent({ homebase_id: group.homebase_id, name: group.name, role_id: group.role_id })" title="View this student's dashboard"
-                            class="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-sage hover:bg-sage/10 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                          </button>
-                          <button @click.stop="$dispatch('open-add-entry', { id: group.homebase_id, name: group.name })"
-                            class="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-sage hover:bg-sage/10 transition-colors"
-                            title="Add DE hours or grade">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                          </button>
-                          <button @click.stop="$dispatch('open-edit-student-name', { id: group.homebase_id, name: group.name, roleId: group.role_id })"
-                            class="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors"
-                            title="Edit student">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                          </button>
-                          <button @click.stop="$dispatch('open-reset-password', { id: group.homebase_id, name: group.name })"
-                            class="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors"
-                            title="Reset password">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                          </button>
-                          <button @click.stop="$dispatch('open-set-pin', { id: group.homebase_id, name: group.name })"
-                            class="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors"
-                            title="Reset PIN">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v.01M6 17v.01M18 17v.01M12 12v.01M6 12v.01M18 12v.01M12 7v.01M6 7v.01M18 7v.01"/></svg>
-                          </button>
-                          <button @click.stop="$dispatch('open-remove-student', { id: group.homebase_id, name: group.name })"
-                            class="w-7 h-7 flex items-center justify-center rounded text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
-                            title="Remove student">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                          </button>
-                        </div>
-                      </div> -->
-                      
-                      <!-- Chevron -->
-                      <!-- <div class="w-5 flex items-center justify-center">
-                        <svg x-show="group.todayEntry || group.historyEntries.length > 0 || group.grades.length > 0"
-                          :class="group.open ? 'rotate-180' : ''"
-                          class="w-5 h-5 text-muted transition-transform duration-200"
-                          xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
-                        </svg>
-                      </div> -->
                     </div>
-
-                    <!-- <div x-show="group.open" x-transition class="flex divide-x divide-app-border/40 py-1 px-3 gap-3">
-                      <template x-if="group.todayEntry || group.historyEntries.length > 0">
-                        <div class="w-1/2 flex flex-col min-w-0 max-h-60 overflow-y-auto">
-                          <div class="flex items-center gap-3 pl-6 pr-4 py-1.5 bg-[#f5f3f0] border-t border-app-border/70">
-                            <span class="w-24 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Date</span>
-                            <span class="w-28 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Clock In</span>
-                            <span class="hidden md:block w-28 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Clock Out</span>
-                            <span class="w-28 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">HRS Worked</span>
-                            <span class="hidden sm:block w-28 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">DE Hrs</span>
-                          </div>
-                          <template x-if="group.todayEntry">
-                            <div class="group/histrow flex items-center gap-3 pl-6.25 pr-4 py-2.5 bg-[#fafcfb] border-t border-app-border/50">
-                              <span class="w-24 shrink-0 tabular-nums text-charcoal text-[12px] font-medium flex items-center gap-1">
-                                <span x-text="group.todayEntry.date"></span>
-                                <button @click.stop="$dispatch('open-punch-photos-modal', { homebaseId: group.homebase_id, clockIn: group.todayEntry.clock_in })" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="View punch photos">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
-                                </button>
-                              </span>
-                              <span class="w-28 shrink-0 tabular-nums text-[12px] text-charcoal" x-text="new Date(group.todayEntry.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
-                              <span class="hidden md:block w-28 shrink-0 tabular-nums text-[12px] text-charcoal" x-text="group.todayEntry.clock_out ? new Date(group.todayEntry.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
-                              <span class="w-28 shrink-0 tabular-nums text-[12px] text-charcoal" x-text="parseFloat(group.todayEntry.worked_hours ?? 0).toFixed(1) + ' hrs'"></span>
-                              <span class="hidden sm:block w-28 shrink-0 tabular-nums text-[12px] text-charcoal" x-text="(group.deHoursByDate[group.todayEntry.date] ?? 0) > 0 ? (group.deHoursByDate[group.todayEntry.date] ?? 0).toFixed(1) + ' hrs' : '0.0 hrs'"></span>
-                              <button @click.stop="$dispatch('open-edit-timepunch', { id: group.homebase_id, name: group.name, date: group.todayEntry.date, clockIn: group.todayEntry.clock_in, deTotal: group.deHoursByDate[group.todayEntry.date] ?? 0 })" class="ml-auto w-6 h-6 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit timepunch">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                              </button>
-                            </div>
-                          </template>
-                          <template x-for="hist in group.historyEntries" :key="hist.clock_in">
-                            <div class="group/histrow flex items-center gap-3 pl-6.25 pr-4 py-2.5 bg-[#fafafa] border-t border-app-border/50">
-                              <span class="w-24 shrink-0 tabular-nums text-muted text-[12px] flex items-center gap-1">
-                                <span x-text="hist.date"></span>
-                                <button @click.stop="$dispatch('open-punch-photos-modal', { homebaseId: group.homebase_id, clockIn: hist.clock_in })" class="w-5 h-5 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="View punch photos">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
-                                </button>
-                              </span>
-                              <span class="w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="new Date(hist.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })"></span>
-                              <span class="hidden md:block w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="hist.clock_out ? new Date(hist.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'"></span>
-                              <span class="w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="parseFloat(hist.worked_hours ?? 0).toFixed(1) + ' hrs'"></span>
-                              <span class="hidden sm:block w-28 shrink-0 tabular-nums text-muted text-[12px]" x-text="(group.deHoursByDate[hist.date] ?? 0) > 0 ? (group.deHoursByDate[hist.date] ?? 0).toFixed(1) + ' hrs' : '0.0 hrs'"></span>
-                              <button @click.stop="$dispatch('open-edit-timepunch', { id: group.homebase_id, name: group.name, date: hist.date, clockIn: hist.clock_in, deTotal: group.deHoursByDate[hist.date] ?? 0 })" class="ml-auto w-6 h-6 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit timepunch">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                              </button>
-                            </div>
-                          </template>
-                        </div>
-                      </template>
-                      <template x-if="!group.todayEntry && group.historyEntries.length == 0">
-                        <div class="w-1/2 flex flex-col min-w-0 bg-[#fafafa] min-h-15 items-center justify-center text-[12px] tracking-[0.07em] text-muted">
-                          No time punch entries...
-                        </div>
-                      </template>
-                      <template x-if="group.grades.length > 0">
-                        <div class="w-1/2 flex flex-col min-w-0 max-h-60 overflow-y-auto">
-                          <div class="flex items-center gap-3 pl-6 pr-4 py-1.5 bg-[#f5f3f0] border-t border-app-border/70">
-                            <span class="w-24 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Date</span>
-                            <span class="w-40 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Project</span>
-                            <span class="hidden md:block flex-1 min-w-0 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted">Category</span>
-                            <span class="w-16 shrink-0 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted text-right">Score</span>
-                          </div>
-                          <template x-for="grade in group.grades" :key="grade.date + '|' + grade.project + '|' + grade.score">
-                            <div class="group/graderow flex items-center gap-3 pl-6 pr-4 py-2 border-t border-app-border/50 bg-[#fafafa]">
-                              <span class="w-24 shrink-0 tabular-nums text-muted text-[12px]" x-text="grade.date"></span>
-                              <span class="w-40 min-w-0 text-[12px] text-charcoal truncate" x-text="grade.project || '—'"></span>
-                              <span class="hidden md:block flex-1 min-w-0 shrink-0 text-[12px] text-muted truncate" x-text="grade.category || '—'"></span>
-                              <span class="w-20 shrink-0 tabular-nums text-[12px] font-medium text-right"
-                                :class="grade.score >= 90 ? 'text-sage' : grade.score >= 75 ? 'text-charcoal' : 'text-app-error'"
-                                x-text="grade.score + '%'"></span>
-                              <button @click.stop="$dispatch('open-edit-grade', { id: group.homebase_id, name: group.name, grade: grade })" class="ml-auto w-6 h-6 flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors shrink-0" title="Edit grade">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                              </button>
-                            </div>
-                          </template>
-                        </div>
-                      </template>
-                      <template x-if="group.grades.length == 0">
-                        <div class="w-1/2 flex flex-col min-w-0 bg-[#fafafa] min-h-15 items-center justify-center text-[12px] tracking-[0.07em] text-muted">
-                          No grade entries...
-                        </div>
-                      </template>
-                    </div> -->
                   </div>
                 </template>
               </div>
