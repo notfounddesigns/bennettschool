@@ -1,5 +1,5 @@
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY, PROXY, AUTH_HEADERS } from './supabase';
-import { fmtFloat, nDaysAgo } from './helpers';
+import { fmtFloat } from './helpers';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 export interface LoginResult {
@@ -64,6 +64,8 @@ export interface MgmtEmployee {
   total_hrs: number;
   hrs_to_graduate: number;
   percent_complete: number;
+  hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
+  hours: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
 }
 
 export interface Role {
@@ -93,80 +95,52 @@ export async function homebaseFetch(path: string): Promise<HomebaseEmployee[]> {
 }
 
 export async function fetchStudentDashboard(employeeUserId: number): Promise<StudentDashboard> {
-  // update to get number of days since first day of month
-  const daysAgoMonthStart = nDaysAgo(new Date().getDate() - 1);
-
   const [
     { data: profile, error: profileError },
-    { data: hours, error: hoursError },
     { data: gradesData },
-    { data: timeclockData, error: timeclockError },
   ] = await Promise.all([
     supabase
       .from('profiles_view')
-      .select(`homebase_id, name, new_hrs, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours(type_id, hours)`)
+      .select(`homebase_id, name, in_person, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours_list, hours(date, type_id, hours)`)
       .eq('homebase_id', employeeUserId)
       .single(),
-    supabase
-      .from('hours')
-      .select('type_id, hours, date, module, platform, verified')
-      .eq('homebase_id', employeeUserId)
-      .neq('type_id', 3)
-      .gte('date', daysAgoMonthStart),
     supabase
       .from('grades')
       .select('date, project, category, score, notes')
       .eq('homebase_id', employeeUserId)
       .order('date', { ascending: false }),
-    supabase
-      .from('timeclock_status')
-      .select('date, worked_hours')
-      .eq('homebase_id', employeeUserId)
-      .gte('date', daysAgoMonthStart)
-      .not('clock_out', 'is', null),
   ]);
-
+  
   if (profileError) {
     console.error('Error fetching dashboard summary…', profileError);
     throw new Error('Failed to load dashboard');
   }
-  if (timeclockError) {
-    console.error('Error fetching timeclock entries…', timeclockError);
-  }
-  if (hoursError) {
-    console.error('Error fetching hours…', hoursError);
-  }
 
-  const rawHours = (hours as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
+  const oldHoursList = (profile?.hours as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
+  const newHoursList = (profile?.hours_list as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
+  const combinedHrsList = [...oldHoursList, ...newHoursList];
+  console.log(combinedHrsList);
 
-  const inPersonHrsList: HourEntry[] = rawHours
-    .filter(h => h.type_id === 1)
+  const inPersonHrsList: HourEntry[] = combinedHrsList
+    .filter(h => h.type_id !== 2 && h.type_id !== 3)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h }) => ({ date, hours: h }));
 
-  const deHrsList: DeEntry[] = rawHours
+  const deHrsList: DeEntry[] = combinedHrsList
     .filter(h => h.type_id === 2)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
 
-  const rawTimeclock = (timeclockData as Array<{ date: string; worked_hours: number | null }>) ?? [];
-
-  const timeclockHrsList: HourEntry[] = rawTimeclock
-    .filter(t => (t.worked_hours ?? 0) > 0)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .map(({ date, worked_hours }) => ({ date, hours: Math.round((worked_hours ?? 0) * 100) / 100 }));
-
-  const p = profile as { total_hrs: number; new_hrs: number; de_hrs: number; hrs_to_graduate: number; percent_complete: number };
 
   return {
-    totalHrsAll: p.total_hrs ?? 0,
-    hrsToGrad: p.hrs_to_graduate ?? 0,
-    percentComplete: p.percent_complete ?? 0,
-    inPersonHrs: p.new_hrs,
-    deHrs: p.de_hrs ?? 0,
+    totalHrsAll: profile?.total_hrs ?? 0,
+    hrsToGrad: profile?.hrs_to_graduate ?? 0,
+    percentComplete: profile?.percent_complete ?? 0,
+    inPersonHrs: profile?.in_person ?? 0,
+    deHrs: profile?.de_hrs ?? 0,
     inPersonHrsList,
     deHrsList,
-    timeclockHrsList,
+    timeclockHrsList: [],
     grades: (gradesData as GradeEntry[]) ?? [],
   };
 }
@@ -175,7 +149,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   const [{ data, error }, { data: profileData }] = await Promise.all([
     supabase
       .from('profiles_view')
-      .select(`homebase_id, name, role_id, role_name, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours`)
+      .select(`homebase_id, name, role_id, role_name, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours_list, hours(date, type_id, hours, module, platform, verified)`)
       .order('name'),
     supabase
       .from('profiles')
@@ -199,7 +173,8 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
     total_hrs: number;
     hrs_to_graduate: number;
     percent_complete: number;
-    hours: Array<{ type_id: number; hours: number }>;
+    hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
+    hours: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
   }>)
   .filter(emp => emp.role_id !== 3 && activeIds.has(emp.homebase_id))
   .map(emp => {
@@ -216,6 +191,8 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       total_hrs: emp.total_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
       percent_complete: emp.percent_complete ?? 0,
+      hours_list: emp.hours_list ?? [],
+      hours: emp.hours ?? []
     };
   });
 }

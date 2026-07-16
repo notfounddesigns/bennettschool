@@ -248,9 +248,8 @@ export function createMgmtStore(): MgmtStore {
           fetchNeedsAttentionItems(),
           fetchAuditLog(),
         ]);
-        this.employees = employees;
-        console.log('Employees: ', employees);
-        this.currentStudents = students;
+        this.employees = employees as MgmtEmployee[];
+        this.currentStudents = students as TimeclockStatusEntry[];
         this.selectedStudent = employees[0] ?? null;
         this.lastSync = lastSync;
         this.overviewStats = overviewStats;
