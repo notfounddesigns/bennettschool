@@ -122,9 +122,9 @@ input[type="text"] {
   transition: width 0.4s ease;
 }
 
-/* ── Dashboard hours/grades flip card ── */
+/* ── Dashboard flip card (front: summary · back: hours/grades table) ── */
 .flip-card {
-  perspective: 1400px;
+  perspective: 2000px;
 }
 
 .flip-card-inner {

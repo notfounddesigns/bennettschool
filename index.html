@@ -202,7 +202,11 @@
       class="flex justify-center w-full h-full overflow-y-auto px-[clamp(1rem,8vw,10rem)]"
       style="display: none;">
 
-      <div class="bg-white border border-app-border rounded-card p-5 shadow-card w-full max-w-2xl my-4 flex flex-col gap-4">
+      <div class="flip-card flex w-full max-w-2xl my-4">
+        <div class="flip-card-inner w-full" :class="flipped && 'is-flipped'">
+
+        <!-- FRONT: profile, totals, monthly stats, table buttons -->
+        <div class="flip-card-face flip-card-front bg-white border border-app-border rounded-card p-5 shadow-card flex flex-col gap-4" :aria-hidden="flipped">
         <!-- Profile row -->
         <div class="flex items-center justify-center gap-3 flex-wrap pt-1">
           <div
@@ -263,35 +267,40 @@
           </div>
         </div>
 
-        <!-- Hours / Grades flip buttons -->
+        <!-- Flip-to-table buttons -->
         <div class="flex justify-center gap-2">
           <button
-            @click="activeTab = 'hours'"
-            :aria-pressed="activeTab === 'hours'"
-            :class="activeTab === 'hours' ? 'bg-sage border-sage text-white' : 'bg-transparent border-app-border text-muted hover:text-charcoal hover:border-sage'"
-            class="px-5 h-8 text-[13px] font-semibold rounded-full border transition-colors cursor-pointer">
+            @click="showTable('hours')"
+            class="px-5 h-8 text-[13px] font-semibold rounded-full border border-sage bg-sage text-white transition-colors cursor-pointer hover:bg-sage-hover hover:border-sage-hover">
             Hours
           </button>
           <button
-            @click="activeTab = 'grades'"
-            :aria-pressed="activeTab === 'grades'"
-            :class="activeTab === 'grades' ? 'bg-sage border-sage text-white' : 'bg-transparent border-app-border text-muted hover:text-charcoal hover:border-sage'"
-            class="px-5 h-8 text-[13px] font-semibold rounded-full border transition-colors cursor-pointer">
+            @click="showTable('grades')"
+            class="px-5 h-8 text-[13px] font-semibold rounded-full border border-sage bg-sage text-white transition-colors cursor-pointer hover:bg-sage-hover hover:border-sage-hover">
             Grades
           </button>
         </div>
+        </div>
 
-        <!-- Flip card: front = Hours, back = Grades -->
-        <div class="flip-card">
-          <div class="flip-card-inner" :class="activeTab === 'grades' && 'is-flipped'">
-            <div class="flip-card-face flip-card-front overflow-x-auto bg-cream border border-app-border rounded-[10px] p-3" :aria-hidden="activeTab !== 'hours'">
-              <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-2">This Month</p>
-              <div x-html="hoursHtml"></div>
-            </div>
-            <div class="flip-card-face flip-card-back overflow-x-auto bg-cream border border-app-border rounded-[10px] p-3" aria-hidden="true" :aria-hidden="activeTab !== 'grades'">
-              <div x-html="gradesHtml"></div>
-            </div>
+        <!-- BACK: back button + hours/grades table -->
+        <div class="flip-card-face flip-card-back bg-white border border-app-border rounded-card p-5 shadow-card flex flex-col gap-4" aria-hidden="true" :aria-hidden="!flipped">
+          <div class="flex items-center gap-3">
+            <button
+              @click="flipped = false"
+              class="inline-flex items-center gap-1.5 px-4 h-8 text-[13px] font-semibold rounded-full border border-sage bg-sage text-white transition-colors cursor-pointer hover:bg-sage-hover hover:border-sage-hover">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Back
+            </button>
+            <span class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold" x-text="activeTab === 'hours' ? 'Hours — This Month' : 'Grades'"></span>
           </div>
+          <div x-show="activeTab === 'hours'" class="overflow-x-auto">
+            <div x-html="hoursHtml"></div>
+          </div>
+          <div x-show="activeTab === 'grades'" class="overflow-x-auto">
+            <div x-html="gradesHtml"></div>
+          </div>
+        </div>
+
         </div>
       </div>
     </section>

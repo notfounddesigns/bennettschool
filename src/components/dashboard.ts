@@ -63,7 +63,21 @@ export function createDashboardStore(): DashboardStore {
 
 export function dashboardDisplayData() {
   return {
+    flipped: false,
     activeTab: 'hours' as 'hours' | 'grades',
+
+    init() {
+      // Show the front of the card again whenever the dashboard is (re)entered,
+      // e.g. after logging in or when a manager starts viewing another student.
+      Alpine.effect(() => {
+        if (app().screen === 'dashboard') this.flipped = false;
+      });
+    },
+
+    showTable(tab: 'hours' | 'grades') {
+      this.activeTab = tab;
+      this.flipped = true;
+    },
 
     get hoursHtml() {
       const dash = Alpine.store('dashboard') as DashboardStore;
