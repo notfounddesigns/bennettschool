@@ -202,7 +202,7 @@
       class="flex justify-center w-full h-full overflow-y-auto px-[clamp(1rem,8vw,10rem)]"
       style="display: none;">
 
-      <div class="flip-card flex w-full max-w-2xl my-4">
+      <div class="flip-card flex w-full max-w-2xl my-4 self-start">
         <div class="flip-card-inner w-full" :class="flipped && 'is-flipped'">
 
         <!-- FRONT: profile, totals, monthly stats, table buttons -->
@@ -293,10 +293,10 @@
             </button>
             <span class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold" x-text="activeTab === 'hours' ? 'Hours — This Month' : 'Grades'"></span>
           </div>
-          <div x-show="activeTab === 'hours'" class="overflow-x-auto">
+          <div x-show="activeTab === 'hours'" class="flex-1 min-h-0 overflow-auto">
             <div x-html="hoursHtml"></div>
           </div>
-          <div x-show="activeTab === 'grades'" class="overflow-x-auto">
+          <div x-show="activeTab === 'grades'" class="flex-1 min-h-0 overflow-auto">
             <div x-html="gradesHtml"></div>
           </div>
         </div>

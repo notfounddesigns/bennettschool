@@ -128,7 +128,7 @@ input[type="text"] {
 }
 
 .flip-card-inner {
-  display: grid;
+  position: relative;
   transform-style: preserve-3d;
   transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
 }
@@ -138,13 +138,17 @@ input[type="text"] {
 }
 
 .flip-card-face {
-  grid-area: 1 / 1;
   min-width: 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
+/* The front stays in normal flow and alone determines the card's height.
+   The back overlays it absolutely, so the tables never affect layout;
+   an overflowing table scrolls inside the card instead. */
 .flip-card-back {
+  position: absolute;
+  inset: 0;
   transform: rotateY(180deg);
 }
 

@@ -127,7 +127,7 @@ export function renderHoursTable(inPerson: HourEntry[], de: DeEntry[], timeclock
     )
     .join('');
 
-  return `<table class="w-full border-collapse">
+  return `<table class="mgmt-table w-full border-collapse">
     <thead>
       <tr>
         <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Date</th>
@@ -247,7 +247,7 @@ export function renderGradesTable(grades: GradeEntry[]): string {
     })
     .join('');
 
-  return `<table class="w-full border-collapse">
+  return `<table class="mgmt-table w-full border-collapse">
     <thead>
       <tr>
         <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Date</th>
