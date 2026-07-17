@@ -263,29 +263,35 @@
           </div>
         </div>
 
-        <!-- Tabs -->
-        <div class="flex gap-1 border-b border-app-border">
+        <!-- Hours / Grades flip buttons -->
+        <div class="flex justify-center gap-2">
           <button
             @click="activeTab = 'hours'"
-            :class="activeTab === 'hours' ? 'border-sage text-sage hover:text-sage-hover' : 'border-transparent text-muted hover:text-charcoal'"
-            class="px-4 py-2 text-[13px] font-semibold border-b-2 -mb-px transition-colors cursor-pointer">
+            :aria-pressed="activeTab === 'hours'"
+            :class="activeTab === 'hours' ? 'bg-sage border-sage text-white' : 'bg-transparent border-app-border text-muted hover:text-charcoal hover:border-sage'"
+            class="px-5 h-8 text-[13px] font-semibold rounded-full border transition-colors cursor-pointer">
             Hours
           </button>
           <button
             @click="activeTab = 'grades'"
-            :class="activeTab === 'grades' ? 'border-sage text-sage hover:text-sage-hover' : 'border-transparent text-muted hover:text-charcoal'"
-            class="px-4 py-2 text-[13px] font-semibold border-b-2 -mb-px transition-colors cursor-pointer">
+            :aria-pressed="activeTab === 'grades'"
+            :class="activeTab === 'grades' ? 'bg-sage border-sage text-white' : 'bg-transparent border-app-border text-muted hover:text-charcoal hover:border-sage'"
+            class="px-5 h-8 text-[13px] font-semibold rounded-full border transition-colors cursor-pointer">
             Grades
           </button>
         </div>
 
-        <!-- Tab panels -->
-        <div x-show="activeTab === 'hours'" class="overflow-x-auto">
-          <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-2">This Month</p>
-          <div x-html="hoursHtml"></div>
-        </div>
-        <div x-show="activeTab === 'grades'" class="overflow-x-auto">
-          <div x-html="gradesHtml"></div>
+        <!-- Flip card: front = Hours, back = Grades -->
+        <div class="flip-card">
+          <div class="flip-card-inner" :class="activeTab === 'grades' && 'is-flipped'">
+            <div class="flip-card-face flip-card-front overflow-x-auto bg-cream border border-app-border rounded-[10px] p-3" :aria-hidden="activeTab !== 'hours'">
+              <p class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold mb-2">This Month</p>
+              <div x-html="hoursHtml"></div>
+            </div>
+            <div class="flip-card-face flip-card-back overflow-x-auto bg-cream border border-app-border rounded-[10px] p-3" aria-hidden="true" :aria-hidden="activeTab !== 'grades'">
+              <div x-html="gradesHtml"></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
