@@ -13,7 +13,8 @@ const TEMPLATE_BUCKET = 'templates';
 const TEMPLATE_FILE  = 'students_export.xlsx';
 const DATA_ROW = 7; // 1-indexed row where student rows begin in the template
 
-type HourRow = { homebase_id: number; type_id: number; date: string; hours: number };
+type HourEntry = { type_id: number; date: string; hours: number };
+type StudentProfile = { homebase_id: number; name: string; role_id: number; hours_list: HourEntry[] | null };
 
 const now = new Date();
 const year = parseInt(String(now.getUTCFullYear()));
@@ -24,64 +25,31 @@ const today = now.toISOString().slice(0, 10);
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-async function fetchAllPages(query: () => ReturnType<typeof supabase.from>['select']): Promise<HourRow[]> {
-  const PAGE = 1000;
-  const results: HourRow[] = [];
-  let from = 0;
-  while (true) {
-    const { data, error } = await (query() as any).range(from, from + PAGE - 1);
-    if (error) throw new Error(error.message);
-    results.push(...(data as HourRow[]));
-    if (data.length < PAGE) break;
-    from += PAGE;
-  }
-  return results;
-}
+// Each student's hours come entirely from the view's hours_list JSON, so a
+// single query replaces the separate hours_new fetches.
+const { data: studentsData, error: studentsError } = await supabase
+  .from('profiles_view')
+  .select('homebase_id, name, role_id, hours_list')
+  .eq('role_id', 1)
+  .order('name');
 
-const [
-  { data: studentsData, error: studentsError },
-  { data: currentMonthHours, error: currentMonthError },
-] = await Promise.all([
-  supabase
-    .from('profiles_view')
-    .select('homebase_id, name, role_id')
-    .eq('role_id', 1)
-    .order('name'),
-
-  // Current month hours (in-person + DE), up to today
-  supabase
-    .from('hours_new')
-    .select('homebase_id, type_id, date, hours')
-    .gte('date', firstDay)
-    .lte('date', today),
-]);
-
-if (studentsError || currentMonthError) {
+if (studentsError) {
   console.log('Failed to fetch data');
 }
 
-// All hours before this month — paginated to avoid the 1000-row default cap
-const allPriorHoursList = await fetchAllPages(() =>
-  supabase
-    .from('hours_new')
-    .select('homebase_id, type_id, hours, date')
-    .lt('date', firstDay)
-    .order('date')
-);
-
-const currentMonthHoursList = (currentMonthHours ?? []) as HourRow[];
 const monthPrefix = `${year}-${String(month).padStart(2, '0')}-`;
 
-const rows = (studentsData as Array<{ homebase_id: number; name: string }>).map(student => {
-  const id = student.homebase_id;
-  const sh = currentMonthHoursList.filter(h => h.homebase_id === id);
-  const shPrior = allPriorHoursList.filter(h => h.homebase_id === id);
+const rows = ((studentsData ?? []) as StudentProfile[]).map(student => {
+  // Normalize dates to YYYY-MM-DD whether they carry a time component or not
+  const allHours = (student.hours_list ?? []).map(h => ({ ...h, day: h.date.slice(0, 10) }));
+  const sh = allHours.filter(h => h.day >= firstDay && h.day <= today);
+  const shPrior = allHours.filter(h => h.day < firstDay);
 
   // Columns B–AF: in-person hours per calendar day (blank when zero)
   const days = Array.from({ length: 31 }, (_, i) => {
     const dateStr = `${monthPrefix}${String(i + 1).padStart(2, '0')}`;
     const hrs = sh
-      .filter(h => h.type_id === 1 && h.date.substring(0, h.date.indexOf('T')) === dateStr)
+      .filter(h => h.type_id === 1 && h.day === dateStr)
       .reduce((s, h) => s + h.hours, 0);
     return hrs > 0 ? hrs : '';
   });
@@ -97,7 +65,6 @@ const rows = (studentsData as Array<{ homebase_id: number; name: string }>).map(
   );
 
   // AI – Previous Total (all hours before this month)
-  console.log(shPrior)
   const prevTotal = shPrior
     .reduce((s, h) => s + h.hours, 0);
 

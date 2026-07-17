@@ -345,22 +345,35 @@
         <!-- ── Student Mgmt Tab ─────────────────────────────────────────── -->
         <div x-show="activeTab === 'timeclock'" x-data="{ tcSearch: '' }" class="flex flex-col gap-3 flex-1 min-h-0" style="display:none">
           
-          <!-- Selected Student Info -->
-          <div x-show="$store.mgmt.selectedStudent" class="flex w-full h-6/12 md:h-4/12 shrink-0" style="display:none;">
+          <!-- Selected Student Drawer: slides in from the right when a row is clicked -->
+          <div x-show="$store.mgmt.selectedStudent"
+            x-transition:enter="transition-opacity ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition-opacity ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            @click="$store.mgmt.selectedStudent = null"
+            class="fixed inset-0 z-100 bg-black/45" style="display:none;"></div>
+          <aside x-show="$store.mgmt.selectedStudent"
+            @keydown.escape.window="$store.mgmt.selectedStudent = null"
+            x-transition:enter="transition-transform ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+            x-transition:leave="transition-transform ease-in duration-200" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+            class="fixed top-0 right-0 bottom-0 z-110 w-full md:w-[min(44rem,92vw)] bg-modal-bg border-l border-white/10 shadow-lg"
+            style="display:none;">
             <template x-if="$store.mgmt.selectedGroup">
               <div x-data="{ panelTab: 'timeclock', get g() { return $store.mgmt.selectedGroup } }"
-                class="flex flex-col md:flex-row overflow-hidden w-full">
-              
-                <!-- ── Left: identity + actions ──────────────────────────── -->
-                <div class="hidden lg:flex w-40 h-40 rounded-full bg-blush text-white items-center justify-center my-auto mx-auto lg:mx-0 text-3xl lg:text-6xl font-bold shrink-0 leading-none"
-                      x-text="g.initials"></div>
-                <div class="lg:w-64 shrink-0 flex flex-col items-center gap-3 p-2 lg:p-5 my-auto">
-                  <div class="flex flex-col items-center text-center">
-                    <div class="lg:hidden w-20 h-20 rounded-full bg-blush text-white flex items-center justify-center my-auto mx-auto lg:mx-0 text-3xl lg:text-6xl font-bold shrink-0 leading-none"
-                      x-text="g.initials"></div>
-                    <div class="font-serif text-base md:text-lg text-cream capitalize leading-tight" x-text="g.name"></div>
+                class="flex flex-col h-full min-h-0 gap-3 p-4 md:p-5">
+
+                <!-- ── Header: identity + close ──────────────────────────── -->
+                <div class="flex items-center gap-3 shrink-0">
+                  <div class="w-12 h-12 rounded-full bg-blush text-white flex items-center justify-center text-lg font-bold shrink-0 leading-none"
+                    x-text="g.initials"></div>
+                  <div class="min-w-0 flex-1">
+                    <div class="font-serif text-base md:text-lg text-cream capitalize leading-tight truncate" x-text="g.name"></div>
                     <div x-show="g.role_name" class="text-[11px] text-muted font-medium mt-0.5" x-text="g.role_name"></div>
                   </div>
+                  <button @click="$store.mgmt.selectedStudent = null"
+                    class="w-8 h-8 inline-flex items-center justify-center rounded-[8px] text-muted hover:text-cream hover:bg-cream/20 transition-colors cursor-pointer shrink-0" title="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
 
                   <!-- Progress to graduation -->
                   <div class="w-full">
@@ -399,10 +412,8 @@
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                     </button>
                   </div>
-                </div>
-
-                <!-- ── Right: tabs + tables ──────────────────────────────── -->
-                <div class="flex-1 min-w-0 flex flex-col md:px-5 gap-3 h-full">
+                <!-- ── Tabs + tables ─────────────────────────────────────── -->
+                <div class="flex-1 min-w-0 flex flex-col gap-3 min-h-0">
                   <!-- Header: tabs + New -->
                   <div class="flex items-end justify-between gap-2">
                     <div class="flex gap-1 flex-1">
@@ -425,7 +436,7 @@
                   </div>
 
                   <!-- Timeclock tab -->
-                  <div x-show="panelTab === 'timeclock'" style="scrollbar-width: thin;" class="overflow-auto rounded-[8px] bg-white">
+                  <div x-show="panelTab === 'timeclock'" style="scrollbar-width: thin;" class="flex-1 min-h-0 overflow-auto rounded-[8px] bg-white">
                     <template x-if="!g.todayEntry && g.historyEntries.length === 0">
                       <div class="flex items-center justify-center py-8 text-[12px] tracking-[0.07em] text-muted">No time punch entries...</div>
                     </template>
@@ -498,7 +509,7 @@
                   </div>
 
                   <!-- Grades tab -->
-                  <div x-show="panelTab === 'grades'" style="display:none; scrollbar-width: thin;" class="overflow-auto rounded-[8px] bg-white">
+                  <div x-show="panelTab === 'grades'" style="display:none; scrollbar-width: thin;" class="flex-1 min-h-0 overflow-auto rounded-[8px] bg-white">
                     <template x-if="g.grades.length === 0">
                       <div class="flex items-center justify-center py-8 text-[12px] tracking-[0.07em] text-muted">No grade entries...</div>
                     </template>
@@ -536,12 +547,7 @@
                 </div>
               </div>
             </template>
-          </div>
-          <div x-show="!$store.mgmt.selectedStudent" class="flex w-full justify-center items-center py-6">
-            <span class="text-muted text-sm">Select a student from the table to view their information.</span>
-          </div>
-          
-          <hr class="my-1 border-t border-muted/15" />
+          </aside>
 
           <!-- Overview + Needs Attention -->
           <!-- <div class="grid gap-3 shrink-0 grid-cols-1 md:grid-cols-[2fr_1fr] md:max-h-40"> -->

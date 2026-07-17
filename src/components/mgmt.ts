@@ -250,7 +250,8 @@ export function createMgmtStore(): MgmtStore {
         ]);
         this.employees = employees as MgmtEmployee[];
         this.currentStudents = students as TimeclockStatusEntry[];
-        this.selectedStudent = employees[0] ?? null;
+        // No auto-selection: the student drawer stays closed until a row is clicked.
+        this.selectedStudent = null;
         this.lastSync = lastSync;
         this.overviewStats = overviewStats;
         this.allGrades = allGrades;
