@@ -646,19 +646,19 @@
             </button>
             <div class="flex-1"></div>
             <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry?.is_clocked_in && !g.todayEntry?.on_break).length + ' clocked-in'"
-              class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sage/15 text-sage">
+              class="inline-flex sm:hidden items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sage/15 text-sage">
             </span>
             <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry?.on_break).length + ' on break'"
-              class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blush/15 text-blush">
+              class="inline-flex sm:hiddem items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blush/15 text-blush">
             </span>
             <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry && !g.todayEntry.is_clocked_in).length + ' clocked-out'"
-              class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
+              class="inline-flex sm:hidden items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
             </span>
             <span x-text="$store.mgmt.groupedStudents.filter(g => !g.todayEntry).length + ' not clocked-in'"
-              class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
+              class="inline-flex sm:hidden items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
             </span>
             <!-- <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry?.is_clocked_in).length + ' students clocked-in'" class="text-[12px] tracking-[0.07em] text-muted"></span> -->
-            <div class="flex-1"></div>
+            <div class="flex-1 sm:hidden"></div>
             <span x-text="$store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length + `${$store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length == 1 ? ' student' : ' students'}`" class="text-[12px] tracking-[0.07em] text-muted"></span>
             <input type="search" x-model="tcSearch" placeholder="Search by name&hellip;"
               class="w-full max-w-xs px-3.5 py-1.5 border border-white/15 rounded-[8px] bg-white/8 text-cream text-[12px] placeholder:text-muted outline-none focus:border-blush" />
