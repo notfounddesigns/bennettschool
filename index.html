@@ -652,19 +652,19 @@
             </button>
             <div class="flex-1"></div>
             <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry?.is_clocked_in && !g.todayEntry?.on_break).length + ' clocked-in'"
-              class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sage/15 text-sage">
+              class="sm:inline-flex hidden items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sage/15 text-sage">
             </span>
             <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry?.on_break).length + ' on break'"
-              class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blush/15 text-blush">
+              class="sm:inline-flex hidden items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blush/15 text-blush">
             </span>
             <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry && !g.todayEntry.is_clocked_in).length + ' clocked-out'"
-              class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
+              class="sm:inline-flex hidden items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
             </span>
             <span x-text="$store.mgmt.groupedStudents.filter(g => !g.todayEntry).length + ' not clocked-in'"
-              class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
+              class="sm:inline-flex hidden items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted/10 text-muted">
             </span>
             <!-- <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry?.is_clocked_in).length + ' students clocked-in'" class="text-[12px] tracking-[0.07em] text-muted"></span> -->
-            <div class="flex-1"></div>
+            <div class="flex-1 hidden sm:flex"></div>
             <span x-text="$store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length + `${$store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length == 1 ? ' student' : ' students'}`" class="text-[12px] tracking-[0.07em] text-muted"></span>
             <input type="search" x-model="tcSearch" placeholder="Search by name&hellip;"
               class="w-full max-w-xs px-3.5 py-1.5 border border-white/15 rounded-[8px] bg-white/8 text-cream text-[12px] placeholder:text-muted outline-none focus:border-blush" />
@@ -684,8 +684,8 @@
               <div>
                 <!-- Column header -->
                 <div class="sticky top-0 z-10 flex items-center gap-4 px-4 py-2.5 bg-cream border-b border-app-border">
-                  <span class="w-40 md:w-56 xl:w-72 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Student</span>
-                  <span class="block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Prev Day Hrs</span>
+                  <span class="w-56 xl:w-72 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Student</span>
+                  <span class="hidden md:block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Prev Day Hrs</span>
                   <span class="block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Total Hrs</span>
                   <span class="hidden lg:block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Hrs Remaining</span>
                   <span class="hidden md:block min-w-0 flex-1 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Status</span>
@@ -699,7 +699,7 @@
                       @click="$store.mgmt.handleRowClick(group)">
 
                       <!-- Student Info: avatar + name + role + progress -->
-                      <div class="w-40 md:w-56 xl:w-72 flex items-center gap-2.5">
+                      <div class="w-56 xl:w-72 flex items-center gap-2.5">
                         <div class="w-9 h-9 rounded-full bg-blush text-white flex items-center justify-center text-[11px] font-bold shrink-0 leading-none"
                           x-text="group.initials"></div>
                         <div class="min-w-0">
@@ -717,7 +717,7 @@
                       </div>
                       
                       <!-- Previous Day Hours -->
-                      <div class="block text-center w-48 shrink-0">
+                      <div class="hidden md:block text-center w-48 shrink-0">
                         <div class="text-[13px] text-charcoal tabular-nums" x-text="group.prevDayHrs.toFixed(1) + ' hrs'"></div>
                       </div>
 
