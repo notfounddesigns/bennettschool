@@ -283,7 +283,7 @@
         </div>
 
         <!-- BACK: back button + hours/grades table -->
-        <div class="flip-card-face flip-card-back bg-white border border-app-border rounded-card p-5 shadow-card flex flex-col gap-4" aria-hidden="true" :aria-hidden="!flipped">
+        <div class="flip-card-face flip-card-back h-full bg-white border border-app-border rounded-card p-5 shadow-card flex flex-col gap-4" aria-hidden="true" :aria-hidden="!flipped">
           <div class="flex items-center gap-3">
             <button
               @click="flipped = false"
@@ -291,7 +291,7 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Back
             </button>
-            <span class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold" x-text="activeTab === 'hours' ? 'Hours — This Month' : 'Grades'"></span>
+            <span class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold" x-text="activeTab === 'hours' ? 'Hours' : 'Grades'"></span>
           </div>
           <div x-show="activeTab === 'hours'" class="overflow-x-auto">
             <div x-html="hoursHtml"></div>

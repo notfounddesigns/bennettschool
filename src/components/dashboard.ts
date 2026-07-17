@@ -54,7 +54,7 @@ export function createDashboardStore(): DashboardStore {
     },
 
     get formattedTotalHrs() {
-      return this.data ? fmtFloat(this.data.totalHrsAll + this.data.deHrs) : '—';
+      return this.data ? fmtFloat(this.data.totalHrsAll) : '—';
     },
   };
 }
@@ -112,7 +112,7 @@ export function renderHoursTable(inPerson: HourEntry[], de: DeEntry[], timeclock
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   if (combined.length === 0) {
-    return '<p class="text-center py-8 text-muted text-sm">No hours recorded in the last 7 days.</p>';
+    return '<p class="text-center py-8 text-muted text-sm">No hours recorded.</p>';
   }
 
   const rows = combined
@@ -127,7 +127,7 @@ export function renderHoursTable(inPerson: HourEntry[], de: DeEntry[], timeclock
     )
     .join('');
 
-  return `<table class="w-full border-collapse">
+  return `<table class="w-full border-collapse flex-1 overflow-y-auto">
     <thead>
       <tr>
         <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Date</th>
@@ -247,7 +247,7 @@ export function renderGradesTable(grades: GradeEntry[]): string {
     })
     .join('');
 
-  return `<table class="w-full border-collapse">
+  return `<table class="w-full border-collapse flex-1 overflow-y-auto">
     <thead>
       <tr>
         <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Date</th>
