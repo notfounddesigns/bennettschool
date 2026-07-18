@@ -1,4 +1,4 @@
-import Alpine from 'alpinejs';
+no import Alpine from 'alpinejs';
 import {
   fetchEmployeeTable,
   fetchCurrentStudents,
@@ -350,7 +350,7 @@ export function createMgmtStore(): MgmtStore {
             initials,
             role_id: emp?.role_id ?? 1,
             role_name: emp?.role_name ?? '',
-            totalInPersonHrs: emp?.total_hrs || 0,
+            totalInPersonHrs: emp?.in_person_hrs || 0,
             deHrs: parseFloat(emp?.de_hrs ?? '0') || 0,
             hrsToGraduate: emp?.hrs_to_graduate ?? 0,
             percentComplete: emp?.percent_complete ?? 0,
