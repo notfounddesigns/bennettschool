@@ -145,7 +145,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   };
 }
 
-const EMPLOYEE_SELECT = `homebase_id, name, role_id, role_name, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours_list, hours(date, type_id, hours, module, platform, verified)`;
+const EMPLOYEE_SELECT = `homebase_id, name, role_id, role_name, de_hrs, total_hrs, hrs_to_graduate, percent_complete, current_month, legacy_hrs, hours_list, hours(date, type_id, hours, module, platform, verified)`;
 
 type EmployeeRow = {
   homebase_id: number;
@@ -156,6 +156,8 @@ type EmployeeRow = {
   total_hrs: number;
   hrs_to_graduate: number;
   percent_complete: number;
+  current_month: number | null;
+  legacy_hrs: number | null;
   is_active?: boolean;
   hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
   hours: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
@@ -187,16 +189,12 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   return rows
   //.filter(emp => emp.role_id !== 3 && emp.is_active !== false)
   .map(emp => {
-    // In-person = current-system entries (hours_list) + legacy entries (hours)
-    const inPersonHrs = [...(emp.hours ?? []), ...(emp.hours_list ?? [])]
-      .filter(h => h.type_id !== 2)
-      .reduce((sum, h) => sum + (h.hours ?? 0), 0);
     return {
       homebase_id: emp.homebase_id,
       name: emp.name,
       role_id: emp.role_id,
       role_name: emp.role_name ?? '',
-      in_person_hrs: fmtFloat(inPersonHrs),
+      in_person_hrs: fmtFloat((emp.current_month ?? 0) + (emp.legacy_hrs ?? 0)),
       de_hrs: fmtFloat(emp.de_hrs),
       total_hrs: emp.total_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
