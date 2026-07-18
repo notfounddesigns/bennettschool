@@ -53,6 +53,7 @@ export interface StudentGroup {
   role_name: string;
   totalInPersonHrs: number;
   deHrs: number;
+  totalHrs: number;
   hrsToGraduate: number;
   percentComplete: number;
   todayEntry: TimeclockStatusEntry | null;
@@ -352,6 +353,7 @@ export function createMgmtStore(): MgmtStore {
             role_name: emp?.role_name ?? '',
             totalInPersonHrs: parseFloat(String(emp?.in_person_hrs ?? '0')) || 0,
             deHrs: parseFloat(emp?.de_hrs ?? '0') || 0,
+            totalHrs: parseFloat(emp?.total_hrs) || 0,
             hrsToGraduate: emp?.hrs_to_graduate ?? 0,
             percentComplete: emp?.percent_complete ?? 0,
             todayEntry,
