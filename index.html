@@ -271,12 +271,12 @@
         <div class="flex justify-center gap-2">
           <button
             @click="showTable('hours')"
-            class="px-5 h-8 text-[13px] font-semibold rounded-full border border-sage bg-sage text-white transition-colors cursor-pointer hover:bg-sage-hover hover:border-sage-hover">
+            class="px-5 h-8 text-[13px] font-semibold rounded-full border border-sage bg-cream text-sage transition-colors cursor-pointer hover:bg-cream-hover hover:border-sage-hover">
             Hours
           </button>
           <button
             @click="showTable('grades')"
-            class="px-5 h-8 text-[13px] font-semibold rounded-full border border-sage bg-sage text-white transition-colors cursor-pointer hover:bg-sage-hover hover:border-sage-hover">
+            class="px-5 h-8 text-[13px] font-semibold rounded-full border border-sage bg-cream text-sage transition-colors cursor-pointer hover:bg-cream-hover hover:border-sage-hover">
             Grades
           </button>
         </div>
@@ -287,9 +287,8 @@
           <div class="flex items-center gap-3">
             <button
               @click="flipped = false"
-              class="inline-flex items-center gap-1.5 px-4 h-8 text-[13px] font-semibold rounded-full border border-sage bg-sage text-white transition-colors cursor-pointer hover:bg-sage-hover hover:border-sage-hover">
+              class="inline-flex items-center gap-1.5 px-4 h-8 text-[13px] font-semibold rounded-full text-sage transition-colors cursor-pointer hover:text-sage-hover">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Back
             </button>
             <span class="text-[11px] uppercase tracking-[0.08em] text-muted font-semibold" x-text="activeTab === 'hours' ? 'Hours' : 'Grades'"></span>
           </div>
@@ -355,7 +354,7 @@
             @keydown.escape.window="$store.mgmt.selectedStudent = null"
             x-transition:enter="transition-transform ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
             x-transition:leave="transition-transform ease-in duration-200" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
-            class="fixed top-0 right-0 bottom-0 z-110 w-full md:w-[min(44rem,92vw)] bg-modal-bg border-l border-white/10 shadow-lg"
+            class="fixed top-0 right-0 bottom-0 my-8 z-110 w-full md:w-[min(44rem,92vw)] bg-modal-bg border-l border-white/10 shadow-lg"
             style="display:none;">
             <template x-if="$store.mgmt.selectedGroup">
               <div x-data="{ panelTab: 'timeclock', get g() { return $store.mgmt.selectedGroup } }"
@@ -665,7 +664,8 @@
             </span>
             <!-- <span x-text="$store.mgmt.groupedStudents.filter(g => g.todayEntry?.is_clocked_in).length + ' students clocked-in'" class="text-[12px] tracking-[0.07em] text-muted"></span> -->
             <div class="flex-1 hidden sm:flex"></div>
-            <span x-text="$store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length + `${$store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length == 1 ? ' student' : ' students'}`" class="text-[12px] tracking-[0.07em] text-muted"></span>
+            <span x-text="$store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length + `${$store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length == 1 ? ' student' : ' students'}`" 
+              class="hidden sm:block text-[12px] tracking-[0.07em] text-muted"></span>
             <input type="search" x-model="tcSearch" placeholder="Search by name&hellip;"
               class="w-full max-w-xs px-3.5 py-1.5 border border-white/15 rounded-[8px] bg-white/8 text-cream text-[12px] placeholder:text-muted outline-none focus:border-blush" />
           </div>
