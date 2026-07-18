@@ -145,38 +145,47 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   };
 }
 
+const EMPLOYEE_SELECT = `homebase_id, name, role_id, role_name, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours_list, hours(date, type_id, hours, module, platform, verified)`;
+
+type EmployeeRow = {
+  homebase_id: number;
+  name: string;
+  role_id: number;
+  role_name: string;
+  de_hrs: number;
+  total_hrs: number;
+  hrs_to_graduate: number;
+  percent_complete: number;
+  is_active?: boolean;
+  hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
+  hours: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
+};
+
 export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
-  const [{ data, error }, { data: profileData }] = await Promise.all([
-    supabase
-      .from('profiles_view')
-      .select(`homebase_id, name, role_id, role_name, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours_list, hours(date, type_id, hours, module, platform, verified)`)
-      .order('name'),
-    supabase
-      .from('profiles')
-      .select('homebase_id, is_active'),
-  ]);
+  // Single round trip: is_active is read from profiles_view with everything else.
+  let rows: EmployeeRow[];
+  const { data, error } = await supabase
+    .from('profiles_view')
+    .select(`${EMPLOYEE_SELECT}, is_active`)
+    .order('name');
 
-  if (error) throw new Error('Failed to load employees');
+  if (!error) {
+    rows = (data ?? []) as EmployeeRow[];
+  } else {
+    // The view doesn't expose is_active — fall back to fetching it from profiles.
+    const [{ data: viewData, error: viewError }, { data: profileData }] = await Promise.all([
+      supabase.from('profiles_view').select(EMPLOYEE_SELECT).order('name'),
+      supabase.from('profiles').select('homebase_id, is_active'),
+    ]);
+    if (viewError) throw new Error('Failed to load employees');
+    const activeById = new Map(
+      ((profileData ?? []) as Array<{ homebase_id: number; is_active: boolean }>).map(p => [p.homebase_id, p.is_active])
+    );
+    rows = ((viewData ?? []) as EmployeeRow[]).map(r => ({ ...r, is_active: activeById.get(r.homebase_id) }));
+  }
 
-  const activeIds = new Set(
-    ((profileData ?? []) as Array<{ homebase_id: number; is_active: boolean }>)
-      .filter(p => p.is_active !== false)
-      .map(p => p.homebase_id)
-  );
-
-  return (data as Array<{
-    homebase_id: number;
-    name: string;
-    role_id: number;
-    role_name: string;
-    de_hrs: number;
-    total_hrs: number;
-    hrs_to_graduate: number;
-    percent_complete: number;
-    hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
-    hours: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
-  }>)
-  .filter(emp => emp.role_id !== 3 && activeIds.has(emp.homebase_id))
+  return rows
+  .filter(emp => emp.role_id !== 3 && emp.is_active !== false)
   .map(emp => {
     const inPersonHrs = emp.hours
       .filter(h => h.type_id !== 2)
