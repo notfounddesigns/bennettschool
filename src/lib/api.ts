@@ -187,7 +187,8 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   return rows
   //.filter(emp => emp.role_id !== 3 && emp.is_active !== false)
   .map(emp => {
-    const inPersonHrs = emp.hours
+    // In-person = current-system entries (hours_list) + legacy entries (hours)
+    const inPersonHrs = [...(emp.hours ?? []), ...(emp.hours_list ?? [])]
       .filter(h => h.type_id !== 2)
       .reduce((sum, h) => sum + (h.hours ?? 0), 0);
     return {
@@ -195,7 +196,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       name: emp.name,
       role_id: emp.role_id,
       role_name: emp.role_name ?? '',
-      in_person_hrs: fmtFloat(emp.current_month + emp.legacy_hrs) ?? 0,
+      in_person_hrs: fmtFloat(inPersonHrs),
       de_hrs: fmtFloat(emp.de_hrs),
       total_hrs: emp.total_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
