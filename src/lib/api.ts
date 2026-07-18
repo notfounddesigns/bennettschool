@@ -157,7 +157,8 @@ type EmployeeRow = {
   total_hrs: number;
   hrs_to_graduate: number;
   percent_complete: number;
-  in_person: number;
+  in_person: number | null;
+  legacy_hrs: number | null;
   is_active?: boolean;
   hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
   hours: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
@@ -194,9 +195,10 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       name: emp.name,
       role_id: emp.role_id,
       role_name: emp.role_name ?? '',
-      in_person_hrs: emp.in_person + emp.legacy_hrs,
+      in_person_hrs: (emp.in_person ?? 0) + (emp.legacy_hrs ?? 0),
       de_hrs: fmtFloat(emp.de_hrs),
       total_hrs: emp.total_hrs ?? 0,
+      legacy_hrs: emp.legacy_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
       percent_complete: emp.percent_complete ?? 0,
       hours_list: emp.hours_list ?? [],
