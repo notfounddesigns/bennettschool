@@ -185,7 +185,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   }
 
   return rows
-  .filter(emp => emp.role_id !== 3 && emp.is_active !== false)
+  //.filter(emp => emp.role_id !== 3 && emp.is_active !== false)
   .map(emp => {
     const inPersonHrs = emp.hours
       .filter(h => h.type_id !== 2)
@@ -195,7 +195,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       name: emp.name,
       role_id: emp.role_id,
       role_name: emp.role_name ?? '',
-      in_person_hrs: fmtFloat(inPersonHrs),
+      in_person_hrs: fmtFloat(emp.in_person) ?? 0,
       de_hrs: fmtFloat(emp.de_hrs),
       total_hrs: emp.total_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
