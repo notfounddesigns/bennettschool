@@ -164,6 +164,27 @@ input[type="text"] {
   }
 }
 
+/* ── Admin students list: shared column grid keeps header and rows aligned ── */
+.students-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10rem;
+  align-items: center;
+  column-gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .students-grid {
+    grid-template-columns: minmax(0, 1.5fr) 1fr 1fr 1fr;
+    column-gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .students-grid {
+    grid-template-columns: minmax(0, 1.5fr) 1fr 1fr 1fr 1fr;
+  }
+}
+
 /* ── Management table sticky header ── */
 .mgmt-table thead th {
   position: sticky;

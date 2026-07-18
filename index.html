@@ -683,23 +683,22 @@
             <template x-if="!$store.mgmt.loading && $store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase())).length > 0">
               <div>
                 <!-- Column header -->
-                <div class="sticky top-0 z-10 flex items-center gap-4 px-4 py-2.5 bg-cream border-b border-app-border">
-                  <span class="w-56 xl:w-72 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Student</span>
-                  <span class="hidden md:block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Prev Day Hrs</span>
-                  <span class="block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Total Hrs</span>
-                  <span class="hidden lg:block w-48 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Hrs Remaining</span>
-                  <span class="hidden md:block min-w-0 flex-1 shrink-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Status</span>
-                  <!-- <div class="w-5 shrink-0"></div> -->
+                <div class="students-grid sticky top-0 z-10 px-4 py-2.5 bg-cream border-b border-app-border">
+                  <span class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">Student</span>
+                  <span class="hidden md:block text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Prev Day Hrs</span>
+                  <span class="text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Total Hrs</span>
+                  <span class="hidden lg:block text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Hrs Remaining</span>
+                  <span class="hidden md:block min-w-0 text-[11px] text-center font-semibold uppercase tracking-[0.07em] text-muted">Status</span>
                 </div>
                 <template x-for="group in $store.mgmt.groupedStudents.filter(g => !tcSearch.trim() || g.name.toLowerCase().includes(tcSearch.toLowerCase()))" :key="group.name">
                   <div class="border-b border-app-border last:border-b-0" x-data="group">
                     <!-- Main student row -->
                     <!-- On click, close any other open rows then open the clicked row -->
-                    <div class="group/row flex items-center gap-4 px-4 py-3 hover:bg-[#f5f3f0] transition-colors cursor-pointer select-none"
+                    <div class="students-grid group/row px-4 py-3 hover:bg-[#f5f3f0] transition-colors cursor-pointer select-none"
                       @click="$store.mgmt.handleRowClick(group)">
 
                       <!-- Student Info: avatar + name + role + progress -->
-                      <div class="w-56 xl:w-72 flex items-center gap-2.5">
+                      <div class="min-w-0 flex items-center gap-2.5">
                         <div class="w-9 h-9 rounded-full bg-blush text-white flex items-center justify-center text-[11px] font-bold shrink-0 leading-none"
                           x-text="group.initials"></div>
                         <div class="min-w-0">
@@ -717,24 +716,24 @@
                       </div>
                       
                       <!-- Previous Day Hours -->
-                      <div class="hidden md:block text-center w-48 shrink-0">
+                      <div class="hidden md:block text-center">
                         <div class="text-[13px] text-charcoal tabular-nums" x-text="group.prevDayHrs.toFixed(1) + ' hrs'"></div>
                       </div>
 
                       <!-- Total Hours with  in-person & DE below -->
-                      <div class="block text-center w-48 shrink-0">
+                      <div class="text-center min-w-0">
                         <div class="text-[13px] text-charcoal tabular-nums" x-text="(group.totalInPersonHrs).toFixed(1) + ' hrs'"></div>
                         <div class="text-[11px] text-muted tabular-nums mt-0.5" x-text="group.totalInPersonHrs.toFixed(1) + ' In-Person' + ' ' + group.deHrs.toFixed(1) + ' DE'"></div>
                       </div>
 
                       <!-- Hours to Graduate -->
-                      <div class="hidden lg:block text-center w-48 shrink-0">
+                      <div class="hidden lg:block text-center">
                         <span class="text-[13px] text-charcoal tabular-nums" x-text="group.hrsToGraduate"></span>
                         <span class="text-[11px] text-muted"> hrs</span>
                       </div>
 
                       <!-- Clocked In Status -->
-                      <div class="hidden md:flex justify-center min-w-0 flex-1 shrink-0">
+                      <div class="hidden md:flex justify-center min-w-0">
                         <span x-show="group.todayEntry?.is_clocked_in && !group.todayEntry?.on_break"
                           class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sage/15 text-sage">
                           <span class="w-1.5 h-1.5 rounded-full bg-sage inline-block"></span>Clocked In
