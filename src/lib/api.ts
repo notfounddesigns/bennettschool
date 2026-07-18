@@ -62,6 +62,7 @@ export interface MgmtEmployee {
   in_person_hrs: string | number;
   de_hrs: string;
   total_hrs: number;
+  legacy_hrs: number;
   hrs_to_graduate: number;
   percent_complete: number;
   hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
@@ -145,7 +146,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   };
 }
 
-const EMPLOYEE_SELECT = `homebase_id, name, role_id, role_name, de_hrs, total_hrs, hrs_to_graduate, percent_complete, in_person, hours_list, hours(date, type_id, hours, module, platform, verified)`;
+const EMPLOYEE_SELECT = `homebase_id, name, role_id, role_name, de_hrs, total_hrs, legacy_hrs, hrs_to_graduate, percent_complete, in_person, hours_list, hours(date, type_id, hours, module, platform, verified)`;
 
 type EmployeeRow = {
   homebase_id: number;
@@ -193,7 +194,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       name: emp.name,
       role_id: emp.role_id,
       role_name: emp.role_name ?? '',
-      in_person_hrs: fmtFloat(emp.in_person),
+      in_person_hrs: fmtFloat(emp.in_person + emp.legacy_hrs),
       de_hrs: fmtFloat(emp.de_hrs),
       total_hrs: emp.total_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
