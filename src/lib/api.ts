@@ -59,7 +59,7 @@ export interface MgmtEmployee {
   name: string;
   role_id: number;
   role_name: string;
-  in_person_hrs: string | number;
+  in_person_hrs: number;
   de_hrs: string;
   total_hrs: number;
   legacy_hrs: number;
@@ -194,7 +194,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       name: emp.name,
       role_id: emp.role_id,
       role_name: emp.role_name ?? '',
-      in_person_hrs: fmtFloat(emp.in_person + emp.legacy_hrs),
+      in_person_hrs: emp.in_person + emp.legacy_hrs,
       de_hrs: fmtFloat(emp.de_hrs),
       total_hrs: emp.total_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
