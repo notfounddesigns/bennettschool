@@ -132,7 +132,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h }) => ({ date, hours: h }));
 
-  const deHrsList: DeEntry[] = [...oldHoursList, ...newHoursList]
+  const deHrsList: DeEntry[] = combinedHrsList
     .filter(h => h.type_id === 2)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
