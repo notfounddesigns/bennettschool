@@ -421,6 +421,11 @@
                         class="px-4 py-2 text-xs md:text-[13px] font-semibold border-b-2 -mb-px transition-colors cursor-pointer">
                         Timeclock
                       </button>
+                      <button @click="panelTab = 'de'"
+                        :class="panelTab === 'de' ? 'border-sage text-sage' : 'border-transparent text-muted hover:text-cream'"
+                        class="px-4 py-2 text-xs md:text-[13px] font-semibold border-b-2 -mb-px transition-colors cursor-pointer">
+                        DE Hrs
+                      </button>
                       <button @click="panelTab = 'grades'"
                         :class="panelTab === 'grades' ? 'border-sage text-sage' : 'border-transparent text-muted hover:text-cream'"
                         class="px-4 py-2 text-xs md:text-[13px] font-semibold border-b-2 -mb-px transition-colors cursor-pointer">
@@ -500,6 +505,37 @@
                                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 </button>
                               </td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </template>
+                  </div>
+
+                  <!-- DE Hrs tab -->
+                  <div x-show="panelTab === 'de'" style="display:none; scrollbar-width: thin;" class="flex-1 min-h-0 overflow-auto rounded-[8px] bg-white">
+                    <template x-if="g.deHrsList.length === 0">
+                      <div class="flex items-center justify-center py-8 text-[12px] tracking-[0.07em] text-muted">No DE hours entries...</div>
+                    </template>
+                    <template x-if="g.deHrsList.length > 0">
+                      <table class="w-full border-collapse text-[12px]">
+                        <thead class="sticky top-0 z-10 bg-cream">
+                          <tr>
+                            <th class="text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Date</th>
+                            <th class="text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Module</th>
+                            <th class="hidden md:table-cell text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Platform</th>
+                            <th class="hidden md:table-cell text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Verified</th>
+                            <th class="text-right text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">DE Hrs</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <template x-for="de in g.deHrsList" :key="de.date + '|' + de.module + '|' + de.platform">
+                            <tr class="border-b border-app-border/50 last:border-b-0 hover:bg-[#f5f3f0] transition-colors">
+                              <td class="px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="de.date"></td>
+                              <td class="px-3 py-2 text-charcoal max-w-40 truncate" x-text="de.module || '—'"></td>
+                              <td class="hidden md:table-cell px-3 py-2 text-muted max-w-40 truncate" x-text="de.platform || '—'"></td>
+                              <td class="hidden md:table-cell px-3 py-2 text-muted whitespace-nowrap" x-text="de.verified ? 'Yes' : 'No'"></td>
+                              <td class="px-3 py-2 tabular-nums text-charcoal text-right whitespace-nowrap" x-text="(de.hours ?? 0).toFixed(1) + ' hrs'"></td>
                             </tr>
                           </template>
                         </tbody>

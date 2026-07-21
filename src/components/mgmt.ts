@@ -41,6 +41,7 @@ import {
   type TimeclockStatusEntry,
   type Role,
   type GradeEntry,
+  type DeEntry,
   type Student,
 } from '../lib/api';
 import type { DashboardStore } from './dashboard';
@@ -59,6 +60,7 @@ export interface StudentGroup {
   todayEntry: TimeclockStatusEntry | null;
   historyEntries: TimeclockStatusEntry[];
   deHoursByDate: Record<string, number>;
+  deHrsList: DeEntry[];
   grades: GradeEntry[];
   open: boolean;
 }
@@ -345,6 +347,13 @@ export function createMgmtStore(): MgmtStore {
             if (val) deHoursByDate[e.date] = val;
           }
           const emp = empMap.get(homebase_id);
+
+          // DE hours (type_id === 2) from both hours lists, ordered by date desc.
+          const deHrsList: DeEntry[] = [...(emp?.hours ?? []), ...(emp?.hours_list ?? [])]
+            .filter(h => h.type_id === 2)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .map(({ date, hours, module, platform, verified }) => ({ date, hours, module, platform, verified }));
+
           return {
             homebase_id,
             name,
@@ -360,6 +369,7 @@ export function createMgmtStore(): MgmtStore {
             prevDayHrs,
             historyEntries,
             deHoursByDate,
+            deHrsList,
             grades: (this.allGrades as Record<number, GradeEntry[]>)[homebase_id] ?? [],
             open: this.expandedId === homebase_id,
           };
