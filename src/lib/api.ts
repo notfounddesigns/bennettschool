@@ -119,8 +119,13 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
 
   const oldHoursList = (profile?.hours as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
   const newHoursList = (profile?.hours_list as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
-  const combinedHrsList = [...oldHoursList, ...newHoursList];
-  console.log(combinedHrsList);
+
+  // Merge both lists, treating entries with the same date and type_id as
+  // duplicates. hours_list is applied second so its version wins on any duplicate.
+  const byKey = new Map<string, typeof oldHoursList[number]>();
+  for (const h of oldHoursList) byKey.set(`${h.date}|${h.type_id}`, h);
+  for (const h of newHoursList) byKey.set(`${h.date}|${h.type_id}`, h);
+  const combinedHrsList = [...byKey.values()];
 
   const inPersonHrsList: HourEntry[] = combinedHrsList
     .filter(h => h.type_id !== 2 && h.type_id !== 3)
