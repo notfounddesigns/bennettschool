@@ -348,12 +348,8 @@ export function createMgmtStore(): MgmtStore {
           }
           const emp = empMap.get(homebase_id);
 
-          // DE hours (type_id === 2) from both hours lists, deduped on
-          // date + type_id with hours_list winning, ordered by date desc.
-          const deByKey = new Map<string, { type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>();
-          for (const h of emp?.hours ?? []) deByKey.set(`${h.date}|${h.type_id}`, h);
-          for (const h of emp?.hours_list ?? []) deByKey.set(`${h.date}|${h.type_id}`, h);
-          const deHrsList: DeEntry[] = [...deByKey.values()]
+          // DE hours (type_id === 2) from both hours lists, ordered by date desc.
+          const deHrsList: DeEntry[] = [...(emp?.hours ?? []), ...(emp?.hours_list ?? [])]
             .filter(h => h.type_id === 2)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .map(({ date, hours, module, platform, verified }) => ({ date, hours, module, platform, verified }));
