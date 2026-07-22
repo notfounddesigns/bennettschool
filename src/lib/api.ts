@@ -402,6 +402,42 @@ export async function updateGradeEntry(
   if (error) throw new Error('Failed to update grade entry');
 }
 
+// A DE hours entry is a row in the `hours` table with type_id === 2. It's
+// identified by the student, date, module and platform of the original entry.
+type DeHoursKey = { date: string; module: string; platform: string; hours: number };
+
+export async function updateDeHoursEntry(
+  homebaseId: number,
+  original: DeHoursKey,
+  updates: Partial<{ hours: number; module: string; platform: string; verified: boolean }>
+): Promise<void> {
+  const { error } = await supabase
+    .from('hours')
+    .update(updates)
+    .eq('homebase_id', homebaseId)
+    .eq('type_id', 2)
+    .eq('date', original.date)
+    .eq('module', original.module)
+    .eq('platform', original.platform)
+    .eq('hours', original.hours);
+  if (error) throw new Error('Failed to update DE hours entry');
+}
+
+// "Removing" a DE hours entry is a soft delete: rather than deleting the row we
+// set its hours to -1 so downstream queries can filter it out.
+export async function removeDeHoursEntry(homebaseId: number, original: DeHoursKey): Promise<void> {
+  const { error } = await supabase
+    .from('hours')
+    .update({ hours: -1 })
+    .eq('homebase_id', homebaseId)
+    .eq('type_id', 2)
+    .eq('date', original.date)
+    .eq('module', original.module)
+    .eq('platform', original.platform)
+    .eq('hours', original.hours);
+  if (error) throw new Error('Failed to remove DE hours entry');
+}
+
 // 1780596226798
 
 export async function loginEmployee(
@@ -932,6 +968,8 @@ export async function deleteNeedsAttentionItem(id: string): Promise<void> {
 export type AuditAction =
   | 'login' | 'logout'
   | 'grade_update'
+  | 'de_hours_edit'
+  | 'de_hours_remove'
   | 'timeclock_edit'
   | 'timeclock_add'
   | 'role_change'

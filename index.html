@@ -529,16 +529,22 @@
                             <th class="hidden md:table-cell text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Platform</th>
                             <th class="hidden md:table-cell text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Verified</th>
                             <th class="text-right text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">DE Hrs</th>
+                            <th class="w-8 border-b border-app-border"></th>
                           </tr>
                         </thead>
                         <tbody>
                           <template x-for="(de, index) in g.deHrsList" :key="index">
                             <tr class="border-b border-app-border/50 last:border-b-0 hover:bg-[#f5f3f0] transition-colors">
-                              <td class="px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="de.date"></td>
+                              <td class="px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="$store.mgmt.formatSimpleDate(de.date)"></td>
                               <td class="px-3 py-2 text-charcoal max-w-40 truncate" x-text="de.module || '—'"></td>
                               <td class="hidden md:table-cell px-3 py-2 text-muted max-w-40 truncate" x-text="de.platform || '—'"></td>
                               <td class="hidden md:table-cell px-3 py-2 text-muted whitespace-nowrap" x-text="de.verified ? 'Yes' : 'No'"></td>
                               <td class="px-3 py-2 tabular-nums text-charcoal text-right whitespace-nowrap" x-text="(de.hours ?? 0).toFixed(1) + ' hrs'"></td>
+                              <td class="px-2 py-2 text-right">
+                                <button @click="$dispatch('open-edit-de-hours', { id: g.homebase_id, name: g.name, de: de })" class="w-6 h-6 inline-flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors" title="Edit DE hours">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                              </td>
                             </tr>
                           </template>
                         </tbody>
@@ -1199,6 +1205,18 @@
             <input id="add-entry-platform" type="text" x-model="platform" placeholder="Platform"
               class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
           </div>
+          <!-- Verified (edit mode only) -->
+          <fieldset x-show="mode === 'edit'" style="display:none" class="border-none p-0 m-0">
+            <legend class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5">Verified</legend>
+            <div class="flex gap-5">
+              <label class="flex items-center gap-1.5 text-sm text-cream cursor-pointer">
+                <input type="radio" :value="true" x-model="verified" /> Yes
+              </label>
+              <label class="flex items-center gap-1.5 text-sm text-cream cursor-pointer">
+                <input type="radio" :value="false" x-model="verified" /> No
+              </label>
+            </div>
+          </fieldset>
         </div>
         <!-- Grades fields -->
         <div x-show="type === 'grades'" style="display:none" class="flex flex-col gap-4">
@@ -1231,16 +1249,42 @@
         </div>
         <p x-show="error" x-text="error" class="text-[12px] text-app-error" style="display:none"></p>
       </div>
-      <div class="flex gap-2.5 justify-end px-5.5 pb-4.5 pt-3.5 border-t border-app-border">
-        <button @click="closeDialog()"
-          class="inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-9.5 px-4.5 text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover">
-          Cancel
-        </button>
-        <button @click="submit()" :disabled="loading"
-          class="inline-flex items-center justify-center gap-2 h-9.5 px-4.5 font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
-          <span x-show="loading" class="spinner"></span>
-          <span x-text="loading ? 'Saving…' : 'Save'"></span>
-        </button>
+      <div class="px-5.5 pb-4.5 pt-3.5 border-t border-app-border">
+        <!-- Inline remove confirmation (DE hours edit) -->
+        <div x-show="confirmingRemove" style="display:none" class="flex flex-col gap-3">
+          <p class="text-[13px] text-cream">
+            Remove this DE hours entry? Its hours will be set to <span class="font-semibold">-1</span> so it's filtered out.
+          </p>
+          <div class="flex gap-2.5 justify-end">
+            <button @click="cancelRemove()" :disabled="loading"
+              class="inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-9.5 px-4.5 text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover disabled:opacity-45 disabled:cursor-not-allowed">
+              Cancel
+            </button>
+            <button @click="confirmRemove()" :disabled="loading"
+              class="inline-flex items-center justify-center gap-2 h-9.5 px-4.5 font-medium cursor-pointer rounded-[8px] transition-all bg-red-600 text-white hover:bg-red-700 active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
+              <span x-show="loading" class="spinner"></span>
+              <span x-text="loading ? 'Removing…' : 'Confirm Remove'"></span>
+            </button>
+          </div>
+        </div>
+        <!-- Normal footer -->
+        <div x-show="!confirmingRemove" class="flex gap-2.5 items-center">
+          <button x-show="mode === 'edit' && editKind === 'de'" @click="requestRemove()" :disabled="loading" style="display:none"
+            class="inline-flex items-center justify-center text-red-600 rounded-[8px] h-9.5 px-3.5 text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:bg-red-600/10 disabled:opacity-45 disabled:cursor-not-allowed">
+            Remove
+          </button>
+          <div class="flex gap-2.5 justify-end ml-auto">
+            <button @click="closeDialog()"
+              class="inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-9.5 px-4.5 text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover">
+              Cancel
+            </button>
+            <button @click="submit()" :disabled="loading"
+              class="inline-flex items-center justify-center gap-2 h-9.5 px-4.5 font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed">
+              <span x-show="loading" class="spinner"></span>
+              <span x-text="loading ? 'Saving…' : 'Save'"></span>
+            </button>
+          </div>
+        </div>
       </div>
     </dialog>
 
