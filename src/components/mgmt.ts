@@ -10,6 +10,8 @@ import {
   submitHours,
   submitGradeEntry,
   updateGradeEntry,
+  updateDeHoursEntry,
+  removeDeHoursEntry,
   fetchPunchPhotos,
   getPunchPhotoUrl,
   setEmployeePassword,
@@ -109,6 +111,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   login: 'Signed in',
   logout: 'Signed out',
   grade_update: 'Edited a grade entry',
+  de_hours_edit: 'Edited a DE hours entry',
+  de_hours_remove: 'Removed a DE hours entry',
   timeclock_edit: 'Edited a timeclock entry',
   timeclock_add: 'Added a timeclock entry',
   role_change: 'Updated a student profile',
@@ -149,6 +153,7 @@ export interface MgmtStore {
   attentionTypeLabel(type: NeedsAttentionType): string;
   auditActionLabel(action: AuditAction): string;
   auditTimestamp(iso: string): string;
+  formatSimpleDate(iso: string): string;
   handleRowClick(group: StudentGroup): void;
   viewAsStudent(emp: MgmtEmployee): void;
   readonly groupedStudents: StudentGroup[];
@@ -189,6 +194,10 @@ export function createMgmtStore(): MgmtStore {
         minute: '2-digit',
         hour12: true,
       });
+    },
+
+    formatSimpleDate(iso: string): string {
+      return formatSimpleDate(iso);
     },
 
     async resolveAttention(id: string) {
@@ -352,7 +361,7 @@ export function createMgmtStore(): MgmtStore {
           const deHrsList: DeEntry[] = [...(emp?.hours ?? []), ...(emp?.hours_list ?? [])]
             .filter(h => h.type_id === 2)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .map(({ date, hours, module, platform, verified }) => ({ date: formatSimpleDate(date), hours, module, platform, verified }));
+            .map(({ date, hours, module, platform, verified }) => ({ date, hours, module, platform, verified }));
 
           return {
             homebase_id,
@@ -1156,7 +1165,7 @@ export function addEntryModalData() {
   return {
     mode: 'add' as 'add' | 'edit',
     // In edit mode, which record is being edited (locks the type / dialog layout).
-    editKind: null as null | 'timepunch' | 'grade',
+    editKind: null as null | 'timepunch' | 'grade' | 'de',
     homebaseId: 0,
     studentName: '',
     type: 'timepunch' as 'timepunch' | 'de_hours' | 'grades',
@@ -1170,6 +1179,7 @@ export function addEntryModalData() {
     hours: '',
     module: '',
     platform: '',
+    verified: true,
     score: '',
     project: '',
     category: '',
@@ -1179,13 +1189,20 @@ export function addEntryModalData() {
     breakId: null as string | null,
     originalDeTotal: 0,
     originalGrade: { date: '', project: '', category: '' },
+    // The DE hours row being edited, and the inline "confirm remove" state.
+    originalDe: { date: '', module: '', platform: '', hours: 0 },
+    confirmingRemove: false,
 
     get displayName() {
       return toTitleCase(this.studentName);
     },
 
     get dialogTitle() {
-      if (this.mode === 'edit') return this.editKind === 'grade' ? 'Edit Grade' : 'Edit Timepunch';
+      if (this.mode === 'edit') {
+        if (this.editKind === 'grade') return 'Edit Grade';
+        if (this.editKind === 'de') return 'Edit DE Hours';
+        return 'Edit Timepunch';
+      }
       return 'Add Entry';
     },
 
@@ -1221,6 +1238,7 @@ export function addEntryModalData() {
       this.hours = '';
       this.module = '';
       this.platform = '';
+      this.verified = true;
       this.score = '';
       this.project = '';
       this.category = '';
@@ -1229,6 +1247,8 @@ export function addEntryModalData() {
       this.breakId = null;
       this.originalDeTotal = 0;
       this.originalGrade = { date: '', project: '', category: '' };
+      this.originalDe = { date: '', module: '', platform: '', hours: 0 };
+      this.confirmingRemove = false;
     },
 
     openDialog() {
@@ -1295,6 +1315,23 @@ export function addEntryModalData() {
         this.originalGrade = { date: grade.date, project: grade.project, category: grade.category };
         this.openDialog();
       });
+
+      window.addEventListener('open-edit-de-hours', (e: Event) => {
+        const { id, name, de } = (e as CustomEvent<{ id: number; name: string; de: DeEntry }>).detail;
+        this.reset();
+        this.mode = 'edit';
+        this.editKind = 'de';
+        this.type = 'de_hours';
+        this.homebaseId = id;
+        this.studentName = name;
+        this.date = de.date;
+        this.hours = String(de.hours);
+        this.module = de.module ?? '';
+        this.platform = de.platform ?? '';
+        this.verified = de.verified;
+        this.originalDe = { date: de.date, module: de.module ?? '', platform: de.platform ?? '', hours: de.hours };
+        this.openDialog();
+      });
     },
 
     closeDialog() {
@@ -1350,6 +1387,8 @@ export function addEntryModalData() {
         await this.submitEditTimepunch();
       } else if (this.mode === 'edit' && this.editKind === 'grade') {
         await this.submitEditGrade();
+      } else if (this.mode === 'edit' && this.editKind === 'de') {
+        await this.submitEditDeHours();
       } else if (this.type === 'timepunch') {
         await this.submitAddTimepunch();
       } else if (this.type === 'de_hours') {
@@ -1543,6 +1582,72 @@ export function addEntryModalData() {
         await (Alpine.store('mgmt') as MgmtStore).load();
       } catch {
         this.error = 'Could not save. Please try again.';
+      } finally {
+        this.loading = false;
+        app().hideLoading();
+      }
+    },
+
+    async submitEditDeHours() {
+      const hours = this.hours ? parseFloat(this.hours) : NaN;
+      if (isNaN(hours) || hours < 0) {
+        this.error = 'Hours must be a positive number.';
+        return;
+      }
+      this.loading = true;
+      app().showLoading();
+      try {
+        await updateDeHoursEntry(this.homebaseId, this.originalDe, {
+          hours,
+          module: this.module,
+          platform: this.platform,
+          verified: this.verified,
+        });
+        void logAudit('de_hours_edit', {
+          targetId: this.homebaseId,
+          targetName: this.studentName,
+          description: `Edited a DE hours entry (${hours} hrs, ${this.date})`,
+          metadata: { date: this.date, hours, module: this.module, platform: this.platform, verified: this.verified },
+        });
+        this.closeDialog();
+        app().showSnackbar('DE hours updated.', 'success');
+        await (Alpine.store('mgmt') as MgmtStore).load();
+      } catch (err: unknown) {
+        this.error = err instanceof Error ? err.message : 'Could not save. Please try again.';
+      } finally {
+        this.loading = false;
+        app().hideLoading();
+      }
+    },
+
+    // Two-step remove: the first click reveals an inline confirmation, the
+    // second performs the soft delete (sets the row's hours to -1).
+    requestRemove() {
+      this.error = '';
+      this.confirmingRemove = true;
+    },
+
+    cancelRemove() {
+      this.confirmingRemove = false;
+    },
+
+    async confirmRemove() {
+      this.loading = true;
+      app().showLoading();
+      try {
+        await removeDeHoursEntry(this.homebaseId, this.originalDe);
+        void logAudit('de_hours_remove', {
+          targetId: this.homebaseId,
+          targetName: this.studentName,
+          description: `Removed a DE hours entry (${this.originalDe.hours} hrs, ${this.originalDe.date})`,
+          metadata: { ...this.originalDe },
+        });
+        this.closeDialog();
+        app().showSnackbar('DE hours removed.', 'success');
+        await (Alpine.store('mgmt') as MgmtStore).load();
+      } catch (err: unknown) {
+        this.confirmingRemove = false;
+        this.error = err instanceof Error ? err.message : 'Could not remove. Please try again.';
       } finally {
         this.loading = false;
         app().hideLoading();
