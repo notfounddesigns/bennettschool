@@ -383,8 +383,11 @@
                     <div class="h-1.5 bg-app-border rounded-full overflow-hidden">
                       <div class="h-full rounded-full bg-sage" :style="'width:' + Math.min(g.percentComplete, 100) + '%'"></div>
                     </div>
-                    <div class="text-[11px] text-muted text-center mt-1 tabular-nums">
-                      <span x-text="g.hrsToGraduate"></span> hrs to graduate
+                    <div class="flex items-center text-[11px] text-muted text-center mt-1 tabular-nums">
+                      <span x-text="g.hrsToGraduate"></span>&nbsp;hrs to graduate
+                      <div class="ml-auto">
+                        <span x-text="g.totalHrs"></span>&nbsp;total hrs
+                      </div>
                     </div>
                   </div>
 
@@ -529,7 +532,7 @@
                           </tr>
                         </thead>
                         <tbody>
-                          <template x-for="de in g.deHrsList" :key="de.date + '|' + de.module + '|' + de.platform">
+                          <template x-for="(de, index) in g.deHrsList" :key="index">
                             <tr class="border-b border-app-border/50 last:border-b-0 hover:bg-[#f5f3f0] transition-colors">
                               <td class="px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="de.date"></td>
                               <td class="px-3 py-2 text-charcoal max-w-40 truncate" x-text="de.module || '—'"></td>

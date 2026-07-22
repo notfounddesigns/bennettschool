@@ -352,7 +352,11 @@ export function createMgmtStore(): MgmtStore {
           const deHrsList: DeEntry[] = [...(emp?.hours ?? []), ...(emp?.hours_list ?? [])]
             .filter(h => h.type_id === 2)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .map(({ date, hours, module, platform, verified }) => ({ date: formatSimpleDate(date), hours, module, platform, verified }));
+            .map(({ date, hours, module, platform, verified }) => ({ date: date.substring(0, date.indexOf('T')), hours, module, platform, verified }));
+            
+          if (emp?.name === 'Tori Parrish') {
+            console.log('DE Hours for Tori Parrish:', deHrsList);
+          }
 
           return {
             homebase_id,
