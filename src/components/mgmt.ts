@@ -352,7 +352,7 @@ export function createMgmtStore(): MgmtStore {
           const deHrsList: DeEntry[] = [...(emp?.hours ?? []), ...(emp?.hours_list ?? [])]
             .filter(h => h.type_id === 2)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .map(({ date, hours, module, platform, verified }) => ({ date, hours, module, platform, verified }));
+            .map(({ date, hours, module, platform, verified }) => ({ localDateStr(date), hours, module, platform, verified }));
 
           return {
             homebase_id,
