@@ -358,10 +358,15 @@ export function createMgmtStore(): MgmtStore {
           const emp = empMap.get(homebase_id);
 
           // DE hours (type_id === 2) from both hours lists, ordered by date desc.
-          const deHrsList: DeEntry[] = [...(emp?.hours ?? []), ...(emp?.hours_list ?? [])]
+          // Rows from `hours` carry their primary key so edits/removes target one
+          // record; legacy `hours_list` (JSON) rows have no id.
+          const deHrsList: DeEntry[] = [
+            ...(emp?.hours ?? []).map((h): DeEntry & { type_id: number } => ({ id: h.id, date: h.date, hours: h.hours, module: h.module, platform: h.platform, verified: h.verified, type_id: h.type_id })),
+            ...(emp?.hours_list ?? []).map((h): DeEntry & { type_id: number } => ({ date: h.date, hours: h.hours, module: h.module, platform: h.platform, verified: h.verified, type_id: h.type_id })),
+          ]
             .filter(h => h.type_id === 2)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .map(({ date, hours, module, platform, verified }) => ({ date, hours, module, platform, verified }));
+            .map(({ id, date, hours, module, platform, verified }) => ({ id, date, hours, module, platform, verified }));
 
           if (emp?.name === 'Tori Parrish') {
             console.log('DE Hours for Tori Parrish:', deHrsList);
@@ -1193,8 +1198,9 @@ export function addEntryModalData() {
     breakId: null as string | null,
     originalDeTotal: 0,
     originalGrade: { date: '', project: '', category: '' },
-    // The DE hours row being edited, and the inline "confirm remove" state.
-    originalDe: { date: '', module: '', platform: '', hours: 0 },
+    // Primary key of the DE hours row being edited, and the inline
+    // "confirm remove" state.
+    editDeId: null as number | null,
     confirmingRemove: false,
 
     get displayName() {
@@ -1251,7 +1257,7 @@ export function addEntryModalData() {
       this.breakId = null;
       this.originalDeTotal = 0;
       this.originalGrade = { date: '', project: '', category: '' };
-      this.originalDe = { date: '', module: '', platform: '', hours: 0 };
+      this.editDeId = null;
       this.confirmingRemove = false;
     },
 
@@ -1333,7 +1339,7 @@ export function addEntryModalData() {
         this.module = de.module ?? '';
         this.platform = de.platform ?? '';
         this.verified = de.verified;
-        this.originalDe = { date: de.date, module: de.module ?? '', platform: de.platform ?? '', hours: de.hours };
+        this.editDeId = de.id ?? null;
         this.openDialog();
       });
     },
@@ -1593,6 +1599,10 @@ export function addEntryModalData() {
     },
 
     async submitEditDeHours() {
+      if (this.editDeId == null) {
+        this.error = 'This entry has no database id and cannot be edited.';
+        return;
+      }
       const hours = this.hours ? parseFloat(this.hours) : NaN;
       if (isNaN(hours) || hours < 0) {
         this.error = 'Hours must be a positive number.';
@@ -1601,7 +1611,7 @@ export function addEntryModalData() {
       this.loading = true;
       app().showLoading();
       try {
-        await updateDeHoursEntry(this.homebaseId, this.originalDe, {
+        await updateDeHoursEntry(this.editDeId, {
           hours,
           module: this.module,
           platform: this.platform,
@@ -1611,7 +1621,7 @@ export function addEntryModalData() {
           targetId: this.homebaseId,
           targetName: this.studentName,
           description: `Edited a DE hours entry (${hours} hrs, ${this.date})`,
-          metadata: { date: this.date, hours, module: this.module, platform: this.platform, verified: this.verified },
+          metadata: { id: this.editDeId, date: this.date, hours, module: this.module, platform: this.platform, verified: this.verified },
         });
         this.closeDialog();
         app().showSnackbar('DE hours updated.', 'success');
@@ -1636,15 +1646,20 @@ export function addEntryModalData() {
     },
 
     async confirmRemove() {
+      if (this.editDeId == null) {
+        this.confirmingRemove = false;
+        this.error = 'This entry has no database id and cannot be removed.';
+        return;
+      }
       this.loading = true;
       app().showLoading();
       try {
-        await removeDeHoursEntry(this.homebaseId, this.originalDe);
+        await removeDeHoursEntry(this.editDeId);
         void logAudit('de_hours_remove', {
           targetId: this.homebaseId,
           targetName: this.studentName,
-          description: `Removed a DE hours entry (${this.originalDe.hours} hrs, ${this.originalDe.date})`,
-          metadata: { ...this.originalDe },
+          description: `Removed a DE hours entry (${this.hours} hrs, ${this.date})`,
+          metadata: { id: this.editDeId, date: this.date, hours: this.hours, module: this.module, platform: this.platform },
         });
         this.closeDialog();
         app().showSnackbar('DE hours removed.', 'success');
