@@ -136,7 +136,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .map(({ date, hours: h }) => ({ date, hours: h }));
 
   const deHrsList: DeEntry[] = combinedHrsList
-    .filter(h => h.type_id === 2)
+    .filter(h => h.type_id === 2 && h.hours >= 0)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
 
@@ -210,7 +210,7 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
       percent_complete: emp.percent_complete ?? 0,
       hours_list: emp.hours_list ?? [],
-      hours: emp.hours ?? []
+      hours: emp.hours.filter(h => h.hours >= 0) ?? []
     };
   });
 }
