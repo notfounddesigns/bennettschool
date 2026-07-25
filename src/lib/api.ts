@@ -27,6 +27,9 @@ export interface HourEntry {
 }
 
 export interface DeEntry {
+  // Primary key of the underlying `hours` row. Optional because legacy entries
+  // sourced from the profile's `hours_list` JSON column have no row id.
+  id?: number;
   date: string;
   hours: number;
   module: string;
@@ -66,7 +69,7 @@ export interface MgmtEmployee {
   hrs_to_graduate: number;
   percent_complete: number;
   hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
-  hours: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
+  hours: Array<{ id: number; type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
 }
 
 export interface Role {
@@ -151,7 +154,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   };
 }
 
-const EMPLOYEE_SELECT = `homebase_id, name, role_id, role_name, de_hrs, total_hrs, legacy_hrs, hrs_to_graduate, percent_complete, in_person, hours_list, hours(date, type_id, hours, module, platform, verified)`;
+const EMPLOYEE_SELECT = `homebase_id, name, role_id, role_name, de_hrs, total_hrs, legacy_hrs, hrs_to_graduate, percent_complete, in_person, hours_list, hours(id, date, type_id, hours, module, platform, verified)`;
 
 type EmployeeRow = {
   homebase_id: number;
@@ -166,7 +169,7 @@ type EmployeeRow = {
   legacy_hrs: number | null;
   is_active?: boolean;
   hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
-  hours: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
+  hours: Array<{ id: number; type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
 };
 
 export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
@@ -402,39 +405,21 @@ export async function updateGradeEntry(
   if (error) throw new Error('Failed to update grade entry');
 }
 
-// A DE hours entry is a row in the `hours` table with type_id === 2. It's
-// identified by the student, date, module and platform of the original entry.
-type DeHoursKey = { date: string; module: string; platform: string; hours: number };
-
+// A DE hours entry is a row in the `hours` table (type_id === 2), targeted by
+// its primary key so only that exact record is touched — duplicate entries that
+// share the same date/module/platform are unaffected.
 export async function updateDeHoursEntry(
-  homebaseId: number,
-  original: DeHoursKey,
+  id: number,
   updates: Partial<{ hours: number; module: string; platform: string; verified: boolean }>
 ): Promise<void> {
-  const { error } = await supabase
-    .from('hours')
-    .update(updates)
-    .eq('homebase_id', homebaseId)
-    .eq('type_id', 2)
-    .eq('date', original.date)
-    .eq('module', original.module)
-    .eq('platform', original.platform)
-    .eq('hours', original.hours);
+  const { error } = await supabase.from('hours').update(updates).eq('id', id);
   if (error) throw new Error('Failed to update DE hours entry');
 }
 
 // "Removing" a DE hours entry is a soft delete: rather than deleting the row we
 // set its hours to -1 so downstream queries can filter it out.
-export async function removeDeHoursEntry(homebaseId: number, original: DeHoursKey): Promise<void> {
-  const { error } = await supabase
-    .from('hours')
-    .update({ hours: -1 })
-    .eq('homebase_id', homebaseId)
-    .eq('type_id', 2)
-    .eq('date', original.date)
-    .eq('module', original.module)
-    .eq('platform', original.platform)
-    .eq('hours', original.hours);
+export async function removeDeHoursEntry(id: number): Promise<void> {
+  const { error } = await supabase.from('hours').update({ hours: -1 }).eq('id', id);
   if (error) throw new Error('Failed to remove DE hours entry');
 }
 
