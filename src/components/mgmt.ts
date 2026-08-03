@@ -2,6 +2,7 @@ import Alpine from 'alpinejs';
 import {
   fetchEmployeeTable,
   fetchCurrentStudents,
+  fetchDeHours,
   fetchLastSync,
   fetchOverviewStats,
   fetchAllGrades,
@@ -62,7 +63,6 @@ export interface StudentGroup {
   todayEntry: TimeclockStatusEntry | null;
   historyEntries: TimeclockStatusEntry[];
   deHoursByDate: Record<string, number>;
-  deHrsList: DeEntry[];
   grades: GradeEntry[];
   open: boolean;
 }
@@ -140,6 +140,7 @@ export interface MgmtStore {
   currentStudents: TimeclockStatusEntry[];
   selectedStudent: MgmtEmployee | null;
   deHours: Record<string, number>;
+  deHoursList: DeEntry[];
   allGrades: Record<number, GradeEntry[]>;
   lastSync: SyncRecord | null;
   overviewStats: OverviewStats | null;
@@ -171,6 +172,7 @@ export function createMgmtStore(): MgmtStore {
     currentStudents: [],
     selectedStudent: null,
     deHours: {},
+    deHoursList: [],
     allGrades: {},
     lastSync: null,
     overviewStats: null,
@@ -288,8 +290,10 @@ export function createMgmtStore(): MgmtStore {
       return `Last synced: ${formatSimpleDate(this.lastSync.date_synced)} — ${this.lastSync.inserted} records`;
     },
 
-    handleRowClick(group: StudentGroup) {
+    async handleRowClick(group: StudentGroup) {
       this.selectedStudent = this.employees.find(emp => emp.homebase_id === group.homebase_id) ?? null;
+      this.deHoursList = await fetchDeHours(group.homebase_id);
+      console.log(`Fetched DE hours for ${group.name}:`, this.deHoursList);
       // Accordion: collapse if already open, otherwise open only this row.
       this.expandedId = this.expandedId === group.homebase_id ? null : group.homebase_id;
     },
@@ -357,21 +361,6 @@ export function createMgmtStore(): MgmtStore {
           }
           const emp = empMap.get(homebase_id);
 
-          // DE hours (type_id === 2) from both hours lists, ordered by date desc.
-          // Rows from `hours` carry their primary key so edits/removes target one
-          // record; legacy `hours_list` (JSON) rows have no id.
-          const deHrsList: DeEntry[] = [
-            ...(emp?.hours ?? []).map((h): DeEntry & { type_id: number } => ({ id: h.id, date: h.date, hours: h.hours, module: h.module, platform: h.platform, verified: h.verified, type_id: h.type_id })),
-            ...(emp?.hours_list ?? []).map((h): DeEntry & { type_id: number } => ({ date: h.date, hours: h.hours, module: h.module, platform: h.platform, verified: h.verified, type_id: h.type_id })),
-          ]
-            .filter(h => h.type_id === 2)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .map(({ id, date, hours, module, platform, verified }) => ({ id, date, hours, module, platform, verified }));
-
-          if (emp?.name === 'Tori Parrish') {
-            console.log('DE Hours for Tori Parrish:', deHrsList);
-          }
-
           return {
             homebase_id,
             name,
@@ -387,7 +376,6 @@ export function createMgmtStore(): MgmtStore {
             prevDayHrs,
             historyEntries,
             deHoursByDate,
-            deHrsList,
             grades: (this.allGrades as Record<number, GradeEntry[]>)[homebase_id] ?? [],
             open: this.expandedId === homebase_id,
           };

@@ -215,6 +215,16 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   });
 }
 
+export async function fetchDeHours(homebaseId: number): Promise<DeEntry[]> {
+  const { data, error } = await supabase
+    .from('de_hours')
+    .select('*')
+    .eq('homebase_id', homebaseId);
+  if (error) throw new Error('Failed to load DE hours');
+  console.log('data: ', data);
+  return (data ?? []) as DeEntry[];
+}
+
 export async function fetchRoles(): Promise<Role[]> {
   const { data, error } = await supabase
     .from('roles')
