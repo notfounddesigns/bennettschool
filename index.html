@@ -328,6 +328,11 @@
             class="px-4 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer">
             Student Mgmt
           </button>
+          <button @click="activeTab = 'review'"
+            :class="activeTab === 'review' ? 'bg-white/12 text-cream' : 'text-muted hover:text-cream'"
+            class="px-4 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer"
+            x-text="'Needs Review - (' + $store.mgmt.needsReviewCount + ')'">
+          </button>
           <button @click="activeTab = 'activity'"
             :class="activeTab === 'activity' ? 'bg-white/12 text-cream' : 'text-muted hover:text-cream'"
             class="px-4 py-1.5 rounded-full text-[12px] font-semibold transition-colors cursor-pointer">
@@ -719,6 +724,102 @@
           </div>
 
         </div><!-- end timeclock tab -->
+
+        <!-- ── Needs Review Tab ───────────────────────────────────────── -->
+        <!-- Timesheets the nightly auto-close job had to fix: no clock out, or
+             a break that was never ended. Reviewing one (editing it, or marking
+             it reviewed as-is) clears its auto_closed flag and drops it here. -->
+        <div x-show="activeTab === 'review'"
+             x-data="{ reviewSearch: '',
+                       get rows() {
+                         const q = this.reviewSearch.trim().toLowerCase();
+                         return $store.mgmt.needsReviewEntries.filter(e => !q || e.student_name.toLowerCase().includes(q));
+                       } }"
+             class="flex flex-col gap-3 flex-1 min-h-0"
+             style="display:none">
+
+          <!-- Toolbar -->
+          <div class="flex items-center gap-2 pl-3 shrink-0">
+            <button @click="$store.mgmt.load()"
+              class="max-w-xs p-1.5 text-sage cursor-pointer transition-colors hover:text-sage-hover"
+              title="Refresh">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 30 30" fill="currentColor"><path d="M 15 3 C 12.031398 3 9.3028202 4.0834384 7.2070312 5.875 A 1.0001 1.0001 0 1 0 8.5058594 7.3945312 C 10.25407 5.9000929 12.516602 5 15 5 C 20.19656 5 24.450989 8.9379267 24.951172 14 L 22 14 L 26 20 L 30 14 L 26.949219 14 C 26.437925 7.8516588 21.277839 3 15 3 z M 4 10 L 0 16 L 3.0507812 16 C 3.562075 22.148341 8.7221607 27 15 27 C 17.968602 27 20.69718 25.916562 22.792969 24.125 A 1.0001 1.0001 0 1 0 21.494141 22.605469 C 19.74593 24.099907 17.483398 25 15 25 C 9.80344 25 5.5490109 21.062074 5.0488281 16 L 8 16 L 4 10 z"></path></svg>
+            </button>
+            <div class="flex-1"></div>
+            <span x-show="$store.mgmt.needsReviewCount > 0"
+              x-text="$store.mgmt.needsReviewCount + ($store.mgmt.needsReviewCount === 1 ? ' timesheet needs review' : ' timesheets need review')"
+              class="sm:inline-flex hidden items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blush/15 text-blush">
+            </span>
+            <input type="search" x-model="reviewSearch" placeholder="Search by name&hellip;"
+              class="w-full max-w-xs px-3.5 py-1.5 border border-white/15 rounded-[8px] bg-white/8 text-cream text-[12px] placeholder:text-muted outline-none focus:border-blush" />
+          </div>
+
+          <!-- Needs Review table -->
+          <div class="flex-1 min-h-0 max-h-100 md:max-h-none bg-white rounded-card shadow-card overflow-auto">
+            <table class="w-full border-collapse text-[13px]">
+              <thead class="sticky top-0 z-10 bg-cream">
+                <tr>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Student</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Date</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Clock In</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Clock Out</th>
+                  <th class="hidden md:table-cell text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Break Start</th>
+                  <th class="hidden md:table-cell text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Break End</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Hrs Worked</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border whitespace-nowrap">Auto-Fixed</th>
+                  <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-right border-b border-app-border whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-if="$store.mgmt.loading">
+                  <tr><td colspan="9" class="text-center py-10 text-muted text-[13px]">
+                    <span class="spinner mr-2" style="vertical-align:middle;"></span>Loading&#8230;
+                  </td></tr>
+                </template>
+                <template x-if="!$store.mgmt.loading && rows.length === 0">
+                  <tr><td colspan="9" class="text-center py-10 text-muted text-[13px]">Nothing needs review.</td></tr>
+                </template>
+                <template x-for="entry in rows" :key="entry.id">
+                  <tr class="even:bg-[#fafafa] hover:bg-[#f5f3f0] transition-colors">
+                    <td class="px-4 py-2.5 border-b border-app-border text-charcoal capitalize whitespace-nowrap" x-text="entry.student_name"></td>
+                    <td class="px-4 py-2.5 border-b border-app-border tabular-nums text-charcoal whitespace-nowrap" x-text="$store.mgmt.formatSimpleDate(entry.date)"></td>
+                    <td class="px-4 py-2.5 border-b border-app-border tabular-nums text-charcoal whitespace-nowrap" x-text="$store.mgmt.punchTime(entry.clock_in)"></td>
+                    <td class="px-4 py-2.5 border-b border-app-border tabular-nums whitespace-nowrap"
+                      :class="entry.auto_closed ? 'text-blush font-medium' : 'text-charcoal'"
+                      x-text="$store.mgmt.punchTime(entry.clock_out)"></td>
+                    <td class="hidden md:table-cell px-4 py-2.5 border-b border-app-border tabular-nums text-charcoal whitespace-nowrap"
+                      x-text="$store.mgmt.punchTime($store.mgmt.reviewBreak(entry)?.break_start ?? null)"></td>
+                    <td class="hidden md:table-cell px-4 py-2.5 border-b border-app-border tabular-nums whitespace-nowrap"
+                      :class="$store.mgmt.reviewBreak(entry)?.auto_closed ? 'text-blush font-medium' : 'text-charcoal'"
+                      x-text="$store.mgmt.punchTime($store.mgmt.reviewBreak(entry)?.break_end ?? null)"></td>
+                    <td class="px-4 py-2.5 border-b border-app-border tabular-nums text-charcoal whitespace-nowrap"
+                      x-text="parseFloat(entry.hours_worked ?? 0).toFixed(1) + ' hrs'"></td>
+                    <td class="px-4 py-2.5 border-b border-app-border">
+                      <div class="flex flex-wrap gap-1">
+                        <template x-for="issue in $store.mgmt.reviewIssues(entry)" :key="issue">
+                          <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blush/15 text-blush whitespace-nowrap">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blush inline-block"></span><span x-text="issue"></span>
+                          </span>
+                        </template>
+                      </div>
+                    </td>
+                    <td class="px-4 py-2.5 border-b border-app-border text-right whitespace-nowrap">
+                      <button @click="$dispatch('open-edit-timepunch', { id: entry.homebase_id, name: entry.student_name, date: entry.date, clockIn: entry.clock_in, deTotal: 0 })"
+                        class="w-7 h-7 inline-flex items-center justify-center rounded text-muted hover:text-charcoal hover:bg-black/6 transition-colors cursor-pointer" title="Edit timesheet">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button @click="$store.mgmt.markReviewed(entry.id)"
+                        class="w-7 h-7 inline-flex items-center justify-center rounded text-muted hover:text-sage hover:bg-black/6 transition-colors cursor-pointer" title="Mark reviewed (times are correct)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+        </div><!-- end needs review tab -->
 
         <!-- ── Activity Log Tab ───────────────────────────────────────── -->
         <div x-show="activeTab === 'activity'"

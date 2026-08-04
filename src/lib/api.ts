@@ -903,6 +903,119 @@ export async function fetchCompareData(): Promise<CompareRow[]> {
   return rows.sort((a, b) => a.name.localeCompare(b.name) || a.date.localeCompare(b.date));
 }
 
+// ── Needs Review (auto-closed timeclock entries) ──────────────────────────
+
+export interface NeedsReviewBreak {
+  id: string;
+  break_start: string;
+  break_end: string | null;
+  auto_closed: boolean;
+}
+
+export interface NeedsReviewEntry {
+  id: string;
+  homebase_id: number;
+  student_name: string;
+  date: string;
+  clock_in: string;
+  clock_out: string | null;
+  hours_worked: number | null;
+  // The shift itself was auto-closed (student never clocked out).
+  auto_closed: boolean;
+  breaks: NeedsReviewBreak[];
+}
+
+type NeedsReviewRow = {
+  id: string;
+  homebase_id: number;
+  date: string;
+  clock_in: string;
+  clock_out: string | null;
+  hours_worked: number | null;
+  auto_closed: boolean;
+  timeclock_breaks: NeedsReviewBreak[] | null;
+};
+
+const NEEDS_REVIEW_SELECT =
+  'id, homebase_id, date, clock_in, clock_out, hours_worked, auto_closed, timeclock_breaks(id, break_start, break_end, auto_closed)';
+
+// Entries a nightly job had to fix up. Two independent things get flagged:
+// the shift (no clock out) and the break (no break end), so an entry lands
+// here when either its own auto_closed is set or one of its breaks' is.
+export async function fetchNeedsReviewEntries(): Promise<NeedsReviewEntry[]> {
+  const { data: flaggedBreaks, error: flaggedBreakError } = await supabase
+    .from('timeclock_breaks')
+    .select('entry_id')
+    .eq('auto_closed', true);
+  if (flaggedBreakError) throw new Error('Failed to load entries needing review');
+
+  const breakEntryIds = [
+    ...new Set(((flaggedBreaks ?? []) as Array<{ entry_id: string }>).map(b => b.entry_id)),
+  ];
+
+  const [{ data: autoClosedRows, error: entryError }, { data: breakParentRows, error: parentError }] =
+    await Promise.all([
+      supabase.from('timeclock_entries').select(NEEDS_REVIEW_SELECT).eq('auto_closed', true),
+      breakEntryIds.length > 0
+        ? supabase.from('timeclock_entries').select(NEEDS_REVIEW_SELECT).in('id', breakEntryIds)
+        : Promise.resolve({ data: [] as unknown[], error: null }),
+    ]);
+  if (entryError || parentError) throw new Error('Failed to load entries needing review');
+
+  // An entry flagged on both counts comes back from both queries — key by id.
+  const rows = new Map<string, NeedsReviewRow>();
+  for (const row of [
+    ...((autoClosedRows ?? []) as unknown as NeedsReviewRow[]),
+    ...((breakParentRows ?? []) as unknown as NeedsReviewRow[]),
+  ]) {
+    rows.set(row.id, row);
+  }
+  if (rows.size === 0) return [];
+
+  const names = new Map<number, string>();
+  const { data: profileRows } = await supabase
+    .from('profiles_view')
+    .select('homebase_id, name')
+    .in('homebase_id', [...new Set([...rows.values()].map(r => r.homebase_id))]);
+  for (const p of (profileRows ?? []) as Array<{ homebase_id: number; name: string }>) {
+    names.set(p.homebase_id, p.name);
+  }
+
+  return [...rows.values()]
+    .map(row => ({
+      id: row.id,
+      homebase_id: row.homebase_id,
+      student_name: names.get(row.homebase_id) ?? `Student ${row.homebase_id}`,
+      date: String(row.date).slice(0, 10),
+      clock_in: row.clock_in,
+      clock_out: row.clock_out,
+      hours_worked: row.hours_worked,
+      auto_closed: row.auto_closed,
+      breaks: [...(row.timeclock_breaks ?? [])].sort((a, b) =>
+        a.break_start.localeCompare(b.break_start)
+      ),
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date) || a.student_name.localeCompare(b.student_name));
+}
+
+// Clearing the flags is what "reviewed" means — the entry and its breaks drop
+// out of the Needs Review tab. Only auto_closed is touched, so the
+// hours-recalculation triggers (which watch clock_in / clock_out) stay quiet.
+export async function clearAutoClosedFlags(entryId: string): Promise<void> {
+  const { error } = await supabase
+    .from('timeclock_entries')
+    .update({ auto_closed: false })
+    .eq('id', entryId);
+  if (error) throw new Error('Failed to clear the auto-fixed flag');
+
+  const { error: breakError } = await supabase
+    .from('timeclock_breaks')
+    .update({ auto_closed: false })
+    .eq('entry_id', entryId)
+    .eq('auto_closed', true);
+  if (breakError) throw new Error('Failed to clear the auto-fixed flag');
+}
+
 export function subscribeToTimeclock(onChanged: () => void) {
   return supabase
     .channel('timeclock-watch')
@@ -984,6 +1097,7 @@ export type AuditAction =
   | 'de_hours_remove'
   | 'timeclock_edit'
   | 'timeclock_add'
+  | 'timeclock_reviewed'
   | 'role_change'
   | 'pin_reset' | 'password_reset' | 'password_clear'
   | 'student_removed' | 'student_reactivated'
