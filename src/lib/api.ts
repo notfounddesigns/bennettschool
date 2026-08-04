@@ -1,5 +1,4 @@
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY, PROXY, AUTH_HEADERS } from './supabase';
-import { fmtFloat } from './helpers';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 export interface LoginResult {
@@ -49,8 +48,8 @@ export interface StudentDashboard {
   totalHrsAll: number;
   hrsToGrad: number;
   percentComplete: number;
-  inPersonHrs: number;
-  deHrs: number;
+  currentMonthHrs: number;
+  currentMonthDeHrs: number;
   inPersonHrsList: HourEntry[];
   deHrsList: DeEntry[];
   timeclockHrsList: HourEntry[];
@@ -62,14 +61,9 @@ export interface MgmtEmployee {
   name: string;
   role_id: number;
   role_name: string;
-  in_person_hrs: number;
-  de_hrs: string;
   total_hrs: number;
-  legacy_hrs: number;
   hrs_to_graduate: number;
   percent_complete: number;
-  hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
-  hours: Array<{ id: number; type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
 }
 
 export interface Role {
@@ -101,13 +95,31 @@ export async function homebaseFetch(path: string): Promise<HomebaseEmployee[]> {
 export async function fetchStudentDashboard(employeeUserId: number): Promise<StudentDashboard> {
   const [
     { data: profile, error: profileError },
-    { data: gradesData },
+    { data: hoursData, error: hoursError },
+    { data: timeclockData, error: timeclockError },
+    { data: deHoursData, error: deHoursError },
+    { data: gradesData, error: gradesError },
   ] = await Promise.all([
     supabase
       .from('profiles_view')
-      .select(`homebase_id, name, in_person, de_hrs, total_hrs, hrs_to_graduate, percent_complete, hours_list, hours(date, type_id, hours)`)
+      .select(`homebase_id, name, total_hrs, hrs_to_graduate, percent_complete`)
       .eq('homebase_id', employeeUserId)
       .single(),
+    supabase
+      .from('hours')
+      .select('homebase_id, date, hours')
+      .eq('homebase_id', employeeUserId)
+      .order('date', { ascending: false }),
+    supabase
+      .from('timeclock_entries')
+      .select('homebase_id, date, hours_worked')
+      .eq('homebase_id', employeeUserId)
+      .order('date', { ascending: false }),
+    supabase
+      .from('de_hours')
+      .select('homebase_id, date, hours, module, platform, verified')
+      .eq('homebase_id', employeeUserId)
+      .order('date', { ascending: false }),
     supabase
       .from('grades')
       .select('date, project, category, score, notes')
@@ -118,43 +130,62 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   if (profileError) {
     console.error('Error fetching dashboard summary…', profileError);
     throw new Error('Failed to load dashboard');
+  } else if (hoursError) {
+    console.error('Error fetching dashboard hours…', hoursError);
+    throw new Error('Failed to load dashboard');
+  } else if (timeclockError) {
+    console.error('Error fetching dashboard timeclock entries…', timeclockError);
+    throw new Error('Failed to load dashboard');
+  } else if (deHoursError) {
+    console.error('Error fetching dashboard DE hours…', deHoursError);
+    throw new Error('Failed to load dashboard');
+  } else if (gradesError) {
+    console.error('Error fetching dashboard grades…', gradesError);
+    throw new Error('Failed to load dashboard');
   }
-
-  const oldHoursList = (profile?.hours as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
-  const newHoursList = (profile?.hours_list as Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>) ?? [];
+  
+  const hoursList = (hoursData as Array<{ hours: number; date: string;}>) ?? [];
+  hoursList.map(h => { h.date = h.date.slice(0, 10); return h; });
+  const timeclockHrsList = (timeclockData as Array<{ hours_worked: number; date: string;}>) ?? [];
 
   // Merge both lists, treating entries with the same date and type_id as
   // duplicates. hours_list is applied second so its version wins on any duplicate.
-  const byKey = new Map<string, typeof oldHoursList[number]>();
-  for (const h of oldHoursList) byKey.set(`${h.date}|${h.type_id}`, h);
-  for (const h of newHoursList) byKey.set(`${h.date}|${h.type_id}`, h);
+  const byKey = new Map<string, typeof hoursList[number]>();
+  for (const h of hoursList) byKey.set(`${h.date}`, h);
+  for (const h of timeclockHrsList) byKey.set(`${h.date}`, { date: h.date, hours: h.hours_worked });
   const combinedHrsList = [...byKey.values()];
 
   const inPersonHrsList: HourEntry[] = combinedHrsList
-    .filter(h => h.type_id !== 2 && h.type_id !== 3)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h }) => ({ date, hours: h }));
 
-  const deHrsList: DeEntry[] = combinedHrsList
-    .filter(h => h.type_id === 2 && h.hours >= 0)
+  const deHrsList: DeEntry[] = deHoursData
+    .filter(h => h.hours >= 0)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
-
+  
+  // calculate this month's hours and de hours based on date
+  const thisMonth = new Date().getMonth();
+  const thisYear = new Date().getFullYear();
+  const thisMonthHrs = inPersonHrsList
+    .filter(h => new Date(h.date).getMonth() === thisMonth && new Date(h.date).getFullYear() === thisYear)
+    .reduce((sum, h) => sum + h.hours, 0);
+  const thisMonthDeHrs = deHrsList
+    .filter(h => new Date(h.date).getMonth() === thisMonth && new Date(h.date).getFullYear() === thisYear)
+    .reduce((sum, h) => sum + h.hours, 0);
 
   return {
     totalHrsAll: profile?.total_hrs ?? 0,
     hrsToGrad: profile?.hrs_to_graduate ?? 0,
     percentComplete: profile?.percent_complete ?? 0,
-    inPersonHrs: profile?.in_person ?? 0,
-    deHrs: profile?.de_hrs ?? 0,
+    currentMonthHrs: thisMonthHrs,
+    currentMonthDeHrs: thisMonthDeHrs,
     inPersonHrsList,
     deHrsList,
     timeclockHrsList: [],
     grades: (gradesData as GradeEntry[]) ?? [],
   };
 }
-
-const EMPLOYEE_SELECT = `homebase_id, name, role_id, role_name, de_hrs, total_hrs, legacy_hrs, hrs_to_graduate, percent_complete, in_person, hours_list, hours(id, date, type_id, hours, module, platform, verified)`;
 
 type EmployeeRow = {
   homebase_id: number;
@@ -177,40 +208,26 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
   let rows: EmployeeRow[];
   const { data, error } = await supabase
     .from('profiles_view')
-    .select(`${EMPLOYEE_SELECT}, is_active`)
+    .select('homebase_id, name, role_id, role_name, total_hrs, hrs_to_graduate, percent_complete')
     .order('name');
-
-  if (!error) {
-    rows = (data ?? []) as EmployeeRow[];
-  } else {
-    // The view doesn't expose is_active — fall back to fetching it from profiles.
-    const [{ data: viewData, error: viewError }, { data: profileData }] = await Promise.all([
-      supabase.from('profiles_view').select(EMPLOYEE_SELECT).order('name'),
-      supabase.from('profiles').select('homebase_id, is_active'),
-    ]);
-    if (viewError) throw new Error('Failed to load employees');
-    const activeById = new Map(
-      ((profileData ?? []) as Array<{ homebase_id: number; is_active: boolean }>).map(p => [p.homebase_id, p.is_active])
-    );
-    rows = ((viewData ?? []) as EmployeeRow[]).map(r => ({ ...r, is_active: activeById.get(r.homebase_id) }));
+    
+  if (error) {
+    console.error('Error fetching employee table', error);
+    throw new Error('Failed to load dashboard');
   }
 
+  rows = (data ?? []) as EmployeeRow[];
+
   return rows
-  //.filter(emp => emp.role_id !== 3 && emp.is_active !== false)
   .map(emp => {
     return {
       homebase_id: emp.homebase_id,
       name: emp.name,
       role_id: emp.role_id,
       role_name: emp.role_name ?? '',
-      in_person_hrs: (emp.in_person ?? 0) + (emp.legacy_hrs ?? 0),
-      de_hrs: fmtFloat(emp.de_hrs),
       total_hrs: emp.total_hrs ?? 0,
-      legacy_hrs: emp.legacy_hrs ?? 0,
       hrs_to_graduate: emp.hrs_to_graduate ?? 0,
-      percent_complete: emp.percent_complete ?? 0,
-      hours_list: emp.hours_list ?? [],
-      hours: emp.hours.filter(h => h.hours >= 0) ?? []
+      percent_complete: emp.percent_complete ?? 0
     };
   });
 }
@@ -219,9 +236,9 @@ export async function fetchDeHours(homebaseId: number): Promise<DeEntry[]> {
   const { data, error } = await supabase
     .from('de_hours')
     .select('*')
-    .eq('homebase_id', homebaseId);
+    .eq('homebase_id', homebaseId)
+    .order('date', { ascending: false });
   if (error) throw new Error('Failed to load DE hours');
-  console.log('data: ', data);
   return (data ?? []) as DeEntry[];
 }
 
@@ -477,7 +494,7 @@ export async function clearStudentPassword(homebaseId: number): Promise<void> {
 }
 
 export async function exportStudents(month: number, year: number): Promise<Blob> {
-  const res = await fetch(`${PROXY}/export-students?month=${month}&year=${year}`, { headers: AUTH_HEADERS });
+  const res = await fetch(`${PROXY}/export-hours?month=${month}&year=${year}`, { headers: AUTH_HEADERS });
   if (!res.ok) throw new Error('Export failed');
   return res.blob();
 }

@@ -31,7 +31,6 @@ export function createDashboardStore(): DashboardStore {
       this.error = '';
       try {
         this.data = await fetchStudentDashboard(employeeId);
-        console.log(this.data)
       } catch {
         this.error = 'Failed to load dashboard data.';
       } finally {
@@ -46,11 +45,11 @@ export function createDashboardStore(): DashboardStore {
     },
 
     get formattedInPersonHrs() {
-      return this.data ? fmtFloat(this.data.inPersonHrs) : '—';
+      return this.data ? fmtFloat(this.data.currentMonthHrs) : '—';
     },
 
     get formattedDeHrs() {
-      return this.data ? fmtFloat(this.data.deHrs) : '—';
+      return this.data ? fmtFloat(this.data.currentMonthDeHrs) : '—';
     },
 
     get formattedTotalHrs() {

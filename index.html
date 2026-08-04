@@ -535,7 +535,7 @@
                         <tbody>
                           <template x-for="(de, index) in $store.mgmt.deHoursList" :key="index">
                             <tr class="border-b border-app-border/50 last:border-b-0 hover:bg-[#f5f3f0] transition-colors">
-                              <td class="px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="$store.mgmt.formatSimpleDate(de.date)"></td>
+                              <td class="px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="new Date(de.date).toLocaleDateString('en-CA')"></td>
                               <td class="px-3 py-2 text-charcoal max-w-40 truncate" x-text="de.module || '—'"></td>
                               <td class="hidden md:table-cell px-3 py-2 text-muted max-w-40 truncate" x-text="de.platform || '—'"></td>
                               <td class="hidden md:table-cell px-3 py-2 text-muted whitespace-nowrap" x-text="de.verified ? 'Yes' : 'No'"></td>
@@ -684,7 +684,6 @@
                       <!-- Total Hours with  in-person & DE below -->
                       <div class="text-center min-w-0">
                         <div class="text-[13px] text-charcoal tabular-nums" x-text="(group.totalHrs).toFixed(1) + ' hrs'"></div>
-                        <div class="text-[11px] text-muted tabular-nums mt-0.5" x-text="group.totalInPersonHrs.toFixed(1) + ' In-Person' + ' ' + group.deHrs.toFixed(1) + ' DE'"></div>
                       </div>
 
                       <!-- Hours to Graduate -->

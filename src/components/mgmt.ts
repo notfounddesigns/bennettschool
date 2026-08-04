@@ -55,8 +55,6 @@ export interface StudentGroup {
   initials: string;
   role_id: number;
   role_name: string;
-  totalInPersonHrs: number;
-  deHrs: number;
   totalHrs: number;
   hrsToGraduate: number;
   percentComplete: number;
@@ -293,7 +291,6 @@ export function createMgmtStore(): MgmtStore {
     async handleRowClick(group: StudentGroup) {
       this.selectedStudent = this.employees.find(emp => emp.homebase_id === group.homebase_id) ?? null;
       this.deHoursList = await fetchDeHours(group.homebase_id);
-      console.log(`Fetched DE hours for ${group.name}:`, this.deHoursList);
       // Accordion: collapse if already open, otherwise open only this row.
       this.expandedId = this.expandedId === group.homebase_id ? null : group.homebase_id;
     },
@@ -367,8 +364,6 @@ export function createMgmtStore(): MgmtStore {
             initials,
             role_id: emp?.role_id ?? 1,
             role_name: emp?.role_name ?? '',
-            totalInPersonHrs: parseFloat(String(emp?.in_person_hrs ?? '0')) || 0,
-            deHrs: parseFloat(emp?.de_hrs ?? '0') || 0,
             totalHrs: parseFloat(String(emp?.total_hrs ?? '0')) || 0,
             hrsToGraduate: emp?.hrs_to_graduate ?? 0,
             percentComplete: emp?.percent_complete ?? 0,
