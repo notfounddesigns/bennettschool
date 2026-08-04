@@ -30,10 +30,14 @@ import {
   updateStudentRole,
   fetchNeedsAttentionItems,
   updateNeedsAttentionItem,
+  fetchNeedsReviewEntries,
+  clearAutoClosedFlags,
   fetchAuditLog,
   logAuditEvent,
   type NeedsAttentionRecord,
   type NeedsAttentionType,
+  type NeedsReviewEntry,
+  type NeedsReviewBreak,
   type AuditLogRecord,
   type AuditAction,
   type MgmtEmployee,
@@ -113,6 +117,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   de_hours_remove: 'Removed a DE hours entry',
   timeclock_edit: 'Edited a timeclock entry',
   timeclock_add: 'Added a timeclock entry',
+  timeclock_reviewed: 'Reviewed an auto-fixed timesheet',
   role_change: 'Updated a student profile',
   pin_reset: 'Reset a PIN',
   password_reset: 'Set a password',
@@ -143,6 +148,7 @@ export interface MgmtStore {
   lastSync: SyncRecord | null;
   overviewStats: OverviewStats | null;
   needsAttentionItems: NeedsAttentionRecord[];
+  needsReviewEntries: NeedsReviewEntry[];
   auditLog: AuditLogRecord[];
   expandedId: number | null;
   load(): Promise<void>;
@@ -153,11 +159,16 @@ export interface MgmtStore {
   auditActionLabel(action: AuditAction): string;
   auditTimestamp(iso: string): string;
   formatSimpleDate(iso: string): string;
+  punchTime(iso: string | null): string;
+  reviewIssues(entry: NeedsReviewEntry): string[];
+  reviewBreak(entry: NeedsReviewEntry): NeedsReviewBreak | null;
+  markReviewed(entryId: string): Promise<void>;
   handleRowClick(group: StudentGroup): void;
   viewAsStudent(emp: MgmtEmployee): void;
   readonly groupedStudents: StudentGroup[];
   readonly selectedGroup: StudentGroup | null;
   readonly clockedInCount: number;
+  readonly needsReviewCount: number;
   readonly unresolvedAttentionItems: NeedsAttentionRecord[];
   readonly todayTimeclockStats: { hours: number; students: number };
   readonly yesterdayTimeclockStats: { hours: number; students: number };
@@ -175,6 +186,7 @@ export function createMgmtStore(): MgmtStore {
     lastSync: null,
     overviewStats: null,
     needsAttentionItems: [],
+    needsReviewEntries: [],
     auditLog: [],
     expandedId: null,
 
@@ -198,6 +210,54 @@ export function createMgmtStore(): MgmtStore {
 
     formatSimpleDate(iso: string): string {
       return formatSimpleDate(iso);
+    },
+
+    punchTime(iso: string | null): string {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    },
+
+    // What the nightly job had to fix on this entry — one badge per problem.
+    reviewIssues(entry: NeedsReviewEntry): string[] {
+      const issues: string[] = [];
+      if (entry.auto_closed) issues.push('Auto clock-out');
+      if (entry.breaks.some(b => b.auto_closed)) issues.push('Auto break end');
+      return issues.length > 0 ? issues : ['Auto-fixed'];
+    },
+
+    // Show the break that was auto-closed; fall back to the first one so the
+    // row still reads sensibly when only the shift was fixed.
+    reviewBreak(entry: NeedsReviewEntry): NeedsReviewBreak | null {
+      return entry.breaks.find(b => b.auto_closed) ?? entry.breaks[0] ?? null;
+    },
+
+    // Clears the auto_closed flags without touching the times — for entries an
+    // admin has looked at and decided are already correct.
+    async markReviewed(entryId: string) {
+      const entries = this.needsReviewEntries as NeedsReviewEntry[];
+      const entry = entries.find(e => e.id === entryId);
+      if (!entry) return;
+      try {
+        await clearAutoClosedFlags(entryId);
+        this.needsReviewEntries = entries.filter(e => e.id !== entryId);
+        void logAudit('timeclock_reviewed', {
+          targetId: entry.homebase_id,
+          targetName: entry.student_name,
+          description: `Marked an auto-fixed timesheet reviewed for ${toTitleCase(entry.student_name)} (${entry.date})`,
+          metadata: {
+            entry_id: entry.id,
+            date: entry.date,
+            issues: this.reviewIssues(entry).join(', '),
+            clock_in: entry.clock_in,
+            clock_out: entry.clock_out,
+          },
+        });
+      } catch {
+        app().showSnackbar('Failed to mark this timesheet reviewed', 'error');
+      }
     },
 
     async resolveAttention(id: string) {
@@ -244,6 +304,10 @@ export function createMgmtStore(): MgmtStore {
       ).size;
     },
 
+    get needsReviewCount(): number {
+      return (this.needsReviewEntries as NeedsReviewEntry[]).length;
+    },
+
     get unresolvedAttentionItems(): NeedsAttentionRecord[] {
       return (this.needsAttentionItems as NeedsAttentionRecord[]).filter(i => !i.is_resolved);
     },
@@ -251,13 +315,14 @@ export function createMgmtStore(): MgmtStore {
     async load() {
       app().showLoading();
       try {
-        const [employees, students, lastSync, overviewStats, allGrades, needsAttentionItems, auditLog] = await Promise.all([
+        const [employees, students, lastSync, overviewStats, allGrades, needsAttentionItems, needsReviewEntries, auditLog] = await Promise.all([
           fetchEmployeeTable(),
           fetchCurrentStudents(),
           fetchLastSync(),
           fetchOverviewStats(),
           fetchAllGrades(),
           fetchNeedsAttentionItems(),
+          fetchNeedsReviewEntries(),
           fetchAuditLog(),
         ]);
         this.employees = employees as MgmtEmployee[];
@@ -268,12 +333,18 @@ export function createMgmtStore(): MgmtStore {
         this.overviewStats = overviewStats;
         this.allGrades = allGrades;
         this.needsAttentionItems = needsAttentionItems;
+        this.needsReviewEntries = needsReviewEntries;
         this.auditLog = auditLog;
 
         if (!_timeclockChannel) {
           _timeclockChannel = subscribeToTimeclock(async () => {
             const mgmt = Alpine.store('mgmt') as MgmtStore;
-            mgmt.currentStudents = await fetchCurrentStudents();
+            const [current, needsReview] = await Promise.all([
+              fetchCurrentStudents(),
+              fetchNeedsReviewEntries(),
+            ]);
+            mgmt.currentStudents = current;
+            mgmt.needsReviewEntries = needsReview;
           });
         }
       } catch {
@@ -1451,6 +1522,9 @@ export function addEntryModalData() {
           clock_out: punch.clockOutIso,
         });
         await upsertTimeclockBreak(this.entryId, this.breakId, punch.breakStartIso, punch.breakEndIso);
+        // Editing the punch *is* the review, so drop any auto-fixed flags and
+        // let the entry leave the Needs Review tab. Never block the save on it.
+        await clearAutoClosedFlags(this.entryId).catch(() => {});
         // DE hours are stored as adjustment rows; write only the delta.
         const deDelta = newDe - this.originalDeTotal;
         if (deDelta !== 0) {
