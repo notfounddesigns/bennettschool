@@ -2,6 +2,7 @@ import Alpine from 'alpinejs';
 import {
   fetchEmployeeTable,
   fetchCurrentStudents,
+  fetchStudentHours,
   fetchDeHours,
   fetchLastSync,
   fetchOverviewStats,
@@ -165,6 +166,8 @@ export interface MgmtStore {
   markReviewed(entryId: string): Promise<void>;
   handleRowClick(group: StudentGroup): void;
   viewAsStudent(emp: MgmtEmployee): void;
+  currentMonthHours(id: number): Promise<number>;
+  currentMonthDeHours(id: number): Promise<number>;
   readonly groupedStudents: StudentGroup[];
   readonly selectedGroup: StudentGroup | null;
   readonly clockedInCount: number;
@@ -294,6 +297,26 @@ export function createMgmtStore(): MgmtStore {
       } catch {
         app().showSnackbar('Failed to resolve items', 'error');
       }
+    },
+    
+    async currentMonthHours(id: number): Promise<number> {
+      const inPersonHrsList = await fetchStudentHours(id);
+      const thisMonth = new Date().getMonth();
+      const thisYear = new Date().getFullYear();
+      const thisMonthHrs = inPersonHrsList
+        .filter(h => new Date(h.date).getMonth() === thisMonth && new Date(h.date).getFullYear() === thisYear)
+        .reduce((sum, h) => sum + h.hours, 0);
+      return thisMonthHrs;
+    },
+    
+    async currentMonthDeHours(id: number): Promise<number> {
+      const deHrsList = await fetchDeHours(id);
+      const thisMonth = new Date().getMonth();
+      const thisYear = new Date().getFullYear();
+      const thisMonthDeHrs = deHrsList
+        .filter(h => new Date(h.date).getMonth() === thisMonth && new Date(h.date).getFullYear() === thisYear)
+        .reduce((sum, h) => sum + h.hours, 0);
+      return thisMonthDeHrs;
     },
 
     get clockedInCount(): number {

@@ -197,10 +197,10 @@ type EmployeeRow = {
   hrs_to_graduate: number;
   percent_complete: number;
   in_person: number | null;
-  legacy_hrs: number | null;
-  is_active?: boolean;
-  hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
-  hours: Array<{ id: number; type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
+  // legacy_hrs: number | null;
+  // is_active?: boolean;
+  // hours_list: Array<{ type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
+  // hours: Array<{ id: number; type_id: number; hours: number; date: string; module: string; platform: string; verified: boolean }>;
 };
 
 export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
@@ -230,6 +230,40 @@ export async function fetchEmployeeTable(): Promise<MgmtEmployee[]> {
       percent_complete: emp.percent_complete ?? 0
     };
   });
+}
+
+export async function fetchStudentHours(homebaseId: number): Promise<HourEntry[]> {
+  const [{ data: hours, error: hoursError }, { data: timeclockHours, error: timeclockError }] = await Promise.all([
+    supabase
+      .from('hours')
+      .select('homebase_id, date, hours')
+      .eq('homebase_id', homebaseId)
+      .order('date', { ascending: false }),
+    supabase
+      .from('timeclock_entries')
+      .select('homebase_id, date, hours_worked')
+      .eq('homebase_id', homebaseId)
+      .order('date', { ascending: false })
+  ]);
+      
+  if (hoursError || timeclockError) throw new Error('Failed to load student hours');
+  
+  const hoursList = (hours as Array<{ hours: number; date: string;}>) ?? [];
+  hoursList.map(h => { h.date = h.date.slice(0, 10); return h; });
+  const timeclockHrsList = (timeclockHours as Array<{ hours_worked: number; date: string;}>) ?? [];
+
+  // Merge both lists, treating entries with the same date and type_id as
+  // duplicates. hours_list is applied second so its version wins on any duplicate.
+  const byKey = new Map<string, typeof hoursList[number]>();
+  for (const h of hoursList) byKey.set(`${h.date}`, h);
+  for (const h of timeclockHrsList) byKey.set(`${h.date}`, { date: h.date, hours: h.hours_worked });
+  const combinedHrsList = [...byKey.values()];
+
+  const inPersonHrsList: HourEntry[] = combinedHrsList
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map(({ date, hours: h }) => ({ date, hours: h }));
+  
+  return inPersonHrsList;
 }
 
 export async function fetchDeHours(homebaseId: number): Promise<DeEntry[]> {
