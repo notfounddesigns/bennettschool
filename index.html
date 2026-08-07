@@ -233,7 +233,7 @@
         </div>
         
         <!-- Graduation progress -->
-        <div class="w-full md:w-3/4 mx-auto">
+        <div x-show="$store.dashboard.showMetrics" style="display: none;" class="w-full md:w-3/4 mx-auto">
           <span class="w-full flex flex-col justify-center items-center font-serif text-[28px] leading-none text-sage bg-sage-light rounded-t-xl px-3 pt-2.5 pb-3.5 gap-1 border border-b-0 border-app-border text-center">
             <span class="items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">Total Hrs</span>
             <span x-text="$store.dashboard.formattedTotalHrs"></span>
@@ -251,8 +251,8 @@
         </div>
 
         <!-- Stats row -->
-        <span class="w-full text-center items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">This Month</span>
-        <div class="grid grid-cols-2 gap-2.5">
+        <span x-show="$store.dashboard.showMetrics" style="display: none;" class="w-full text-center items-center text-[11px] uppercase tracking-[0.08em] text-muted font-semibold">This Month</span>
+        <div x-show="$store.dashboard.showMetrics" style="display: none;" class="grid grid-cols-2 gap-2.5">
           <div class="bg-cream rounded-[8px] px-4 py-3.5 border border-app-border text-center w-full">
             <div class="text-[11px] text-muted mb-1.5 uppercase tracking-[0.06em] font-semibold">In Person</div>
             <div class="font-serif text-[28px] text-blush leading-none">
@@ -271,12 +271,16 @@
         <div class="flex w-full">
           <button
             @click="showTable('hours')"
-            class="px-5 h-8 flex-1 text-[13px] font-semibold border border-app-border text-muted transition-colors cursor-pointer hover:border-app-border-hover">
+            disabled
+            :disabled="!$store.dashboard.showMetrics"
+            class="px-5 h-8 flex-1 text-[13px] font-semibold border border-app-border text-muted transition-colors cursor-pointer hover:border-app-border-hover disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-app-border">
             Hours
           </button>
           <button
             @click="showTable('grades')"
-            class="px-5 h-8 flex-1 text-[13px] font-semibold border-r border-t border-b border-app-border text-muted transition-colors cursor-pointer hover:border-app-border-hover">
+            disabled
+            :disabled="!$store.dashboard.showMetrics"
+            class="px-5 h-8 flex-1 text-[13px] font-semibold border-r border-t border-b border-app-border text-muted transition-colors cursor-pointer hover:border-app-border-hover disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-app-border">
             Grades
           </button>
         </div>

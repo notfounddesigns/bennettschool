@@ -9,10 +9,16 @@ function app(): AppStore {
 
 // ── Store ─────────────────────────────────────────────────────────────────
 
+// TEMPORARY: hides the hour totals / graduation progress on the student
+// dashboard and disables the Hours and Grades buttons. Flip back to `true`
+// to restore them — no other change is needed.
+const SHOW_STUDENT_METRICS = false;
+
 export interface DashboardStore {
   loading: boolean;
   data: StudentDashboard | null;
   error: string;
+  showMetrics: boolean;
   load(employeeId: number): Promise<void>;
   readonly hrsRemaining: string;
   readonly formattedInPersonHrs: string;
@@ -25,6 +31,7 @@ export function createDashboardStore(): DashboardStore {
     loading: false,
     data: null,
     error: '',
+    showMetrics: SHOW_STUDENT_METRICS,
 
     async load(employeeId: number) {
       app().showLoading();
@@ -74,6 +81,7 @@ export function dashboardDisplayData() {
     },
 
     showTable(tab: 'hours' | 'grades') {
+      if (!SHOW_STUDENT_METRICS) return;
       this.activeTab = tab;
       this.flipped = true;
     },
