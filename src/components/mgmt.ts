@@ -10,6 +10,7 @@ import {
   loadStudents,
   syncHoursByDate,
   submitHours,
+  submitDeHours,
   submitGradeEntry,
   updateGradeEntry,
   updateDeHoursEntry,
@@ -572,15 +573,27 @@ export function hoursModalData() {
       }
       app().showLoading();
     try {
-        await submitHours({
-          homebase_id: Number(this.studentId),
-          type_id: Number(this.typeId),
-          date: this.date,
-          module: this.module,
-          platform: this.platform,
-          hours: this.hours,
-          verified: this.verified === 'true',
-        });
+        // DE hours go to the `de_hours` table; everything else to `hours`.
+        if (this.typeId === '2') {
+          await submitDeHours({
+            homebase_id: Number(this.studentId),
+            date: this.date,
+            module: this.module,
+            platform: this.platform,
+            hours: this.hours,
+            verified: this.verified === 'true',
+          });
+        } else {
+          await submitHours({
+            homebase_id: Number(this.studentId),
+            type_id: Number(this.typeId),
+            date: this.date,
+            module: this.module,
+            platform: this.platform,
+            hours: this.hours,
+            verified: this.verified === 'true',
+          });
+        }
         this.closeModal();
         const mgmt = Alpine.store('mgmt') as MgmtStore;
         await mgmt.load();
@@ -810,15 +823,26 @@ export function inlineHoursData(employeeId: number, typeId: 1 | 2) {
       
       app().showLoading();
       try {
-        await submitHours({
-          homebase_id: employeeId,
-          type_id: typeId,
-          date: todayIso(),
-          hours: String(hrs),
-          module: '',
-          platform: '',
-          verified: true,
-        });
+        if (typeId === 2) {
+          await submitDeHours({
+            homebase_id: employeeId,
+            date: todayIso(),
+            hours: String(hrs),
+            module: '',
+            platform: '',
+            verified: true,
+          });
+        } else {
+          await submitHours({
+            homebase_id: employeeId,
+            type_id: typeId,
+            date: todayIso(),
+            hours: String(hrs),
+            module: '',
+            platform: '',
+            verified: true,
+          });
+        }
         this.cancel();
         const mgmt = Alpine.store('mgmt') as MgmtStore;
         await mgmt.load();
@@ -1551,9 +1575,8 @@ export function addEntryModalData() {
         // DE hours are stored as adjustment rows; write only the delta.
         const deDelta = newDe - this.originalDeTotal;
         if (deDelta !== 0) {
-          await submitHours({
+          await submitDeHours({
             homebase_id: this.homebaseId,
-            type_id: 2,
             date: this.date,
             hours: String(deDelta),
             module: '',
@@ -1596,9 +1619,8 @@ export function addEntryModalData() {
       this.loading = true;
       app().showLoading();
       try {
-        await submitHours({
+        await submitDeHours({
           homebase_id: this.homebaseId,
-          type_id: 2,
           date: this.date,
           hours: this.hours,
           module: this.module,

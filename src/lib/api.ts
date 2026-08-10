@@ -26,8 +26,8 @@ export interface HourEntry {
 }
 
 export interface DeEntry {
-  // Primary key of the underlying `hours` row. Optional because legacy entries
-  // sourced from the profile's `hours_list` JSON column have no row id.
+  // Primary key of the underlying `de_hours` row. Optional because legacy
+  // entries sourced from the profile's `hours_list` JSON column have no row id.
   id?: number;
   date: string;
   hours: number;
@@ -271,6 +271,8 @@ export async function fetchDeHours(homebaseId: number): Promise<DeEntry[]> {
     .from('de_hours')
     .select('*')
     .eq('homebase_id', homebaseId)
+    // Skip soft-deleted rows (hours = -1), same as the student dashboard.
+    .gte('hours', 0)
     .order('date', { ascending: false });
   if (error) throw new Error('Failed to load DE hours');
   return (data ?? []) as DeEntry[];
@@ -402,20 +404,8 @@ export async function syncHoursByDate(
   return { inserted: resp.inserted ?? 0 };
 }
 
-export async function submitHours(payload: {
-  homebase_id: number;
-  type_id: number;
-  date: string;
-  hours: string;
-  module: string;
-  platform: string;
-  verified: boolean;
-}): Promise<void> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/hours`, {
-    method: 'POST',
-    headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
-    body: JSON.stringify({ ...payload}),
-  });
+// Shared status handling for the hours/de_hours inserts below.
+function throwOnHoursInsertError(res: Response): void {
   // handle these response statuses: 403, 422, 429, 500 and 501 with specific messages
   if (res.status === 403) {
     throw new Error('You do not have permission to submit hours. Please contact your administrator.');
@@ -433,6 +423,42 @@ export async function submitHours(payload: {
     throw new Error('Server error. Please try again later.');
   }
   if (!res.ok) throw new Error('Save failed');
+}
+
+// In-person hours only (`hours.type_id` 1 and 3). DE hours live in their own
+// `de_hours` table — use submitDeHours for those.
+export async function submitHours(payload: {
+  homebase_id: number;
+  type_id: number;
+  date: string;
+  hours: string;
+  module: string;
+  platform: string;
+  verified: boolean;
+}): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/hours`, {
+    method: 'POST',
+    headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
+    body: JSON.stringify({ ...payload}),
+  });
+  throwOnHoursInsertError(res);
+}
+
+// DE hours are their own table, so there is no type_id on the payload.
+export async function submitDeHours(payload: {
+  homebase_id: number;
+  date: string;
+  hours: string;
+  module: string;
+  platform: string;
+  verified: boolean;
+}): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/de_hours`, {
+    method: 'POST',
+    headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
+    body: JSON.stringify({ ...payload }),
+  });
+  throwOnHoursInsertError(res);
 }
 
 export async function submitGradeEntry(payload: {
@@ -466,21 +492,21 @@ export async function updateGradeEntry(
   if (error) throw new Error('Failed to update grade entry');
 }
 
-// A DE hours entry is a row in the `hours` table (type_id === 2), targeted by
-// its primary key so only that exact record is touched — duplicate entries that
-// share the same date/module/platform are unaffected.
+// A DE hours entry is a row in the `de_hours` table, targeted by its primary key
+// so only that exact record is touched — duplicate entries that share the same
+// date/module/platform are unaffected.
 export async function updateDeHoursEntry(
   id: number,
   updates: Partial<{ hours: number; module: string; platform: string; verified: boolean }>
 ): Promise<void> {
-  const { error } = await supabase.from('hours').update(updates).eq('id', id);
+  const { error } = await supabase.from('de_hours').update(updates).eq('id', id);
   if (error) throw new Error('Failed to update DE hours entry');
 }
 
 // "Removing" a DE hours entry is a soft delete: rather than deleting the row we
 // set its hours to -1 so downstream queries can filter it out.
 export async function removeDeHoursEntry(id: number): Promise<void> {
-  const { error } = await supabase.from('hours').update({ hours: -1 }).eq('id', id);
+  const { error } = await supabase.from('de_hours').update({ hours: -1 }).eq('id', id);
   if (error) throw new Error('Failed to remove DE hours entry');
 }
 
@@ -846,9 +872,9 @@ export async function fetchAllGrades(): Promise<Record<number, GradeEntry[]>> {
 
 export async function fetchDeHoursByDate(): Promise<Record<string, number>> {
   const { data, error } = await supabase
-    .from('hours')
+    .from('de_hours')
     .select('homebase_id, date, hours')
-    .eq('type_id', 2);
+    .gte('hours', 0);
   if (error) throw new Error('Failed to load DE hours');
   const result: Record<string, number> = {};
   for (const row of (data ?? []) as Array<{ homebase_id: number; date: string; hours: number }>) {
