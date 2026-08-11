@@ -478,9 +478,16 @@ export async function submitGradeEntry(payload: {
   if (!res.ok) throw new Error('Save failed');
 }
 
+// Grades have no id column to target, so a row is addressed by
+// (homebase_id, date, project, category, score) — the same key the database
+// enforces uniqueness on. score is part of it because a student can retake a
+// test: two rows on the same day for the same project differ only by score,
+// and leaving it out would hit both.
+type GradeKey = { date: string; project: string; category: string; score: number };
+
 export async function updateGradeEntry(
   homebaseId: number,
-  original: { date: string; project: string; category: string },
+  original: GradeKey,
   updates: Partial<{ project: string; category: string; score: number }>
 ): Promise<void> {
   const { error } = await supabase
@@ -490,16 +497,16 @@ export async function updateGradeEntry(
     .eq('date', original.date)
     .eq('project', original.project)
     .eq('category', original.category)
+    .eq('score', original.score)
     .eq('is_active', true);
   if (error) throw new Error('Failed to update grade entry');
 }
 
 // "Deleting" a grade is a soft delete: the row stays put and is_active flips to
-// false, which drops it out of every read path. Targeted by the same
-// (homebase_id, date, project, category) key updateGradeEntry matches on.
+// false, which drops it out of every read path.
 export async function removeGradeEntry(
   homebaseId: number,
-  grade: { date: string; project: string; category: string }
+  grade: GradeKey
 ): Promise<void> {
   const { error } = await supabase
     .from('grades')
@@ -507,7 +514,8 @@ export async function removeGradeEntry(
     .eq('homebase_id', homebaseId)
     .eq('date', grade.date)
     .eq('project', grade.project)
-    .eq('category', grade.category);
+    .eq('category', grade.category)
+    .eq('score', grade.score);
   if (error) throw new Error('Failed to delete grade entry');
 }
 

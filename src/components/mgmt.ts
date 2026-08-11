@@ -207,9 +207,10 @@ export function createMgmtStore(): MgmtStore {
     },
 
     // Identifies one grade row in the student panel. Matches the columns
-    // removeGradeEntry targets, so arming a row arms exactly what gets deleted.
+    // removeGradeEntry targets, so arming a row arms exactly what gets deleted
+    // — score included, so a retake and the original stay distinct.
     gradeRowKey(homebaseId: number, grade: GradeEntry): string {
-      return `${homebaseId}|${grade.date}|${grade.project}|${grade.category}`;
+      return `${homebaseId}|${grade.date}|${grade.project}|${grade.category}|${grade.score}`;
     },
 
     // Deleting a grade is two-step: the first click arms the row (the trash
@@ -1349,7 +1350,9 @@ export function addEntryModalData() {
     entryId: '' as string,
     breakId: null as string | null,
     originalDeTotal: 0,
-    originalGrade: { date: '', project: '', category: '' },
+    // The pre-edit key of the grade being edited — score included, so editing
+    // one retake does not also rewrite the other attempt from that day.
+    originalGrade: { date: '', project: '', category: '', score: 0 },
     // Primary key of the DE hours row being edited, and the inline
     // "confirm remove" state.
     editDeId: null as number | null,
@@ -1408,7 +1411,7 @@ export function addEntryModalData() {
       this.entryId = '';
       this.breakId = null;
       this.originalDeTotal = 0;
-      this.originalGrade = { date: '', project: '', category: '' };
+      this.originalGrade = { date: '', project: '', category: '', score: 0 };
       this.editDeId = null;
       this.confirmingRemove = false;
     },
@@ -1474,7 +1477,7 @@ export function addEntryModalData() {
         this.category = grade.category ?? '';
         this.score = grade.score != null ? String(grade.score) : '';
         this.notes = grade.notes ?? '';
-        this.originalGrade = { date: grade.date, project: grade.project, category: grade.category };
+        this.originalGrade = { date: grade.date, project: grade.project, category: grade.category, score: grade.score };
         this.openDialog();
       });
 
