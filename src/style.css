@@ -59,6 +59,16 @@ body {
     radial-gradient(ellipse at 50% 40%, #d4896a28 0%, transparent 60%);
 }
 
+.avatar[avatar-status-color="Clocked In"] {
+  background-color: var(--color-sage);
+}
+.avatar[avatar-status-color="On Break"] {
+  background-color: var(--color-blush);
+}
+.avatar[avatar-status-color="Clocked Out"] {
+  background-color: var(--color-muted);
+}
+
 /* ── Input scale trick (mobile zoom prevention) ── */
 input[type="password"],
 input[type="text"] {

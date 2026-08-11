@@ -8,10 +8,11 @@ export function fmtFloat(val: number | string, p = 2): string {
   return Number.parseFloat(String(val)).toFixed(p);
 }
 
-export function scoreToLetter(score: number): 'A' | 'B' | 'C' | 'F' {
+export function scoreToLetter(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
   if (score >= 90) return 'A';
   if (score >= 80) return 'B';
   if (score >= 70) return 'C';
+  if (score >= 60) return 'D';
   return 'F';
 }
 

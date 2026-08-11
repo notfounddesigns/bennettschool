@@ -141,6 +141,8 @@ const ATTENTION_TYPE_LABELS: Record<NeedsAttentionType, string> = {
   timepunch_image_mismatch: 'Punch photo mismatch',
 };
 
+type ClockedInStatus = 'Clocked In' | 'Clocked Out' | 'On Break' | 'Clocked Out';
+
 export interface MgmtStore {
   loading: boolean;
   employees: MgmtEmployee[];
@@ -171,6 +173,7 @@ export interface MgmtStore {
   reviewIssues(entry: NeedsReviewEntry): string[];
   reviewBreak(entry: NeedsReviewEntry): NeedsReviewBreak | null;
   markReviewed(entryId: string): Promise<void>;
+  clockedInStatus(id: string): ClockedInStatus;
   handleRowClick(group: StudentGroup): void;
   viewAsStudent(emp: MgmtEmployee): void;
   currentMonthHours(id: number): Promise<number>;
@@ -455,6 +458,16 @@ export function createMgmtStore(): MgmtStore {
         target_name: emp.name,
         description: `${manager?.name ?? 'A manager'} viewed ${emp.name}'s dashboard`,
       }).catch(() => {});
+    },
+    
+     clockedInStatus(id: string): ClockedInStatus {
+      const sel = this.groupedStudents.find(g => g.homebase_id === Number(id)) ?? null;
+      if (!sel) return 'Clocked Out';
+      const todayEntry = sel.todayEntry;
+      if (!todayEntry) return 'Clocked Out';
+      if (todayEntry.is_clocked_in && !todayEntry.on_break) return 'Clocked In';
+      if (todayEntry.on_break) return 'On Break';
+      return 'Clocked Out';
     },
 
     get groupedStudents(): StudentGroup[] {
