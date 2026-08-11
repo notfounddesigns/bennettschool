@@ -124,6 +124,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .from('grades')
       .select('date, project, category, score, notes')
       .eq('homebase_id', employeeUserId)
+      .eq('is_active', true)
       .order('date', { ascending: false }),
   ]);
   
@@ -488,8 +489,26 @@ export async function updateGradeEntry(
     .eq('homebase_id', homebaseId)
     .eq('date', original.date)
     .eq('project', original.project)
-    .eq('category', original.category);
+    .eq('category', original.category)
+    .eq('is_active', true);
   if (error) throw new Error('Failed to update grade entry');
+}
+
+// "Deleting" a grade is a soft delete: the row stays put and is_active flips to
+// false, which drops it out of every read path. Targeted by the same
+// (homebase_id, date, project, category) key updateGradeEntry matches on.
+export async function removeGradeEntry(
+  homebaseId: number,
+  grade: { date: string; project: string; category: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from('grades')
+    .update({ is_active: false })
+    .eq('homebase_id', homebaseId)
+    .eq('date', grade.date)
+    .eq('project', grade.project)
+    .eq('category', grade.category);
+  if (error) throw new Error('Failed to delete grade entry');
 }
 
 // A DE hours entry is a row in the `de_hours` table, targeted by its primary key
@@ -860,6 +879,7 @@ export async function fetchAllGrades(): Promise<Record<number, GradeEntry[]>> {
   const { data, error } = await supabase
     .from('grades')
     .select('homebase_id, date, project, category, score, notes')
+    .eq('is_active', true)
     .order('date', { ascending: false });
   if (error) throw new Error('Failed to load grades');
   const result: Record<number, GradeEntry[]> = {};
@@ -1153,6 +1173,7 @@ export async function deleteNeedsAttentionItem(id: string): Promise<void> {
 export type AuditAction =
   | 'login' | 'logout'
   | 'grade_update'
+  | 'grade_remove'
   | 'de_hours_edit'
   | 'de_hours_remove'
   | 'timeclock_edit'

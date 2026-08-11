@@ -13,6 +13,7 @@ import {
   submitDeHours,
   submitGradeEntry,
   updateGradeEntry,
+  removeGradeEntry,
   updateDeHoursEntry,
   removeDeHoursEntry,
   fetchPunchPhotos,
@@ -115,6 +116,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   login: 'Signed in',
   logout: 'Signed out',
   grade_update: 'Edited a grade entry',
+  grade_remove: 'Deleted a grade entry',
   de_hours_edit: 'Edited a DE hours entry',
   de_hours_remove: 'Removed a DE hours entry',
   timeclock_edit: 'Edited a timeclock entry',
@@ -153,11 +155,16 @@ export interface MgmtStore {
   needsReviewEntries: NeedsReviewEntry[];
   auditLog: AuditLogRecord[];
   expandedId: number | null;
+  pendingGradeDelete: string | null;
   load(): Promise<void>;
   formatLastSync(): string;
   resolveAttention(id: string): Promise<void>;
   resolveAllAttention(): Promise<void>;
   attentionTypeLabel(type: NeedsAttentionType): string;
+  gradeRowKey(homebaseId: number, grade: GradeEntry): string;
+  requestGradeDelete(homebaseId: number, grade: GradeEntry): void;
+  cancelGradeDelete(): void;
+  deleteGrade(homebaseId: number, studentName: string, grade: GradeEntry): Promise<void>;
   auditActionLabel(action: AuditAction): string;
   auditTimestamp(iso: string): string;
   formatSimpleDate(iso: string): string;
@@ -193,9 +200,51 @@ export function createMgmtStore(): MgmtStore {
     needsReviewEntries: [],
     auditLog: [],
     expandedId: null,
+    pendingGradeDelete: null,
 
     attentionTypeLabel(type: NeedsAttentionType): string {
       return ATTENTION_TYPE_LABELS[type] ?? type;
+    },
+
+    // Identifies one grade row in the student panel. Matches the columns
+    // removeGradeEntry targets, so arming a row arms exactly what gets deleted.
+    gradeRowKey(homebaseId: number, grade: GradeEntry): string {
+      return `${homebaseId}|${grade.date}|${grade.project}|${grade.category}`;
+    },
+
+    // Deleting a grade is two-step: the first click arms the row (the trash
+    // icon swaps for confirm/cancel), the second runs the soft delete.
+    requestGradeDelete(homebaseId: number, grade: GradeEntry) {
+      this.pendingGradeDelete = this.gradeRowKey(homebaseId, grade);
+    },
+
+    cancelGradeDelete() {
+      this.pendingGradeDelete = null;
+    },
+
+    async deleteGrade(homebaseId: number, studentName: string, grade: GradeEntry) {
+      app().showLoading();
+      try {
+        await removeGradeEntry(homebaseId, grade);
+        // Drop it locally instead of reloading — a full load() would close the
+        // student panel the admin is working in.
+        const all = this.allGrades as Record<number, GradeEntry[]>;
+        const key = this.gradeRowKey(homebaseId, grade);
+        all[homebaseId] = (all[homebaseId] ?? []).filter(g => this.gradeRowKey(homebaseId, g) !== key);
+        this.pendingGradeDelete = null;
+        void logAudit('grade_remove', {
+          targetId: homebaseId,
+          targetName: studentName,
+          description: `Deleted a grade entry (${grade.project} / ${grade.category}, ${grade.date})`,
+          metadata: { date: grade.date, project: grade.project, category: grade.category, score: grade.score },
+        });
+        app().showSnackbar('Grade deleted.', 'success');
+      } catch {
+        this.pendingGradeDelete = null;
+        app().showSnackbar('Failed to delete grade', 'error');
+      } finally {
+        app().hideLoading();
+      }
     },
 
     auditActionLabel(action: AuditAction): string {
@@ -356,6 +405,7 @@ export function createMgmtStore(): MgmtStore {
         this.lastSync = lastSync;
         this.overviewStats = overviewStats;
         this.allGrades = allGrades;
+        this.pendingGradeDelete = null;
         this.needsAttentionItems = needsAttentionItems;
         this.needsReviewEntries = needsReviewEntries;
         this.auditLog = auditLog;
@@ -384,6 +434,7 @@ export function createMgmtStore(): MgmtStore {
     },
 
     async handleRowClick(group: StudentGroup) {
+      this.pendingGradeDelete = null;
       this.selectedStudent = this.employees.find(emp => emp.homebase_id === group.homebase_id) ?? null;
       this.deHoursList = await fetchDeHours(group.homebase_id);
       // Accordion: collapse if already open, otherwise open only this row.
