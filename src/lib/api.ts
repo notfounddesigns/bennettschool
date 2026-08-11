@@ -37,6 +37,7 @@ export interface DeEntry {
 }
 
 export interface GradeEntry {
+  id: number;
   date: string;
   project: string;
   category: string;
@@ -122,8 +123,9 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .order('date', { ascending: false }),
     supabase
       .from('grades')
-      .select('date, project, category, score, notes')
+      .select('id, date, project, category, score, notes')
       .eq('homebase_id', employeeUserId)
+      .eq('is_active', true)
       .order('date', { ascending: false }),
   ]);
   
@@ -477,19 +479,30 @@ export async function submitGradeEntry(payload: {
   if (!res.ok) throw new Error('Save failed');
 }
 
+// Targeted by primary key, so exactly one row is touched — a student who
+// retook a test has several rows sharing date/project/category, and column
+// matching would hit all of them. The is_active guard keeps a stale panel from
+// editing a row somebody else already deleted.
 export async function updateGradeEntry(
-  homebaseId: number,
-  original: { date: string; project: string; category: string },
+  id: number,
   updates: Partial<{ project: string; category: string; score: number }>
 ): Promise<void> {
   const { error } = await supabase
     .from('grades')
     .update(updates)
-    .eq('homebase_id', homebaseId)
-    .eq('date', original.date)
-    .eq('project', original.project)
-    .eq('category', original.category);
+    .eq('id', id)
+    .eq('is_active', true);
   if (error) throw new Error('Failed to update grade entry');
+}
+
+// "Deleting" a grade is a soft delete: the row stays put and is_active flips to
+// false, which drops it out of every read path.
+export async function removeGradeEntry(id: number): Promise<void> {
+  const { error } = await supabase
+    .from('grades')
+    .update({ is_active: false })
+    .eq('id', id);
+  if (error) throw new Error('Failed to delete grade entry');
 }
 
 // A DE hours entry is a row in the `de_hours` table, targeted by its primary key
@@ -859,13 +872,14 @@ export async function addTimeclockEntry(params: {
 export async function fetchAllGrades(): Promise<Record<number, GradeEntry[]>> {
   const { data, error } = await supabase
     .from('grades')
-    .select('homebase_id, date, project, category, score, notes')
+    .select('id, homebase_id, date, project, category, score, notes')
+    .eq('is_active', true)
     .order('date', { ascending: false });
   if (error) throw new Error('Failed to load grades');
   const result: Record<number, GradeEntry[]> = {};
   for (const row of (data ?? []) as Array<{ homebase_id: number } & GradeEntry>) {
     if (!result[row.homebase_id]) result[row.homebase_id] = [];
-    result[row.homebase_id].push({ date: row.date, project: row.project, category: row.category, score: row.score, notes: row.notes });
+    result[row.homebase_id].push({ id: row.id, date: row.date, project: row.project, category: row.category, score: row.score, notes: row.notes });
   }
   return result;
 }
@@ -1153,6 +1167,7 @@ export async function deleteNeedsAttentionItem(id: string): Promise<void> {
 export type AuditAction =
   | 'login' | 'logout'
   | 'grade_update'
+  | 'grade_remove'
   | 'de_hours_edit'
   | 'de_hours_remove'
   | 'timeclock_edit'

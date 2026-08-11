@@ -13,6 +13,7 @@ import {
   submitDeHours,
   submitGradeEntry,
   updateGradeEntry,
+  removeGradeEntry,
   updateDeHoursEntry,
   removeDeHoursEntry,
   fetchPunchPhotos,
@@ -115,6 +116,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   login: 'Signed in',
   logout: 'Signed out',
   grade_update: 'Edited a grade entry',
+  grade_remove: 'Deleted a grade entry',
   de_hours_edit: 'Edited a DE hours entry',
   de_hours_remove: 'Removed a DE hours entry',
   timeclock_edit: 'Edited a timeclock entry',
@@ -153,11 +155,15 @@ export interface MgmtStore {
   needsReviewEntries: NeedsReviewEntry[];
   auditLog: AuditLogRecord[];
   expandedId: number | null;
+  pendingGradeDelete: number | null;
   load(): Promise<void>;
   formatLastSync(): string;
   resolveAttention(id: string): Promise<void>;
   resolveAllAttention(): Promise<void>;
   attentionTypeLabel(type: NeedsAttentionType): string;
+  requestGradeDelete(grade: GradeEntry): void;
+  cancelGradeDelete(): void;
+  deleteGrade(homebaseId: number, studentName: string, grade: GradeEntry): Promise<void>;
   auditActionLabel(action: AuditAction): string;
   auditTimestamp(iso: string): string;
   formatSimpleDate(iso: string): string;
@@ -193,9 +199,46 @@ export function createMgmtStore(): MgmtStore {
     needsReviewEntries: [],
     auditLog: [],
     expandedId: null,
+    pendingGradeDelete: null,
 
     attentionTypeLabel(type: NeedsAttentionType): string {
       return ATTENTION_TYPE_LABELS[type] ?? type;
+    },
+
+    // Deleting a grade is two-step: the first click arms the row (the trash
+    // icon swaps for confirm/cancel), the second runs the soft delete. The
+    // armed row is tracked by grade id, so a retake and the original attempt
+    // stay independent.
+    requestGradeDelete(grade: GradeEntry) {
+      this.pendingGradeDelete = grade.id;
+    },
+
+    cancelGradeDelete() {
+      this.pendingGradeDelete = null;
+    },
+
+    async deleteGrade(homebaseId: number, studentName: string, grade: GradeEntry) {
+      app().showLoading();
+      try {
+        await removeGradeEntry(grade.id);
+        // Drop it locally instead of reloading — a full load() would close the
+        // student panel the admin is working in.
+        const all = this.allGrades as Record<number, GradeEntry[]>;
+        all[homebaseId] = (all[homebaseId] ?? []).filter(g => g.id !== grade.id);
+        this.pendingGradeDelete = null;
+        void logAudit('grade_remove', {
+          targetId: homebaseId,
+          targetName: studentName,
+          description: `Deleted a grade entry (${grade.project} / ${grade.category}, ${grade.date})`,
+          metadata: { id: grade.id, date: grade.date, project: grade.project, category: grade.category, score: grade.score },
+        });
+        app().showSnackbar('Grade deleted.', 'success');
+      } catch {
+        this.pendingGradeDelete = null;
+        app().showSnackbar('Failed to delete grade', 'error');
+      } finally {
+        app().hideLoading();
+      }
     },
 
     auditActionLabel(action: AuditAction): string {
@@ -356,6 +399,7 @@ export function createMgmtStore(): MgmtStore {
         this.lastSync = lastSync;
         this.overviewStats = overviewStats;
         this.allGrades = allGrades;
+        this.pendingGradeDelete = null;
         this.needsAttentionItems = needsAttentionItems;
         this.needsReviewEntries = needsReviewEntries;
         this.auditLog = auditLog;
@@ -384,6 +428,7 @@ export function createMgmtStore(): MgmtStore {
     },
 
     async handleRowClick(group: StudentGroup) {
+      this.pendingGradeDelete = null;
       this.selectedStudent = this.employees.find(emp => emp.homebase_id === group.homebase_id) ?? null;
       this.deHoursList = await fetchDeHours(group.homebase_id);
       // Accordion: collapse if already open, otherwise open only this row.
@@ -1298,7 +1343,9 @@ export function addEntryModalData() {
     entryId: '' as string,
     breakId: null as string | null,
     originalDeTotal: 0,
-    originalGrade: { date: '', project: '', category: '' },
+    // Primary key of the grade row being edited, so editing one retake does
+    // not also rewrite the other attempt from that day.
+    editGradeId: null as number | null,
     // Primary key of the DE hours row being edited, and the inline
     // "confirm remove" state.
     editDeId: null as number | null,
@@ -1357,7 +1404,7 @@ export function addEntryModalData() {
       this.entryId = '';
       this.breakId = null;
       this.originalDeTotal = 0;
-      this.originalGrade = { date: '', project: '', category: '' };
+      this.editGradeId = null;
       this.editDeId = null;
       this.confirmingRemove = false;
     },
@@ -1423,7 +1470,7 @@ export function addEntryModalData() {
         this.category = grade.category ?? '';
         this.score = grade.score != null ? String(grade.score) : '';
         this.notes = grade.notes ?? '';
-        this.originalGrade = { date: grade.date, project: grade.project, category: grade.category };
+        this.editGradeId = grade.id;
         this.openDialog();
       });
 
@@ -1666,6 +1713,10 @@ export function addEntryModalData() {
     },
 
     async submitEditGrade() {
+      if (this.editGradeId == null) {
+        this.error = 'This entry has no database id and cannot be edited.';
+        return;
+      }
       if (!this.score) {
         this.error = 'Score is required.';
         return;
@@ -1678,7 +1729,7 @@ export function addEntryModalData() {
       this.loading = true;
       app().showLoading();
       try {
-        await updateGradeEntry(this.homebaseId, this.originalGrade, {
+        await updateGradeEntry(this.editGradeId, {
           project: this.project,
           category: this.category,
           score,
@@ -1687,7 +1738,7 @@ export function addEntryModalData() {
           targetId: this.homebaseId,
           targetName: this.studentName,
           description: `Edited a grade entry (${this.project} / ${this.category}, ${this.date})`,
-          metadata: { date: this.date, project: this.project, category: this.category, score },
+          metadata: { id: this.editGradeId, date: this.date, project: this.project, category: this.category, score },
         });
         this.closeDialog();
         app().showSnackbar('Grade updated.', 'success');
