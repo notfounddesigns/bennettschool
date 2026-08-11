@@ -166,6 +166,7 @@ export interface MgmtStore {
   reviewBreak(entry: NeedsReviewEntry): NeedsReviewBreak | null;
   markReviewed(entryId: string): Promise<void>;
   handleRowClick(group: StudentGroup): void;
+  removeDeEntry(de: DeEntry): Promise<void>;
   viewAsStudent(emp: MgmtEmployee): void;
   currentMonthHours(id: number): Promise<number>;
   currentMonthDeHours(id: number): Promise<number>;
@@ -389,7 +390,42 @@ export function createMgmtStore(): MgmtStore {
       // Accordion: collapse if already open, otherwise open only this row.
       this.expandedId = this.expandedId === group.homebase_id ? null : group.homebase_id;
     },
-    
+
+    // Soft-delete one DE hours entry from its row in the drawer. The row's own
+    // inline confirmation has already been accepted by the time this runs.
+    async removeDeEntry(de: DeEntry) {
+      if (de.id == null) {
+        app().showSnackbar('This entry has no database id and cannot be removed.', 'error');
+        return;
+      }
+      const student = this.selectedStudent;
+      app().showLoading();
+      try {
+        await removeDeHoursEntry(de.id);
+        void logAudit('de_hours_remove', {
+          targetId: student?.homebase_id ?? 0,
+          targetName: student?.name ?? '',
+          description: `Removed a DE hours entry (${de.hours} hrs, ${de.date})`,
+          metadata: {
+            id: de.id,
+            date: de.date,
+            hours: de.hours,
+            module: de.module,
+            platform: de.platform,
+          },
+        });
+        // Drop it locally so the row disappears without waiting on a full reload.
+        this.deHoursList = this.deHoursList.filter(entry => entry.id !== de.id);
+        app().showSnackbar('DE hours removed.', 'success');
+        await this.load();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Could not remove. Please try again.';
+        app().showSnackbar(msg, 'error');
+      } finally {
+        app().hideLoading();
+      }
+    },
+
     // Manager action: open the selected student's dashboard in read-only
     // "view as" mode. The manager stays logged in; exiting returns here.
     async viewAsStudent(emp: MgmtEmployee) {
@@ -571,6 +607,11 @@ export function hoursModalData() {
           return;
         }
       }
+      const hours = parseFloat(this.hours);
+      if (isNaN(hours) || hours <= 0) {
+        this.error = 'Hours must be a positive number.';
+        return;
+      }
       app().showLoading();
     try {
         // DE hours go to the `de_hours` table; everything else to `hours`.
@@ -580,7 +621,7 @@ export function hoursModalData() {
             date: this.date,
             module: this.module,
             platform: this.platform,
-            hours: this.hours,
+            hours,
             verified: this.verified === 'true',
           });
         } else {
@@ -827,7 +868,7 @@ export function inlineHoursData(employeeId: number, typeId: 1 | 2) {
           await submitDeHours({
             homebase_id: employeeId,
             date: todayIso(),
-            hours: String(hrs),
+            hours: hrs,
             module: '',
             platform: '',
             verified: true,
@@ -1299,10 +1340,9 @@ export function addEntryModalData() {
     breakId: null as string | null,
     originalDeTotal: 0,
     originalGrade: { date: '', project: '', category: '' },
-    // Primary key of the DE hours row being edited, and the inline
-    // "confirm remove" state.
+    // Primary key of the DE hours row being edited. Removal lives on the table
+    // row itself, not in this dialog.
     editDeId: null as number | null,
-    confirmingRemove: false,
 
     get displayName() {
       return toTitleCase(this.studentName);
@@ -1359,7 +1399,6 @@ export function addEntryModalData() {
       this.originalDeTotal = 0;
       this.originalGrade = { date: '', project: '', category: '' };
       this.editDeId = null;
-      this.confirmingRemove = false;
     },
 
     openDialog() {
@@ -1578,7 +1617,7 @@ export function addEntryModalData() {
           await submitDeHours({
             homebase_id: this.homebaseId,
             date: this.date,
-            hours: String(deDelta),
+            hours: deDelta,
             module: '',
             platform: '',
             verified: true,
@@ -1616,13 +1655,18 @@ export function addEntryModalData() {
         this.error = 'Date and Hours are required.';
         return;
       }
+      const hours = parseFloat(this.hours);
+      if (isNaN(hours) || hours <= 0) {
+        this.error = 'Hours must be a positive number.';
+        return;
+      }
       this.loading = true;
       app().showLoading();
       try {
         await submitDeHours({
           homebase_id: this.homebaseId,
           date: this.date,
-          hours: this.hours,
+          hours,
           module: this.module,
           platform: this.platform,
           verified: true,
@@ -1736,44 +1780,6 @@ export function addEntryModalData() {
       }
     },
 
-    // Two-step remove: the first click reveals an inline confirmation, the
-    // second performs the soft delete (sets the row's hours to -1).
-    requestRemove() {
-      this.error = '';
-      this.confirmingRemove = true;
-    },
-
-    cancelRemove() {
-      this.confirmingRemove = false;
-    },
-
-    async confirmRemove() {
-      if (this.editDeId == null) {
-        this.confirmingRemove = false;
-        this.error = 'This entry has no database id and cannot be removed.';
-        return;
-      }
-      this.loading = true;
-      app().showLoading();
-      try {
-        await removeDeHoursEntry(this.editDeId);
-        void logAudit('de_hours_remove', {
-          targetId: this.homebaseId,
-          targetName: this.studentName,
-          description: `Removed a DE hours entry (${this.hours} hrs, ${this.date})`,
-          metadata: { id: this.editDeId, date: this.date, hours: this.hours, module: this.module, platform: this.platform },
-        });
-        this.closeDialog();
-        app().showSnackbar('DE hours removed.', 'success');
-        await (Alpine.store('mgmt') as MgmtStore).load();
-      } catch (err: unknown) {
-        this.confirmingRemove = false;
-        this.error = err instanceof Error ? err.message : 'Could not remove. Please try again.';
-      } finally {
-        this.loading = false;
-        app().hideLoading();
-      }
-    },
   };
 }
 

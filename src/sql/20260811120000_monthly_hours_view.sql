@@ -96,7 +96,7 @@ de_daily AS (
          SUM(d.hours)::numeric  AS hours
   FROM public.de_hours d, cutover c
   WHERE d.date::date >= c.start_date
-    AND d.hours >= 0
+    AND d.is_active
   GROUP BY 1, 2
 ),
 

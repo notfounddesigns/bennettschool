@@ -8,7 +8,8 @@
 --   * 2026-07-01 tracking cutover — legacy_hours carries the lump-sum total
 --     through 2026-06-30, so tracked rows before that date are not counted.
 --   * timeclock_entries supersedes `hours` on any day both have a row.
---   * soft-deleted rows (hours < 0) are excluded.
+--   * removed DE rows (is_active = false) and soft-deleted `hours` rows
+--     (hours < 0) are excluded.
 --   * the current month stops at today; past months use the whole month.
 --
 -- Edit the two marked values in `bounds`. To find a homebase_id:
@@ -68,7 +69,7 @@ de AS (
   FROM public.de_hours d, b
   WHERE d.homebase_id::numeric = b.homebase_id
     AND d.date::date BETWEEN b.tracking_start AND b.window_end
-    AND d.hours >= 0
+    AND d.is_active
   GROUP BY 1
 ),
 
@@ -174,7 +175,7 @@ WHERE homebase_id = 696969                  -- ← same student
 --   FROM public.de_hours d, b
 --   WHERE d.homebase_id::numeric = b.homebase_id
 --     AND d.date::date BETWEEN b.month_start AND b.month_end
---     AND d.hours >= 0
+--     AND d.is_active
 --   GROUP BY 1
 -- ) x
 -- ORDER BY day, source;

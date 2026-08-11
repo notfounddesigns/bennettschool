@@ -119,6 +119,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .from('de_hours')
       .select('homebase_id, date, hours, module, platform, verified')
       .eq('homebase_id', employeeUserId)
+      .eq('is_active', true)
       .order('date', { ascending: false }),
     supabase
       .from('grades')
@@ -160,7 +161,6 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .map(({ date, hours: h }) => ({ date, hours: h }));
 
   const deHrsList: DeEntry[] = deHoursData
-    .filter(h => h.hours >= 0)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
   
@@ -271,8 +271,7 @@ export async function fetchDeHours(homebaseId: number): Promise<DeEntry[]> {
     .from('de_hours')
     .select('*')
     .eq('homebase_id', homebaseId)
-    // Skip soft-deleted rows (hours = -1), same as the student dashboard.
-    .gte('hours', 0)
+    .eq('is_active', true)
     .order('date', { ascending: false });
   if (error) throw new Error('Failed to load DE hours');
   return (data ?? []) as DeEntry[];
@@ -405,16 +404,16 @@ export async function syncHoursByDate(
 }
 
 // Shared status handling for the hours/de_hours inserts below.
-function throwOnHoursInsertError(res: Response): void {
-  // handle these response statuses: 403, 422, 429, 500 and 501 with specific messages
-  if (res.status === 403) {
-    throw new Error('You do not have permission to submit hours. Please contact your administrator.');
-  }
+//
+// Anything unrecognised falls through to the server's own message rather than a
+// bare "Save failed": a 400 from a schema mismatch and a 401 from a missing RLS
+// policy are the two most likely failures here, and neither is diagnosable
+// without what PostgREST said.
+async function throwOnHoursInsertError(res: Response): Promise<void> {
+  if (res.ok) return;
+
   if (res.status === 409) {
     throw new Error('A matching hours entry for this student and date already exists.');
-  }
-  if (res.status === 422) {
-    throw new Error('Invalid data. Please check your inputs and try again.');
   }
   if (res.status === 429) {
     throw new Error('Too many requests. Please wait a moment and try again.');
@@ -422,7 +421,19 @@ function throwOnHoursInsertError(res: Response): void {
   if (res.status >= 500) {
     throw new Error('Server error. Please try again later.');
   }
-  if (!res.ok) throw new Error('Save failed');
+
+  const body = await res.json().catch(() => null) as
+    { message?: string; details?: string; hint?: string; code?: string } | null;
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(
+      `You do not have permission to save these hours${body?.message ? ` (${body.message})` : ''}. ` +
+      'Please contact your administrator.',
+    );
+  }
+
+  const detail = [body?.message, body?.details, body?.hint].filter(Boolean).join(' — ');
+  throw new Error(detail ? `Save failed: ${detail}` : `Save failed (HTTP ${res.status})`);
 }
 
 // In-person hours only (`hours.type_id` 1 and 3). DE hours live in their own
@@ -441,24 +452,27 @@ export async function submitHours(payload: {
     headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
     body: JSON.stringify({ ...payload}),
   });
-  throwOnHoursInsertError(res);
+  await throwOnHoursInsertError(res);
 }
 
-// DE hours are their own table, so there is no type_id on the payload.
+// DE hours are their own table, so there is no type_id on the payload. `hours`
+// is sent as a number — the callers read it out of a text input, and a string
+// leaves the numeric coercion up to PostgREST.
 export async function submitDeHours(payload: {
   homebase_id: number;
   date: string;
-  hours: string;
+  hours: number;
   module: string;
   platform: string;
   verified: boolean;
 }): Promise<void> {
+  if (!Number.isFinite(payload.hours)) throw new Error('Hours must be a number.');
   const res = await fetch(`${SUPABASE_URL}/rest/v1/de_hours`, {
     method: 'POST',
     headers: { ...AUTH_HEADERS, apikey: SUPABASE_ANON_KEY, Prefer: 'return=minimal' },
     body: JSON.stringify({ ...payload }),
   });
-  throwOnHoursInsertError(res);
+  await throwOnHoursInsertError(res);
 }
 
 export async function submitGradeEntry(payload: {
@@ -495,19 +509,42 @@ export async function updateGradeEntry(
 // A DE hours entry is a row in the `de_hours` table, targeted by its primary key
 // so only that exact record is touched — duplicate entries that share the same
 // date/module/platform are unaffected.
+//
+// Both writers below select the affected row back. An UPDATE that matches no row
+// is not an error in PostgREST — a missing RLS policy filters the row out and
+// returns 200 with an empty body — so without this check a failed write reports
+// success and the entry appears untouched.
+async function updateDeHoursRow(
+  id: number,
+  updates: Record<string, unknown>,
+  action: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('de_hours')
+    .update(updates)
+    .eq('id', id)
+    .select('id');
+  if (error) throw new Error(`Failed to ${action} DE hours entry: ${error.message}`);
+  if (!data || data.length === 0) {
+    throw new Error(
+      `Failed to ${action} DE hours entry: no row was updated. ` +
+      'The entry may have been removed, or the database is rejecting the change.',
+    );
+  }
+}
+
 export async function updateDeHoursEntry(
   id: number,
   updates: Partial<{ hours: number; module: string; platform: string; verified: boolean }>
 ): Promise<void> {
-  const { error } = await supabase.from('de_hours').update(updates).eq('id', id);
-  if (error) throw new Error('Failed to update DE hours entry');
+  await updateDeHoursRow(id, updates, 'update');
 }
 
-// "Removing" a DE hours entry is a soft delete: rather than deleting the row we
-// set its hours to -1 so downstream queries can filter it out.
+// "Removing" a DE hours entry is a soft delete: the row stays and is_active goes
+// false, so the hours value is preserved and the entry can be restored. The old
+// scheme overwrote hours with -1, which destroyed the original number.
 export async function removeDeHoursEntry(id: number): Promise<void> {
-  const { error } = await supabase.from('de_hours').update({ hours: -1 }).eq('id', id);
-  if (error) throw new Error('Failed to remove DE hours entry');
+  await updateDeHoursRow(id, { is_active: false }, 'remove');
 }
 
 // 1780596226798
@@ -874,7 +911,7 @@ export async function fetchDeHoursByDate(): Promise<Record<string, number>> {
   const { data, error } = await supabase
     .from('de_hours')
     .select('homebase_id, date, hours')
-    .gte('hours', 0);
+    .eq('is_active', true);
   if (error) throw new Error('Failed to load DE hours');
   const result: Record<string, number> = {};
   for (const row of (data ?? []) as Array<{ homebase_id: number; date: string; hours: number }>) {
