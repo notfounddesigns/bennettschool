@@ -409,7 +409,8 @@ export async function syncHoursByDate(
 // Shared status handling for the hours/de_hours inserts below.
 function throwOnHoursInsertError(res: Response): void {
   // handle these response statuses: 403, 422, 429, 500 and 501 with specific messages
-  if (res.status === 403) {
+  throw new Error(res);
+/*if (res.status === 403) {
     throw new Error('You do not have permission to submit hours. Please contact your administrator.');
   }
   if (res.status === 409) {
@@ -424,7 +425,7 @@ function throwOnHoursInsertError(res: Response): void {
   if (res.status >= 500) {
     throw new Error('Server error. Please try again later.');
   }
-  if (!res.ok) throw new Error('Save failed');
+  if (!res.ok) throw new Error('Save failed');*/
 }
 
 // In-person hours only (`hours.type_id` 1 and 3). DE hours live in their own
