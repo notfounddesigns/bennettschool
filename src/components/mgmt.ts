@@ -155,14 +155,13 @@ export interface MgmtStore {
   needsReviewEntries: NeedsReviewEntry[];
   auditLog: AuditLogRecord[];
   expandedId: number | null;
-  pendingGradeDelete: string | null;
+  pendingGradeDelete: number | null;
   load(): Promise<void>;
   formatLastSync(): string;
   resolveAttention(id: string): Promise<void>;
   resolveAllAttention(): Promise<void>;
   attentionTypeLabel(type: NeedsAttentionType): string;
-  gradeRowKey(homebaseId: number, grade: GradeEntry): string;
-  requestGradeDelete(homebaseId: number, grade: GradeEntry): void;
+  requestGradeDelete(grade: GradeEntry): void;
   cancelGradeDelete(): void;
   deleteGrade(homebaseId: number, studentName: string, grade: GradeEntry): Promise<void>;
   auditActionLabel(action: AuditAction): string;
@@ -206,17 +205,12 @@ export function createMgmtStore(): MgmtStore {
       return ATTENTION_TYPE_LABELS[type] ?? type;
     },
 
-    // Identifies one grade row in the student panel. Matches the columns
-    // removeGradeEntry targets, so arming a row arms exactly what gets deleted
-    // — score included, so a retake and the original stay distinct.
-    gradeRowKey(homebaseId: number, grade: GradeEntry): string {
-      return `${homebaseId}|${grade.date}|${grade.project}|${grade.category}|${grade.score}`;
-    },
-
     // Deleting a grade is two-step: the first click arms the row (the trash
-    // icon swaps for confirm/cancel), the second runs the soft delete.
-    requestGradeDelete(homebaseId: number, grade: GradeEntry) {
-      this.pendingGradeDelete = this.gradeRowKey(homebaseId, grade);
+    // icon swaps for confirm/cancel), the second runs the soft delete. The
+    // armed row is tracked by grade id, so a retake and the original attempt
+    // stay independent.
+    requestGradeDelete(grade: GradeEntry) {
+      this.pendingGradeDelete = grade.id;
     },
 
     cancelGradeDelete() {
@@ -226,18 +220,17 @@ export function createMgmtStore(): MgmtStore {
     async deleteGrade(homebaseId: number, studentName: string, grade: GradeEntry) {
       app().showLoading();
       try {
-        await removeGradeEntry(homebaseId, grade);
+        await removeGradeEntry(grade.id);
         // Drop it locally instead of reloading — a full load() would close the
         // student panel the admin is working in.
         const all = this.allGrades as Record<number, GradeEntry[]>;
-        const key = this.gradeRowKey(homebaseId, grade);
-        all[homebaseId] = (all[homebaseId] ?? []).filter(g => this.gradeRowKey(homebaseId, g) !== key);
+        all[homebaseId] = (all[homebaseId] ?? []).filter(g => g.id !== grade.id);
         this.pendingGradeDelete = null;
         void logAudit('grade_remove', {
           targetId: homebaseId,
           targetName: studentName,
           description: `Deleted a grade entry (${grade.project} / ${grade.category}, ${grade.date})`,
-          metadata: { date: grade.date, project: grade.project, category: grade.category, score: grade.score },
+          metadata: { id: grade.id, date: grade.date, project: grade.project, category: grade.category, score: grade.score },
         });
         app().showSnackbar('Grade deleted.', 'success');
       } catch {
@@ -1350,9 +1343,9 @@ export function addEntryModalData() {
     entryId: '' as string,
     breakId: null as string | null,
     originalDeTotal: 0,
-    // The pre-edit key of the grade being edited — score included, so editing
-    // one retake does not also rewrite the other attempt from that day.
-    originalGrade: { date: '', project: '', category: '', score: 0 },
+    // Primary key of the grade row being edited, so editing one retake does
+    // not also rewrite the other attempt from that day.
+    editGradeId: null as number | null,
     // Primary key of the DE hours row being edited, and the inline
     // "confirm remove" state.
     editDeId: null as number | null,
@@ -1411,7 +1404,7 @@ export function addEntryModalData() {
       this.entryId = '';
       this.breakId = null;
       this.originalDeTotal = 0;
-      this.originalGrade = { date: '', project: '', category: '', score: 0 };
+      this.editGradeId = null;
       this.editDeId = null;
       this.confirmingRemove = false;
     },
@@ -1477,7 +1470,7 @@ export function addEntryModalData() {
         this.category = grade.category ?? '';
         this.score = grade.score != null ? String(grade.score) : '';
         this.notes = grade.notes ?? '';
-        this.originalGrade = { date: grade.date, project: grade.project, category: grade.category, score: grade.score };
+        this.editGradeId = grade.id;
         this.openDialog();
       });
 
@@ -1720,6 +1713,10 @@ export function addEntryModalData() {
     },
 
     async submitEditGrade() {
+      if (this.editGradeId == null) {
+        this.error = 'This entry has no database id and cannot be edited.';
+        return;
+      }
       if (!this.score) {
         this.error = 'Score is required.';
         return;
@@ -1732,7 +1729,7 @@ export function addEntryModalData() {
       this.loading = true;
       app().showLoading();
       try {
-        await updateGradeEntry(this.homebaseId, this.originalGrade, {
+        await updateGradeEntry(this.editGradeId, {
           project: this.project,
           category: this.category,
           score,
@@ -1741,7 +1738,7 @@ export function addEntryModalData() {
           targetId: this.homebaseId,
           targetName: this.studentName,
           description: `Edited a grade entry (${this.project} / ${this.category}, ${this.date})`,
-          metadata: { date: this.date, project: this.project, category: this.category, score },
+          metadata: { id: this.editGradeId, date: this.date, project: this.project, category: this.category, score },
         });
         this.closeDialog();
         app().showSnackbar('Grade updated.', 'success');
