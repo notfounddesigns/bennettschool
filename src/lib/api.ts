@@ -26,9 +26,7 @@ export interface HourEntry {
 }
 
 export interface DeEntry {
-  // Primary key of the underlying `de_hours` row. Optional because legacy
-  // entries sourced from the profile's `hours_list` JSON column have no row id.
-  id?: number;
+  id: number;
   date: string;
   hours: number;
   module: string;
@@ -118,7 +116,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .order('date', { ascending: false }),
     supabase
       .from('de_hours')
-      .select('homebase_id, date, hours, module, platform, verified')
+      .select('id, homebase_id, date, hours, module, platform, verified')
       .eq('homebase_id', employeeUserId)
       .order('date', { ascending: false }),
     supabase
@@ -164,7 +162,9 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   const deHrsList: DeEntry[] = deHoursData
     .filter(h => h.hours >= 0)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .map(({ date, hours: h, module, platform, verified }) => ({ date, hours: h, module, platform, verified }));
+    .map(({ id, date, hours: h, module, platform, verified }) => ({ id, date, hours: h, module, platform, verified }));
+  
+  console.log('student dash deHrsList: ', deHrsList);
   
   // calculate this month's hours and de hours based on date
   const thisMonth = new Date().getMonth();
@@ -273,9 +273,9 @@ export async function fetchDeHours(homebaseId: number): Promise<DeEntry[]> {
     .from('de_hours')
     .select('*')
     .eq('homebase_id', homebaseId)
-    // Skip soft-deleted rows (hours = -1), same as the student dashboard.
-    .gte('hours', 0)
+    .eq('is_active', true)
     .order('date', { ascending: false });
+  console.log('fetchDeHours data: ', data);
   if (error) throw new Error('Failed to load DE hours');
   return (data ?? []) as DeEntry[];
 }
@@ -407,10 +407,9 @@ export async function syncHoursByDate(
 }
 
 // Shared status handling for the hours/de_hours inserts below.
-async function throwOnHoursInsertError(res: Response): void {
+function throwOnHoursInsertError(res: Response): void {
   // handle these response statuses: 403, 422, 429, 500 and 501 with specific messages
-  throw new Error(res);
-/*if (res.status === 403) {
+  if (res.status === 403) {
     throw new Error('You do not have permission to submit hours. Please contact your administrator.');
   }
   if (res.status === 409) {
@@ -425,7 +424,7 @@ async function throwOnHoursInsertError(res: Response): void {
   if (res.status >= 500) {
     throw new Error('Server error. Please try again later.');
   }
-  if (!res.ok) throw new Error('Save failed');*/
+  if (!res.ok) throw new Error('Save failed');
 }
 
 // In-person hours only (`hours.type_id` 1 and 3). DE hours live in their own
@@ -511,20 +510,11 @@ export async function removeGradeEntry(id: number): Promise<void> {
 // date/module/platform are unaffected.
 export async function updateDeHoursEntry(
   id: number,
-  updates: Partial<{ hours: number; module: string; platform: string; verified: boolean }>
+  updates: Partial<{ hours: number; module: string; platform: string; verified: boolean, is_active: boolean }>
 ): Promise<void> {
   const { error } = await supabase.from('de_hours').update(updates).eq('id', id);
   if (error) throw new Error('Failed to update DE hours entry');
 }
-
-// "Removing" a DE hours entry is a soft delete: rather than deleting the row we
-// set its hours to -1 so downstream queries can filter it out.
-export async function removeDeHoursEntry(id: number): Promise<void> {
-  const { error } = await supabase.from('de_hours').update({ hours: -1 }).eq('id', id);
-  if (error) throw new Error('Failed to remove DE hours entry');
-}
-
-// 1780596226798
 
 export async function loginEmployee(
   first: string,
@@ -881,20 +871,6 @@ export async function fetchAllGrades(): Promise<Record<number, GradeEntry[]>> {
   for (const row of (data ?? []) as Array<{ homebase_id: number } & GradeEntry>) {
     if (!result[row.homebase_id]) result[row.homebase_id] = [];
     result[row.homebase_id].push({ id: row.id, date: row.date, project: row.project, category: row.category, score: row.score, notes: row.notes });
-  }
-  return result;
-}
-
-export async function fetchDeHoursByDate(): Promise<Record<string, number>> {
-  const { data, error } = await supabase
-    .from('de_hours')
-    .select('homebase_id, date, hours')
-    .gte('hours', 0);
-  if (error) throw new Error('Failed to load DE hours');
-  const result: Record<string, number> = {};
-  for (const row of (data ?? []) as Array<{ homebase_id: number; date: string; hours: number }>) {
-    const key = `${row.homebase_id}|${row.date.split('T')[0]}`;
-    result[key] = (result[key] ?? 0) + (row.hours ?? 0);
   }
   return result;
 }

@@ -15,7 +15,6 @@ import {
   updateGradeEntry,
   removeGradeEntry,
   updateDeHoursEntry,
-  removeDeHoursEntry,
   fetchPunchPhotos,
   getPunchPhotoUrl,
   setEmployeePassword,
@@ -157,12 +156,16 @@ export interface MgmtStore {
   needsReviewEntries: NeedsReviewEntry[];
   auditLog: AuditLogRecord[];
   expandedId: number | null;
+  pendingDeHoursDelete: number | null;
   pendingGradeDelete: number | null;
   load(): Promise<void>;
   formatLastSync(): string;
   resolveAttention(id: string): Promise<void>;
   resolveAllAttention(): Promise<void>;
   attentionTypeLabel(type: NeedsAttentionType): string;
+  requestDeHoursDelete(de: DeEntry): void;
+  cancelDeHoursDelete(): void;
+  deleteDeHours(homebaseId: number, studentName: string, de: DeEntry): Promise<void>;
   requestGradeDelete(grade: GradeEntry): void;
   cancelGradeDelete(): void;
   deleteGrade(homebaseId: number, studentName: string, grade: GradeEntry): Promise<void>;
@@ -202,10 +205,43 @@ export function createMgmtStore(): MgmtStore {
     needsReviewEntries: [],
     auditLog: [],
     expandedId: null,
+    pendingDeHoursDelete: null,
     pendingGradeDelete: null,
 
     attentionTypeLabel(type: NeedsAttentionType): string {
       return ATTENTION_TYPE_LABELS[type] ?? type;
+    },
+    
+    requestDeHoursDelete(de: DeEntry) {
+      this.pendingDeHoursDelete = de.id;
+    },
+
+    cancelDeHoursDelete() {
+      this.pendingDeHoursDelete = null;
+    },
+    
+    async deleteDeHours(homebaseId: number, studentName: string, de: DeEntry) {
+      app().showLoading();
+      try {
+        await updateDeHoursEntry(de.id, { is_active: false });
+        // Drop it locally instead of reloading — a full load() would close the
+        // student panel the admin is working in.
+        const all = this.deHoursList as DeEntry[];
+        this.deHoursList = all.filter(d => d.id !== de.id);
+        this.pendingDeHoursDelete = null;
+        void logAudit('de_hours_remove', {
+          targetId: homebaseId,
+          targetName: studentName,
+          description: `Deleted a DE hours entry (${de.hours} hrs, ${de.date})`,
+          metadata: { id: de.id, date: de.date, hours: de.hours, module: de.module, platform: de.platform },
+        });
+        app().showSnackbar(`${de.hours} DE hours deleted.`, 'success');
+      } catch {
+        this.pendingDeHoursDelete = null;
+        app().showSnackbar('Failed to delete DE hours', 'error');
+      } finally {
+        app().hideLoading();
+      }
     },
 
     // Deleting a grade is two-step: the first click arms the row (the trash
@@ -235,7 +271,7 @@ export function createMgmtStore(): MgmtStore {
           description: `Deleted a grade entry (${grade.project} / ${grade.category}, ${grade.date})`,
           metadata: { id: grade.id, date: grade.date, project: grade.project, category: grade.category, score: grade.score },
         });
-        app().showSnackbar('Grade deleted.', 'success');
+        app().showSnackbar(`Deleted grade entry -- ${grade.date} / ${grade.project} / ${grade.category})`, 'success');
       } catch {
         this.pendingGradeDelete = null;
         app().showSnackbar('Failed to delete grade', 'error');
@@ -1794,45 +1830,6 @@ export function addEntryModalData() {
         await (Alpine.store('mgmt') as MgmtStore).load();
       } catch (err: unknown) {
         this.error = err instanceof Error ? err.message : 'Could not save. Please try again.';
-      } finally {
-        this.loading = false;
-        app().hideLoading();
-      }
-    },
-
-    // Two-step remove: the first click reveals an inline confirmation, the
-    // second performs the soft delete (sets the row's hours to -1).
-    requestRemove() {
-      this.error = '';
-      this.confirmingRemove = true;
-    },
-
-    cancelRemove() {
-      this.confirmingRemove = false;
-    },
-
-    async confirmRemove() {
-      if (this.editDeId == null) {
-        this.confirmingRemove = false;
-        this.error = 'This entry has no database id and cannot be removed.';
-        return;
-      }
-      this.loading = true;
-      app().showLoading();
-      try {
-        await removeDeHoursEntry(this.editDeId);
-        void logAudit('de_hours_remove', {
-          targetId: this.homebaseId,
-          targetName: this.studentName,
-          description: `Removed a DE hours entry (${this.hours} hrs, ${this.date})`,
-          metadata: { id: this.editDeId, date: this.date, hours: this.hours, module: this.module, platform: this.platform },
-        });
-        this.closeDialog();
-        app().showSnackbar('DE hours removed.', 'success');
-        await (Alpine.store('mgmt') as MgmtStore).load();
-      } catch (err: unknown) {
-        this.confirmingRemove = false;
-        this.error = err instanceof Error ? err.message : 'Could not remove. Please try again.';
       } finally {
         this.loading = false;
         app().hideLoading();
