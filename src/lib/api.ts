@@ -409,8 +409,7 @@ export async function syncHoursByDate(
 // Shared status handling for the hours/de_hours inserts below.
 async function throwOnHoursInsertError(res: Response): void {
   // handle these response statuses: 403, 422, 429, 500 and 501 with specific messages
-  const msg = await resp.json();
-  throw new Error(msg);
+  throw new Error(res);
 /*if (res.status === 403) {
     throw new Error('You do not have permission to submit hours. Please contact your administrator.');
   }
