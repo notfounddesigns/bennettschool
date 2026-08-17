@@ -384,20 +384,23 @@ export function createMgmtStore(): MgmtStore {
     
     async currentMonthHours(id: number): Promise<number> {
       const inPersonHrsList = await fetchStudentHours(id);
-      const thisMonth = new Date().getMonth();
-      const thisYear = new Date().getFullYear();
+      if (id === 26603372) {
+        console.log('hrs list: ', inPersonHrsList);
+      }
+      // Compare 'YYYY-MM' prefixes: new Date('2026-08-01') parses as UTC midnight,
+      // so reading it back with getMonth() in local time drops the 1st of the month.
+      const thisMonth = localDateStr().slice(0, 7);
       const thisMonthHrs = inPersonHrsList
-        .filter(h => new Date(h.date).getMonth() === thisMonth && new Date(h.date).getFullYear() === thisYear)
+        .filter(h => h.date.slice(0, 7) === thisMonth)
         .reduce((sum, h) => sum + h.hours, 0);
       return thisMonthHrs;
     },
     
     async currentMonthDeHours(id: number): Promise<number> {
       const deHrsList = await fetchDeHours(id);
-      const thisMonth = new Date().getMonth();
-      const thisYear = new Date().getFullYear();
+      const thisMonth = localDateStr().slice(0, 7);
       const thisMonthDeHrs = deHrsList
-        .filter(h => new Date(h.date).getMonth() === thisMonth && new Date(h.date).getFullYear() === thisYear)
+        .filter(h => h.date.slice(0, 7) === thisMonth)
         .reduce((sum, h) => sum + h.hours, 0);
       return thisMonthDeHrs;
     },

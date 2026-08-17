@@ -275,7 +275,6 @@ export async function fetchDeHours(homebaseId: number): Promise<DeEntry[]> {
     .eq('homebase_id', homebaseId)
     .eq('is_active', true)
     .order('date', { ascending: false });
-  console.log('fetchDeHours data: ', data);
   if (error) throw new Error('Failed to load DE hours');
   return (data ?? []) as DeEntry[];
 }
