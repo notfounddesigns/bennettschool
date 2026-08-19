@@ -12,7 +12,7 @@ function app(): AppStore {
 // TEMPORARY: hides the hour totals / graduation progress on the student
 // dashboard and disables the Hours and Grades buttons. Flip back to `true`
 // to restore them — no other change is needed.
-const SHOW_STUDENT_METRICS = false;
+const SHOW_STUDENT_METRICS = true;
 
 export interface DashboardStore {
   loading: boolean;
