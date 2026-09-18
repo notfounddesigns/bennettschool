@@ -2,77 +2,79 @@
 
 ## Project Summary
 
-Vanilla HTML/CSS/JS student portal for Bennett Cosmetology School. No build system. Three files do everything: `index.html`, `styles.css`, `app.js`. Backend is Supabase (database + edge functions) with HomeBase as the upstream HR/scheduling source.
+TypeScript + Alpine.js student portal for Bennett Cosmetology School. Built with Vite and Tailwind CSS 4. Backend is Supabase (database + edge functions). There is also an internal timeclock kiosk (`timeclock.html`) served at a separate subdomain.
 
 ## File Map
 
-| File | Role |
+| Path | Role |
 |---|---|
-| `index.html` | All markup — screens, modals, topbar. Very large; use search to find elements by `id`. |
-| `styles.css` | All styles — CSS custom properties at `:root`, then components. |
-| `app.js` | All logic — divided into clearly labeled sections with `// ── SECTION ──` banners. |
+| `index.html` | Main app HTML — screens, modals, topbar. Use search to find elements by `id` or `x-data`. |
+| `timeclock.html` | Timeclock kiosk HTML. |
+| `src/main.ts` | Entry point: registers Alpine stores and all `Alpine.data(...)` component functions. |
+| `src/timeclock.ts` | Timeclock entry point. |
+| `src/style.css` | Tailwind CSS imports and any custom base styles. |
+| `src/lib/api.ts` | All Supabase queries and edge function calls. Add new API functions here. |
+| `src/lib/auth.ts` | Session restore (`restoreSession`) and logout (`handleLogout`). |
+| `src/lib/helpers.ts` | Pure utility functions: `fmtFloat`, `escHtml`, `formatSimpleDate`, `scoreToLetter`, etc. |
+| `src/lib/store.ts` | Alpine `app` store — holds `currentEmployee`, active `screen`, snackbar state. |
+| `src/lib/supabase.ts` | Supabase client, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `PROXY`, `AUTH_HEADERS`. |
+| `src/components/login.ts` | Login screen Alpine data function. |
+| `src/components/setpass.ts` | Set-password screen Alpine data function. |
+| `src/components/dashboard.ts` | Student dashboard Alpine store + display data. |
+| `src/components/mgmt.ts` | Management dashboard Alpine store + all modal data functions. |
+| `src/components/compare.ts` | Compare table Alpine data. |
+| `src/components/timeclock.ts` | Timeclock kiosk Alpine data. |
+| `src/scripts/` | Standalone one-off scripts (full-sync, hours-export). Not part of the app bundle. |
+| `src/sql/` | Database migration SQL files. |
+| `public/` | Static assets (favicon, icons, logo). |
+| `vite.config.ts` | Vite config — two entry points (`index.html`, `timeclock.html`), Tailwind plugin. |
+| `vercel.json` | Routing rules — redirects `timeclock.bscdecatur.com/` to `/timeclock.html`. |
 
 ## Architecture Rules
 
-- **No build step.** Do not introduce npm, bundlers, TypeScript, or compiled assets. Any dependency must be loaded from a CDN `<script>` tag in `index.html`.
-- **Single-file per concern.** Keep all HTML in `index.html`, all styles in `styles.css`, all JS in `app.js`. Do not split into modules.
-- **No frameworks.** The project uses vanilla DOM APIs. Do not add React, Vue, Alpine, etc.
-- **Supabase SDK on CDN.** The Supabase client is `supabase.createClient(...)` initialized in `DOMContentLoaded`. Use `_supabaseClient` (the module-level variable) for all queries.
+- **Build step required.** Run `npm run dev` for local dev, `npm run build` to produce the `dist/` bundle.
+- **TypeScript everywhere.** All source files in `src/` are `.ts`. Do not add `.js` files.
+- **Alpine.js for reactivity.** Use Alpine stores (`Alpine.store`) and component data (`Alpine.data`). Do not reach for the DOM directly when Alpine can handle it.
+- **Tailwind CSS for styling.** Use Tailwind utility classes. CSS custom properties are no longer the primary token system.
+- **Modular source.** Logic belongs in `src/lib/` or `src/components/`. Do not add inline `<script>` blocks to HTML files.
+- **Single Supabase client.** Import `supabase` from `src/lib/supabase.ts`. Never call `createClient` elsewhere.
 
 ## Key Conventions
 
-### CSS Custom Properties
-
-Design tokens live in `:root` in `styles.css`. Always use them — never hardcode colors or spacing:
-
-```
---background, --cream, --charcoal, --blush, --blush-light
---sage, --sage-light, --error, --error-light, --muted, --border
---shadow, --shadow-lg, --radius, --radius-sm
-```
-
 ### Screen System
 
-Screens are `.screen` divs with a unique `id="screen-{name}"`. Only the `.active` screen is visible. Switch screens with `showScreen(id)` — never toggle visibility directly.
+The active screen is driven by the `screen` property on the Alpine `app` store. Switch screens by calling `$store.app.showScreen('login' | 'setpass' | 'dashboard' | 'mgmt')` in Alpine expressions, or `(Alpine.store('app') as AppStore).showScreen(...)` from TypeScript. Never toggle visibility directly.
 
 Existing screens: `login`, `setpass`, `dashboard`, `mgmt`
 
-### Alerts and Loading States
+### Snackbar / Toast
 
-- `setAlert(elementId, message, type)` — shows/hides an alert element. `type` is `'error'` or `'success'`.
-- `setLoading(btnId, boolean)` — disables button and shows spinner.
-- `showSnackbar(message, type, duration)` — bottom toast. `type`: `'default'`, `'success'`, `'error'`.
+Call `Alpine.store('app').showSnackbar(message, type, duration)` from TypeScript, or `$store.app.showSnackbar(...)` from an Alpine expression. `type` is `'default'`, `'success'`, or `'error'`.
 
 ### HTML Escaping
 
-Always use `escHtml(str)` before inserting user-supplied or API-returned strings into `innerHTML`.
+Always use `escHtml(str)` (from `src/lib/helpers.ts`) before inserting user-supplied or API-returned strings into `innerHTML`.
 
 ### Number Formatting
 
-Use `fmtFloat(val, precision=2)` for all hour values. Do not use `.toFixed()` directly.
+Use `fmtFloat(val, precision=2)` (from `src/lib/helpers.ts`) for all hour values. Do not call `.toFixed()` directly.
 
 ## Data Flow
 
 ```
-Login → auth-login edge fn → employee object → localStorage
+Login → auth-login edge fn → employee object (Student type) → localStorage + app store
   ↓
-renderDashboard(emp)
-  ├─ isManager? → loadEmployeeTable() → Supabase profiles+hours → renderEmployeeTable()
-  └─ student?   → fetchStudentDashboard(userId) → Supabase profiles+hours → renderHrsLogEntries()
+restoreSession() or login success
+  ├─ isManager (role_id === 3)? → showScreen('mgmt')      → MgmtStore.load()
+  └─ student?                   → showScreen('dashboard') → DashboardStore.load(homebase_id)
 ```
 
 ## Supabase Edge Function Calls
 
-All calls go through the `PROXY` constant (`${SUPABASE_URL}/functions/v1`). Always include `AUTH_HEADERS` (Bearer token + Content-Type). The `homebaseFetch(path)` helper wraps the HomeBase proxy.
-
-## Known Gaps / TODOs
-
-- `submitGrades()` in `app.js` is stubbed — always shows an error. It needs a real Supabase insert.
-- The grades section in `fetchStudentDashboard` always passes an empty array to `renderHrsLogEntries` — grades data fetch is not yet wired up.
+All edge function calls go through the `PROXY` constant (`${SUPABASE_URL}/functions/v1`) defined in `src/lib/supabase.ts`. Always include `AUTH_HEADERS` (an `Authorization` header using the Supabase anon key plus `Content-Type: application/json`). It is exported from `src/lib/supabase.ts`. The `homebaseFetch(path)` helper in `src/lib/api.ts` wraps the HomeBase proxy endpoint.
 
 ## What to Avoid
 
-- Do not add a `package.json`, `.env` file, or any server-side code.
 - Do not modify the Supabase URL or anon key constants without confirming with the user — they point to the live project.
-- Do not inline large data structures or HTML strings in `app.js`; use template literals the same way existing render functions do.
 - Do not add `console.log` debugging statements to committed code.
+- Do not introduce new npm dependencies without checking for security advisories first.

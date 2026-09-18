@@ -1,6 +1,6 @@
 # Bennett Cosmetology School — Student Portal
 
-A web app that serves as the student and staff portal for Bennett Cosmetology School (BSC). It authenticates employees via [HomeBase](https://joinhomebase.com/) and surfaces hour-tracking and grade data stored in [Supabase](https://supabase.com/).
+A web app that serves as the student and staff portal for Bennett Cosmetology School (BSC). It authenticates employees and surfaces hour-tracking, timeclock, and grade data stored in [Supabase](https://supabase.com/).
 
 ## Overview
 
@@ -8,23 +8,46 @@ A web app that serves as the student and staff portal for Bennett Cosmetology Sc
 |---|---|---|
 | Login | Everyone | Sign in with full name + password |
 | Set Password | First-time users | Required password setup on first login |
-| Student Dashboard | Students | Hours stats, graduation progress, recent DE/in-person logs, grades |
-| Management Dashboard | Managers | Full employee table with hours summary, DE entry, grade entry, HomeBase sync |
+| Student Dashboard | Students | Hours stats, graduation progress, recent DE/in-person/timeclock logs, grades |
+| Management Dashboard | Managers | Full employee table with hours summary, DE entry, grade entry, timeclock management, HomeBase sync |
+| Timeclock Kiosk | Students (iPad) | PIN-based clock in/out and break tracking with photo capture |
 
 ## Tech Stack
 
-- **Vanilla HTML / CSS / JavaScript** — no build step, no framework, no bundler
-- **Supabase JS SDK** (`@supabase/supabase-js@2`, loaded from CDN)
+- **TypeScript** — all source code is in `src/` and compiled via Vite
+- **Alpine.js** (`alpinejs@3`) — reactive UI framework; stores and component data registered in `src/main.ts`
+- **Tailwind CSS 4** — utility-first styling via the `@tailwindcss/vite` plugin
+- **Vite** — dev server and bundler (`npm run dev` / `npm run build`)
+- **Supabase JS SDK** (`@supabase/supabase-js@2`) — database queries and auth
 - **Supabase Edge Functions** — custom backend logic (auth, HomeBase proxy, sync)
-- **Fonts** — DM Sans + DM Serif Display via Google Fonts
 
 ## Project Structure
 
 ```
-index.html   — All HTML: screens, modals, topbar
-styles.css   — All CSS: design tokens, layout, components
-app.js       — All JS: auth, data fetching, rendering, helpers
-favicon.ico
+index.html          — Main app HTML (student portal + management dashboard)
+timeclock.html      — Timeclock kiosk HTML
+public/             — Static assets (favicon, icons, logo)
+src/
+  main.ts           — Main entry point: registers Alpine stores and component data
+  timeclock.ts      — Timeclock entry point
+  style.css         — Tailwind CSS base styles
+  lib/
+    api.ts          — All Supabase queries and edge function calls
+    auth.ts         — Session restore and logout logic
+    helpers.ts      — Utility functions (fmtFloat, escHtml, formatSimpleDate, …)
+    store.ts        — Alpine app store (screen, snackbar, current employee)
+    supabase.ts     — Supabase client, URL/key constants, AUTH_HEADERS
+  components/
+    login.ts        — Login screen Alpine data
+    setpass.ts      — Set password screen Alpine data
+    dashboard.ts    — Student dashboard Alpine store + display data
+    mgmt.ts         — Management dashboard Alpine store + all modal data
+    compare.ts      — Compare table Alpine data
+    timeclock.ts    — Timeclock kiosk Alpine data
+  scripts/
+    full-sync.ts    — Standalone HomeBase full-sync script
+    hours-export.ts — Standalone hours export script
+  sql/              — Database migration SQL files
 ```
 
 ## Backend (Supabase)
@@ -34,8 +57,13 @@ favicon.ico
 | Table | Description |
 |---|---|
 | `profiles` | Student profile: name, `homebase_id`, `total_hrs`, `hrs_to_graduate`, `percent_complete` |
+| `profiles_view` | View joining profiles with nested hours for dashboard queries |
 | `hours` | Hour entries: `homebase_id`, `type_id` (1=in-person, 2=DE), `hours`, `date`, `module`, `platform`, `verified` |
-| `de_log` | DE hours submitted via the management modal |
+| `grades` | Grade entries: `homebase_id`, `date`, `project`, `category`, `score`, `notes` |
+| `timeclock_status` | Internal timeclock entries: `homebase_id`, `date`, `clock_in`, `clock_out`, `worked_hours` |
+| `needs_attention` | Flagged timeclock events requiring manager review |
+| `audit_log` | Audit trail of user actions |
+| `punch_photos` | Photos captured at time punch events |
 
 ### Edge Functions
 
@@ -56,33 +84,47 @@ favicon.ico
 
 ### Student Dashboard
 
-Fetches from Supabase directly:
-- `profiles` — totals and graduation progress
+Fetches from Supabase directly (see `fetchStudentDashboard` in `src/lib/api.ts`):
+- `profiles_view` — totals and graduation progress
 - `hours` — last 7 days of entries, split by `type_id` (1 = in-person, 2 = DE)
+- `grades` — all grades, sorted by date descending
+- `timeclock_status` — last 7 days of completed timeclock punches
 
 Displays:
 - Stat cards: in-person hours, DE hours, total hours, hours remaining
 - Graduation progress bar (color-coded: red < 65%, orange 65–79%, green ≥ 80%)
-- Recent in-person log and DE log (sorted by date)
+- Combined hours log (in-person, DE, timeclock entries)
 - Grades table (date, project, category, score/letter grade, notes)
 
 ### Management Dashboard
 
-Fetches all `profiles` + nested `hours` from Supabase.
+Fetches all profiles + hours from Supabase.
 
 Actions available:
-- **Enter DE Hours** — modal to log DE hours for a student (`de_log` table)
-- **Enter Grades** — modal (TODO: `submitGrades` not yet implemented)
+- **Add Entry** — modal to log timeclock hours, DE hours, or grade entries for a student
 - **Sync Hours** — picks a date, calls `sync-hours-by-date` to pull HomeBase timecards
+- **Export** — download student hours report
+- **Needs Attention** — view and resolve flagged timeclock events
+- **Audit Log** — view history of all user actions
+- **Punch Photos** — view photos associated with a student's time punches
+
+### Timeclock Kiosk (`timeclock.html`)
+
+Served at `timeclock.bscdecatur.com` (via Vercel redirect in `vercel.json`). Students enter their PIN to clock in/out or start/end a break. A photo is captured from the front-facing camera on each punch.
 
 ## Running Locally
 
-Open `index.html` directly in a browser or use any static file server:
+Install dependencies and start the Vite dev server:
 
 ```bash
-npx serve .
-# or
-python -m http.server 8080
+npm install
+npm run dev
 ```
 
-No environment variables or build steps required — Supabase credentials are embedded in `app.js`.
+Build for production:
+
+```bash
+npm run build
+```
+
+Supabase credentials are embedded in `src/lib/supabase.ts`. No additional environment variables are required.
