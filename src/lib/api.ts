@@ -1,3 +1,4 @@
+import { localDateStr } from './helpers';
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY, PROXY, AUTH_HEADERS } from './supabase';
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -164,16 +165,13 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(({ id, date, hours: h, module, platform, verified }) => ({ id, date, hours: h, module, platform, verified }));
   
-  console.log('student dash deHrsList: ', deHrsList);
-  
   // calculate this month's hours and de hours based on date
-  const thisMonth = new Date().getMonth();
-  const thisYear = new Date().getFullYear();
+  const thisMonth = localDateStr().slice(0, 7);
   const thisMonthHrs = inPersonHrsList
-    .filter(h => new Date(h.date).getMonth() === thisMonth && new Date(h.date).getFullYear() === thisYear)
+    .filter(h => h.date.slice(0, 7) === thisMonth)
     .reduce((sum, h) => sum + h.hours, 0);
   const thisMonthDeHrs = deHrsList
-    .filter(h => new Date(h.date).getMonth() === thisMonth && new Date(h.date).getFullYear() === thisYear)
+    .filter(h => h.date.slice(0, 7) === thisMonth)
     .reduce((sum, h) => sum + h.hours, 0);
 
   return {

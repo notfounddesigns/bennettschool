@@ -71,10 +71,6 @@ export interface StudentGroup {
   open: boolean;
 }
 
-function localDateStr(d: Date = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 // ISO timestamp → "HH:MM" in local time, for <input type="time"> values.
 function isoToTimeInput(iso: string): string {
   const d = new Date(iso);
@@ -82,7 +78,7 @@ function isoToTimeInput(iso: string): string {
 }
 
 let _timeclockChannel: ReturnType<typeof subscribeToTimeclock> | null = null;
-import { toTitleCase, todayIso, formatSimpleDate } from '../lib/helpers';
+import { toTitleCase, todayIso, formatSimpleDate, localDateStr } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
 
 function app(): AppStore {
@@ -384,9 +380,6 @@ export function createMgmtStore(): MgmtStore {
     
     async currentMonthHours(id: number): Promise<number> {
       const inPersonHrsList = await fetchStudentHours(id);
-      if (id === 26603372) {
-        console.log('hrs list: ', inPersonHrsList);
-      }
       // Compare 'YYYY-MM' prefixes: new Date('2026-08-01') parses as UTC midnight,
       // so reading it back with getMonth() in local time drops the 1st of the month.
       const thisMonth = localDateStr().slice(0, 7);
