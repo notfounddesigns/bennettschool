@@ -1,0 +1,240 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand color palette */
+  --color-app-bg: #292728;
+  --color-cream: #F9F5EF;
+  --color-charcoal: #1C1C1E;
+  --color-blush: #D4896A;
+  --color-blush-hover: #C07050;
+  --color-blush-light: #EDD5C8;
+  --color-sage: #7A9E8E;
+  --color-sage-hover: #536e62;
+  --color-sage-light: #ddeee7;
+  --color-app-error: #C0392B;
+  --color-error-light: #FADBD8;
+  --color-muted: #8A8A8E;
+  --color-app-border: #E5E0D8;
+  --color-topbar: #3b3a3a;
+  --color-modal-bg: #3b3a3a;
+  --color-action-btn: #4a4848;
+  --color-action-btn-hover: #5a5858;
+
+  /* Typography */
+  --font-sans: 'DM Sans', sans-serif;
+  --font-serif: 'DM Serif Display', serif;
+
+  /* Border radius */
+  --radius-card: 14px;
+  --radius-input: 8px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 16px rgba(28, 28, 30, 0.07);
+  --shadow-lg: 0 8px 40px rgba(28, 28, 30, 0.12);
+}
+
+*::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100dvh;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-blush);
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bg-texture {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 40%, #d4896a28 0%, transparent 60%);
+}
+
+/* Mobile zoom prevention */
+input[type="password"],
+input[type="text"] {
+  font-size: 16px;
+  transform: scale(0.875);
+  transform-origin: left center;
+}
+
+/* Screen transitions */
+.screen-enter-active { animation: screenUp 0.2s ease; }
+@keyframes screenUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.55s linear infinite;
+  opacity: 0.7;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* Snackbar */
+.snackbar-enter-active, .snackbar-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.snackbar-enter-from, .snackbar-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
+}
+
+/* Progress bar */
+.progress-fill {
+  transition: width 0.4s ease;
+}
+
+/* Grade chips */
+.grade-a { background: #D1FAE5; color: #065F46; }
+.grade-b { background: #DBEAFE; color: #1E40AF; }
+.grade-c { background: #FEF3C7; color: #92400E; }
+.grade-f { background: #FEE2E2; color: #991B1B; }
+
+/* Global loading overlay */
+.global-loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 28, 30, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.global-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(249, 245, 239, 0.3);
+  border-top-color: var(--color-cream);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+
+/* Dialog backdrop */
+dialog.modal::backdrop {
+  background: rgba(28, 28, 30, 0.55);
+}
+
+/* Student status avatar (management list) */
+.avatar[data-status="Clocked In"] { background-color: var(--color-sage); }
+.avatar[data-status="On Break"] { background-color: var(--color-blush); }
+.avatar[data-status="Clocked Out"] { background-color: var(--color-muted); }
+
+/* Dashboard flip card (front: summary · back: hours/grades table) */
+.flip-card { perspective: 2000px; }
+
+.flip-card-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.flip-card-inner.is-flipped { transform: rotateY(180deg); }
+
+.flip-card-face {
+  min-width: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* The front alone sizes the card; the back overlays it and scrolls inside. */
+.flip-card-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+}
+
+.flip-card-inner.is-flipped .flip-card-front,
+.flip-card-inner:not(.is-flipped) .flip-card-back {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-card-inner { transition: none; }
+}
+
+/* Admin students list: shared column grid keeps header and rows aligned */
+.students-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10rem;
+  align-items: center;
+  column-gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .students-grid {
+    /* 6 columns are visible at md (production declares 4, which wraps rows). */
+    grid-template-columns: minmax(0, 1.5fr) 1fr 1fr 1fr 1fr 1fr;
+    column-gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .students-grid {
+    grid-template-columns: minmax(0, 1.5fr) 1fr 1fr 1fr 1fr 1fr 1fr;
+  }
+}
+
+/* Management table sticky header */
+.mgmt-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-cream);
+  z-index: 1;
+}
+
+/* Drawer slide-in / backdrop fade */
+.drawer-enter-active { transition: transform 0.3s ease-out; }
+.drawer-leave-active { transition: transform 0.2s ease-in; }
+.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
+.fade-enter-active { transition: opacity 0.3s ease-out; }
+.fade-leave-active { transition: opacity 0.2s ease-in; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* Shared form + button styles (dialogs) */
+@layer components {
+  .field-label {
+    @apply block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5;
+  }
+  .field-input {
+    @apply w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted appearance-none;
+  }
+  .pin-input {
+    @apply tracking-[0.2em] text-lg;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center text-blush border border-blush rounded-[8px] h-9.5 px-4.5 text-[15px] font-medium cursor-pointer bg-transparent transition-all hover:border-blush-hover hover:text-blush-hover disabled:opacity-45 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 h-9.5 px-4.5 font-medium cursor-pointer rounded-[8px] transition-all bg-blush text-white hover:bg-blush-hover active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 h-9.5 px-4.5 font-medium cursor-pointer rounded-[8px] transition-all bg-red-600 text-white hover:bg-red-700 active:scale-[0.985] disabled:opacity-45 disabled:cursor-not-allowed;
+  }
+  .alert-error {
+    @apply px-3.5 py-2.5 rounded-[8px] text-[13px] mb-4 leading-relaxed bg-error-light text-app-error;
+  }
+  .dialog-footer {
+    @apply flex gap-2.5 justify-end px-5.5 pb-4.5 pt-3.5 border-t border-app-border;
+  }
+}

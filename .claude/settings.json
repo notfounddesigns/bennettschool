@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/dev/bcs/src/lib/**)",
+      "Read(//c/dev/bcs/src/**)",
+      "Read(//c/dev/bcs/src/components/**)",
+      "Read(//c/dev/bcs/**)"
+    ]
+  }
+}

@@ -31,6 +31,14 @@
 
 - [ ] Non-unique "match" updates — updateGradeEntry matches on (homebase_id, date, project, category) and      updateTimeclockEntry on (homebase_id, clock_in). Neither is a unique key, so a single edit can silently update multiple rows. Grades are the real exposure (a student can have duplicate date/project/category rows).
 
+- [ ] **Edit Timepunch DE field always opens empty** — The per-day DE lookup that should prefill it (`deHours` in `createMgmtStore`) is never populated, so `deTotal` is always 0. Any value typed is saved as a brand-new DE row for the full amount instead of an adjustment, so editing a punch on a day that already has DE hours double-counts them. (`src/components/mgmt.ts` — `deHours`, `submitEditTimepunch`)
+
+- [ ] **Student dashboard counts soft-deleted DE hours** — `fetchStudentDashboard` reads `de_hours` without `.eq('is_active', true)`, so DE entries an admin removed still appear in the student's Hours table and This Month DE total. The admin views do filter on `is_active`. (`src/lib/api.ts` — `fetchStudentDashboard`)
+
+- [ ] **Timeclock history silently capped at 1,000 rows** — `fetchCurrentStudents` selects all of `timeclock_status` with no date bound or paging, and PostgREST returns at most 1,000 rows. As history grows, older punches drop out of the student drawer's Timeclock tab, and eventually today's entries could too, which would break the status pills and Prev Day Hrs. Bound by date or page the query. (`src/lib/api.ts` — `fetchCurrentStudents`)
+
+- [ ] **Saving any entry closes the student drawer** — Every add/edit dialog calls `mgmt.load()` on success, and `load()` resets `selectedStudent` to null, so the admin is kicked out of the student they were working in after each save. Refresh in place instead, as the DE/grade deletes already do. (`src/components/mgmt.ts` — `load`, `addEntryModalData`)
+
 ---
 
 ## Refactor / Code Quality

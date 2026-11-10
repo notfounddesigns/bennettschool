@@ -1,0 +1,218 @@
+erDiagram
+
+    %% ── CONFIG SCHEMA ──────────────────────────────────────────────────────
+
+    config_school_config {
+        smallint  id PK
+        text      school_name
+        numeric   max_daily_hours
+        numeric   max_weekly_hours
+        text      timezone
+        boolean   geofence_enabled
+        boolean   biometrics_enabled
+        smallint  pin_length
+        smallint  pin_max_attempts
+        smallint  pin_lockout_minutes
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    config_programs {
+        bigint    id PK
+        text      name
+        numeric   required_hours
+        text      description
+        boolean   is_active
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    config_break_types {
+        smallint  id PK
+        text      code
+        text      label
+        boolean   is_paid
+        smallint  max_minutes
+        boolean   is_active
+    }
+
+    %% ── PUBLIC SCHEMA ───────────────────────────────────────────────────────
+
+    auth_users {
+        uuid  id PK
+    }
+
+    public_roles {
+        smallint  id PK
+        text      name
+    }
+
+    public_users {
+        uuid      id PK
+        smallint  role_id FK
+        text      first_name
+        text      last_name
+        text      email
+        boolean   is_active
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    public_students {
+        bigint    id PK
+        uuid      user_id FK
+        text      student_number
+        bigint    program_id FK
+        date      enrollment_date
+        date      expected_grad
+        student_status status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    public_student_pins {
+        bigint    id PK
+        bigint    student_id FK
+        text      pin_hash
+        smallint  failed_attempts
+        timestamptz locked_until
+        timestamptz last_changed_at
+        timestamptz created_at
+    }
+
+    public_kiosk_devices {
+        bigint    id PK
+        text      device_name
+        text      device_token
+        text      device_fingerprint
+        text      location_label
+        boolean   is_active
+        timestamptz last_seen_at
+        timestamptz created_at
+    }
+
+    public_geofence_zones {
+        bigint    id PK
+        text      name
+        geography boundary
+        numeric   radius_m
+        boolean   is_active
+        timestamptz created_at
+    }
+
+    public_time_entries {
+        bigint    id PK
+        bigint    student_id FK
+        text      punch_type
+        smallint  break_type_id FK
+        punch_source source
+        timestamptz punched_at
+        timestamptz punched_at_local
+        bigint    device_id FK
+        float     location_lat
+        float     location_lng
+        bigint    geofence_zone_id FK
+        text      geofence_status
+        boolean   biometric_verified
+        numeric   biometric_confidence
+        boolean   is_manual_entry
+        bigint    manual_entry_by FK
+        text      manual_entry_note
+        boolean   is_voided
+        bigint    voided_by FK
+        timestamptz voided_at
+        text      voided_reason
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    public_time_sessions {
+        bigint    id PK
+        bigint    student_id FK
+        bigint    clock_in_entry_id FK
+        bigint    clock_out_entry_id FK
+        date      session_date
+        timestamptz clock_in_at
+        timestamptz clock_out_at
+        integer   gross_minutes
+        integer   break_minutes
+        integer   credited_minutes
+        boolean   is_open
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    public_break_sessions {
+        bigint    id PK
+        bigint    time_session_id FK
+        bigint    student_id FK
+        smallint  break_type_id FK
+        bigint    break_start_entry_id FK
+        bigint    break_end_entry_id FK
+        timestamptz started_at
+        timestamptz ended_at
+        integer   duration_minutes
+        boolean   is_open
+        timestamptz created_at
+    }
+
+    public_time_entry_snapshots {
+        bigint    id PK
+        bigint    time_entry_id FK
+        text      storage_path
+        text      checksum_sha256
+        timestamptz captured_at
+        numeric   match_score
+        text      match_status
+        timestamptz created_at
+    }
+
+    public_biometric_templates {
+        bigint    id PK
+        bigint    student_id FK
+        text      template_type
+        text      storage_path
+        boolean   is_primary
+        timestamptz enrolled_at
+        bigint    enrolled_by FK
+        boolean   is_active
+        timestamptz created_at
+    }
+
+    %% ── AUDIT SCHEMA ────────────────────────────────────────────────────────
+
+    audit_log {
+        bigint    id PK
+        text      schema_name
+        text      table_name
+        text      record_id
+        text      action
+        jsonb     old_data
+        jsonb     new_data
+        uuid      changed_by
+        timestamptz changed_at
+        inet      ip_address
+    }
+
+    %% ── RELATIONSHIPS ───────────────────────────────────────────────────────
+
+    auth_users            ||--o| public_users              : "extends"
+    public_roles          ||--o{ public_users              : "role_id"
+    config_programs       ||--o{ public_students           : "program_id"
+    public_users          ||--o| public_students           : "user_id"
+    public_students       ||--|| public_student_pins       : "student_id"
+    public_students       ||--o{ public_time_entries       : "student_id"
+    public_students       ||--o{ public_time_sessions      : "student_id"
+    public_students       ||--o{ public_break_sessions     : "student_id"
+    public_students       ||--o{ public_biometric_templates: "student_id"
+    public_kiosk_devices  ||--o{ public_time_entries       : "device_id"
+    public_geofence_zones ||--o{ public_time_entries       : "geofence_zone_id"
+    config_break_types    ||--o{ public_time_entries       : "break_type_id"
+    config_break_types    ||--o{ public_break_sessions     : "break_type_id"
+    public_time_entries   ||--o| public_time_sessions      : "clock_in_entry_id"
+    public_time_entries   ||--o| public_time_sessions      : "clock_out_entry_id"
+    public_time_sessions  ||--o{ public_break_sessions     : "time_session_id"
+    public_time_entries   ||--o| public_break_sessions     : "break_start_entry_id"
+    public_time_entries   ||--o| public_break_sessions     : "break_end_entry_id"
+    public_time_entries   ||--o{ public_time_entry_snapshots: "time_entry_id"
+    public_users          ||--o{ public_biometric_templates : "enrolled_by"

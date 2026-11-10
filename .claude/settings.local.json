@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/devja/.claude/projects/c--dev-bennettschool/memory//**)",
+      "WebFetch(domain:supabase.com)"
+    ]
+  }
+}

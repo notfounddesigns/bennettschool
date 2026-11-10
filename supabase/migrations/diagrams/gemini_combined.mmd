@@ -1,0 +1,73 @@
+erDiagram
+    %% Core Identity
+    profiles ||--o| student_details : "extends (1:1)"
+    profiles ||--o{ audit_log : "performs"
+    
+    %% Student Specifics
+    student_details ||--o| student_pins : "secures"
+    student_details ||--o{ time_entries : "punches"
+    student_details ||--o{ time_sessions : "attends"
+    
+    %% Hardware & Events
+    kiosk_devices ||--o{ time_entries : "originates"
+    time_entries ||--o| time_sessions : "starts/ends"
+
+    profiles {
+        uuid id PK
+        string first_name
+        string last_name
+        user_role role
+        timestamp created_at
+    }
+
+    student_details {
+        uuid id PK, FK
+        string student_number
+        numeric required_hours
+        boolean is_active
+        geography home_location
+        vector face_embedding
+    }
+
+    student_pins {
+        uuid student_id PK, FK
+        string pin_hash
+        int failed_attempts
+        timestamp locked_until
+    }
+
+    kiosk_devices {
+        uuid id PK
+        string device_name
+        string location_name
+        boolean is_active
+    }
+
+    time_entries {
+        uuid id PK
+        uuid student_id FK
+        uuid device_id FK
+        punch_type event_type
+        timestamp punched_at
+        geography location
+        string snapshot_url
+        jsonb metadata
+    }
+
+    time_sessions {
+        uuid id PK
+        uuid student_id FK
+        uuid start_entry_id FK
+        uuid end_entry_id FK
+        int total_minutes
+        boolean is_open
+    }
+
+    audit_log {
+        bigint id PK
+        uuid actor_id FK
+        text action
+        text table_name
+        jsonb old_data
+        jsonb new_data
+    }
