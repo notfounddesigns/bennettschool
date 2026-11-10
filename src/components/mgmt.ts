@@ -50,6 +50,7 @@ import {
   type TimeclockStatusEntry,
   type Role,
   type GradeEntry,
+  type GradeType,
   type DeEntry,
   type Student,
 } from '../lib/api';
@@ -67,8 +68,20 @@ export interface StudentGroup {
   todayEntry: TimeclockStatusEntry | null;
   historyEntries: TimeclockStatusEntry[];
   deHoursByDate: Record<string, number>;
-  grades: GradeEntry[];
+  examGrades: GradeEntry[];
+  wsGrades: GradeEntry[];
   open: boolean;
+}
+
+function gradeTypeLabel(type: GradeType | undefined): string {
+  return type === 'ws' ? 'a WS grade' : 'an exam grade';
+}
+
+// Empty input → null; otherwise a 0–100 number, or NaN when out of range.
+function parsePercentage(value: string | number): number | null {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  return isNaN(n) || n < 0 || n > 100 ? NaN : n;
 }
 
 // ISO timestamp → "HH:MM" in local time, for <input type="time"> values.
@@ -229,7 +242,7 @@ export function createMgmtStore(): MgmtStore {
           targetId: homebaseId,
           targetName: studentName,
           description: `Deleted a DE hours entry (${de.hours} hrs, ${de.date})`,
-          metadata: { id: de.id, date: de.date, hours: de.hours, module: de.module, platform: de.platform },
+          metadata: { id: de.id, date: de.date, hours: de.hours, module: de.module, percentage: de.percentage },
         });
         app().showSnackbar(`${de.hours} DE hours deleted.`, 'success');
       } catch {
@@ -264,10 +277,10 @@ export function createMgmtStore(): MgmtStore {
         void logAudit('grade_remove', {
           targetId: homebaseId,
           targetName: studentName,
-          description: `Deleted a grade entry (${grade.project} / ${grade.category}, ${grade.date})`,
-          metadata: { id: grade.id, date: grade.date, project: grade.project, category: grade.category, score: grade.score },
+          description: `Deleted ${gradeTypeLabel(grade.grade_type)} entry (${grade.project} / ${grade.category}, ${grade.date})`,
+          metadata: { id: grade.id, grade_type: grade.grade_type, date: grade.date, project: grade.project, category: grade.category, score: grade.score },
         });
-        app().showSnackbar(`Deleted grade entry -- ${grade.date} / ${grade.project} / ${grade.category})`, 'success');
+        app().showSnackbar(`Deleted ${gradeTypeLabel(grade.grade_type)} -- ${grade.date} / ${grade.project} / ${grade.category}`, 'success');
       } catch {
         this.pendingGradeDelete = null;
         app().showSnackbar('Failed to delete grade', 'error');
@@ -542,6 +555,7 @@ export function createMgmtStore(): MgmtStore {
             if (val) deHoursByDate[e.date] = val;
           }
           const emp = empMap.get(homebase_id);
+          const grades = (this.allGrades as Record<number, GradeEntry[]>)[homebase_id] ?? [];
 
           return {
             homebase_id,
@@ -556,7 +570,8 @@ export function createMgmtStore(): MgmtStore {
             prevDayHrs,
             historyEntries,
             deHoursByDate,
-            grades: (this.allGrades as Record<number, GradeEntry[]>)[homebase_id] ?? [],
+            examGrades: grades.filter(gr => gr.grade_type !== 'ws'),
+            wsGrades: grades.filter(gr => gr.grade_type === 'ws'),
             open: this.expandedId === homebase_id,
           };
         })
@@ -612,7 +627,7 @@ export function hoursModalData() {
     typeId: '',
     date: todayIso(),
     module: '',
-    platform: '',
+    percentage: '',
     hours: '',
     verified: '',
 
@@ -622,7 +637,7 @@ export function hoursModalData() {
       this.studentId = prefill?.studentId ?? '';
       this.typeId = prefill?.typeId ?? this.types[0].id.toString();
       this.module = '';
-      this.platform = '';
+      this.percentage = '';
       this.hours = '';
       this.verified = 'true';
       this.date = todayIso();
@@ -649,10 +664,15 @@ export function hoursModalData() {
     },
 
     async submit() {
-      // All fields are required, but only enforce platform/module/verified if DE hours
+      // All fields are required, but only enforce percentage/module/verified if DE hours
+      const percentage = parsePercentage(this.percentage);
       if (this.typeId === '2') {
-        if (!this.studentId || !this.typeId || !this.date || !this.module || !this.platform || !this.hours || !this.verified) {
+        if (!this.studentId || !this.typeId || !this.date || !this.module || percentage == null || !this.hours || !this.verified) {
           this.error = 'All fields are required.';
+          return;
+        }
+        if (isNaN(percentage)) {
+          this.error = 'Percentage must be between 0 and 100.';
           return;
         }
       } else {
@@ -669,7 +689,7 @@ export function hoursModalData() {
             homebase_id: Number(this.studentId),
             date: this.date,
             module: this.module,
-            platform: this.platform,
+            percentage,
             hours: this.hours,
             verified: this.verified === 'true',
           });
@@ -679,7 +699,7 @@ export function hoursModalData() {
             type_id: Number(this.typeId),
             date: this.date,
             module: this.module,
-            platform: this.platform,
+            platform: '',
             hours: this.hours,
             verified: this.verified === 'true',
           });
@@ -762,6 +782,7 @@ export function gradesModalData() {
           category: this.category,
           score: Number(this.score),
           notes: this.notes || null,
+          grade_type: 'exam',
         });
         this.closeModal();
         app().showSnackbar('Grade saved.', 'success');
@@ -919,7 +940,6 @@ export function inlineHoursData(employeeId: number, typeId: 1 | 2) {
             date: todayIso(),
             hours: String(hrs),
             module: '',
-            platform: '',
             verified: true,
           });
         } else {
@@ -1361,6 +1381,8 @@ export function removeStudentData() {
 
 // ── Add Entry Dialog (per-student row in Timeclock view) ─────────────────────
 
+type AddEntryType = 'timepunch' | 'de_hours' | 'grades' | 'ws_grades';
+
 export function addEntryModalData() {
   return {
     mode: 'add' as 'add' | 'edit',
@@ -1368,7 +1390,8 @@ export function addEntryModalData() {
     editKind: null as null | 'timepunch' | 'grade' | 'de',
     homebaseId: 0,
     studentName: '',
-    type: 'timepunch' as 'timepunch' | 'de_hours' | 'grades',
+    // 'grades' is an exam grade; 'ws_grades' is a WS grade (same fields).
+    type: 'timepunch' as AddEntryType,
     loading: false,
     error: '',
     date: todayIso(),
@@ -1378,7 +1401,7 @@ export function addEntryModalData() {
     breakEnd: '',
     hours: '',
     module: '',
-    platform: '',
+    percentage: '' as string | number,
     verified: true,
     score: '',
     project: '',
@@ -1400,9 +1423,17 @@ export function addEntryModalData() {
       return toTitleCase(this.studentName);
     },
 
+    get isGradeType() {
+      return this.type === 'grades' || this.type === 'ws_grades';
+    },
+
+    get gradeType(): GradeType {
+      return this.type === 'ws_grades' ? 'ws' : 'exam';
+    },
+
     get dialogTitle() {
       if (this.mode === 'edit') {
-        if (this.editKind === 'grade') return 'Edit Grade';
+        if (this.editKind === 'grade') return this.gradeType === 'ws' ? 'Edit WS Grade' : 'Edit Exam Grade';
         if (this.editKind === 'de') return 'Edit DE Hours';
         return 'Edit Timepunch';
       }
@@ -1440,7 +1471,7 @@ export function addEntryModalData() {
       this.breakEnd = '';
       this.hours = '';
       this.module = '';
-      this.platform = '';
+      this.percentage = '';
       this.verified = true;
       this.score = '';
       this.project = '';
@@ -1461,10 +1492,11 @@ export function addEntryModalData() {
 
     init() {
       window.addEventListener('open-add-entry', (e: Event) => {
-        const { id, name } = (e as CustomEvent<{ id: number; name: string }>).detail;
+        const { id, name, type } = (e as CustomEvent<{ id: number; name: string; type?: AddEntryType }>).detail;
         this.reset();
         this.homebaseId = id;
         this.studentName = name;
+        if (type) this.type = type;
         this.openDialog();
       });
 
@@ -1507,7 +1539,7 @@ export function addEntryModalData() {
         this.reset();
         this.mode = 'edit';
         this.editKind = 'grade';
-        this.type = 'grades';
+        this.type = grade.grade_type === 'ws' ? 'ws_grades' : 'grades';
         this.homebaseId = id;
         this.studentName = name;
         this.date = grade.date;
@@ -1530,7 +1562,7 @@ export function addEntryModalData() {
         this.date = de.date;
         this.hours = String(de.hours);
         this.module = de.module ?? '';
-        this.platform = de.platform ?? '';
+        this.percentage = de.percentage != null ? String(de.percentage) : '';
         this.verified = de.verified;
         this.editDeId = de.id ?? null;
         this.openDialog();
@@ -1672,7 +1704,6 @@ export function addEntryModalData() {
             date: this.date,
             hours: String(deDelta),
             module: '',
-            platform: '',
             verified: true,
           });
         }
@@ -1708,6 +1739,11 @@ export function addEntryModalData() {
         this.error = 'Date and Hours are required.';
         return;
       }
+      const percentage = parsePercentage(this.percentage);
+      if (percentage != null && isNaN(percentage)) {
+        this.error = 'Percentage must be between 0 and 100.';
+        return;
+      }
       this.loading = true;
       app().showLoading();
       try {
@@ -1716,7 +1752,7 @@ export function addEntryModalData() {
           date: this.date,
           hours: this.hours,
           module: this.module,
-          platform: this.platform,
+          percentage,
           verified: true,
         });
         this.closeDialog();
@@ -1745,9 +1781,10 @@ export function addEntryModalData() {
           category: this.category,
           score: Number(this.score),
           notes: this.notes || null,
+          grade_type: this.gradeType,
         });
         this.closeDialog();
-        app().showSnackbar('Grade saved.', 'success');
+        app().showSnackbar(this.gradeType === 'ws' ? 'WS grade saved.' : 'Exam grade saved.', 'success');
         await (Alpine.store('mgmt') as MgmtStore).load();
       } catch {
         this.error = 'Could not save. Please try again.';
@@ -1782,11 +1819,11 @@ export function addEntryModalData() {
         void logAudit('grade_update', {
           targetId: this.homebaseId,
           targetName: this.studentName,
-          description: `Edited a grade entry (${this.project} / ${this.category}, ${this.date})`,
-          metadata: { id: this.editGradeId, date: this.date, project: this.project, category: this.category, score },
+          description: `Edited ${gradeTypeLabel(this.gradeType)} entry (${this.project} / ${this.category}, ${this.date})`,
+          metadata: { id: this.editGradeId, grade_type: this.gradeType, date: this.date, project: this.project, category: this.category, score },
         });
         this.closeDialog();
-        app().showSnackbar('Grade updated.', 'success');
+        app().showSnackbar(this.gradeType === 'ws' ? 'WS grade updated.' : 'Exam grade updated.', 'success');
         await (Alpine.store('mgmt') as MgmtStore).load();
       } catch {
         this.error = 'Could not save. Please try again.';
@@ -1806,20 +1843,25 @@ export function addEntryModalData() {
         this.error = 'Hours must be a positive number.';
         return;
       }
+      const percentage = parsePercentage(this.percentage);
+      if (percentage != null && isNaN(percentage)) {
+        this.error = 'Percentage must be between 0 and 100.';
+        return;
+      }
       this.loading = true;
       app().showLoading();
       try {
         await updateDeHoursEntry(this.editDeId, {
           hours,
           module: this.module,
-          platform: this.platform,
+          percentage,
           verified: this.verified,
         });
         void logAudit('de_hours_edit', {
           targetId: this.homebaseId,
           targetName: this.studentName,
           description: `Edited a DE hours entry (${hours} hrs, ${this.date})`,
-          metadata: { id: this.editDeId, date: this.date, hours, module: this.module, platform: this.platform, verified: this.verified },
+          metadata: { id: this.editDeId, date: this.date, hours, module: this.module, percentage, verified: this.verified },
         });
         this.closeDialog();
         app().showSnackbar('DE hours updated.', 'success');

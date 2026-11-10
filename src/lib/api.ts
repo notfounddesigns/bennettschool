@@ -31,9 +31,12 @@ export interface DeEntry {
   date: string;
   hours: number;
   module: string;
-  platform: string;
+  percentage: number | null;
   verified: boolean;
 }
+
+// 'exam' — Exam Grades tab; 'ws' — WS Grades tab. Both live in `grades`.
+export type GradeType = 'exam' | 'ws';
 
 export interface GradeEntry {
   id: number;
@@ -42,6 +45,7 @@ export interface GradeEntry {
   category: string;
   score: number;
   notes: string | null;
+  grade_type: GradeType;
 }
 
 export interface StudentDashboard {
@@ -53,7 +57,8 @@ export interface StudentDashboard {
   inPersonHrsList: HourEntry[];
   deHrsList: DeEntry[];
   timeclockHrsList: HourEntry[];
-  grades: GradeEntry[];
+  examGrades: GradeEntry[];
+  wsGrades: GradeEntry[];
 }
 
 export interface MgmtEmployee {
@@ -117,12 +122,12 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
       .order('date', { ascending: false }),
     supabase
       .from('de_hours')
-      .select('id, homebase_id, date, hours, module, platform, verified')
+      .select('id, homebase_id, date, hours, module, percentage, verified')
       .eq('homebase_id', employeeUserId)
       .order('date', { ascending: false }),
     supabase
       .from('grades')
-      .select('id, date, project, category, score, notes')
+      .select('id, date, project, category, score, notes, grade_type')
       .eq('homebase_id', employeeUserId)
       .eq('is_active', true)
       .order('date', { ascending: false }),
@@ -163,7 +168,7 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
   const deHrsList: DeEntry[] = deHoursData
     .filter(h => h.hours >= 0)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .map(({ id, date, hours: h, module, platform, verified }) => ({ id, date, hours: h, module, platform, verified }));
+    .map(({ id, date, hours: h, module, percentage, verified }) => ({ id, date, hours: h, module, percentage, verified }));
   
   // calculate this month's hours and de hours based on date
   const thisMonth = localDateStr().slice(0, 7);
@@ -174,6 +179,8 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     .filter(h => h.date.slice(0, 7) === thisMonth)
     .reduce((sum, h) => sum + h.hours, 0);
 
+  const grades = (gradesData as GradeEntry[]) ?? [];
+
   return {
     totalHrsAll: profile?.total_hrs ?? 0,
     hrsToGrad: profile?.hrs_to_graduate ?? 0,
@@ -183,7 +190,8 @@ export async function fetchStudentDashboard(employeeUserId: number): Promise<Stu
     inPersonHrsList,
     deHrsList,
     timeclockHrsList: [],
-    grades: (gradesData as GradeEntry[]) ?? [],
+    examGrades: grades.filter(g => g.grade_type !== 'ws'),
+    wsGrades: grades.filter(g => g.grade_type === 'ws'),
   };
 }
 
@@ -444,12 +452,13 @@ export async function submitHours(payload: {
 }
 
 // DE hours are their own table, so there is no type_id on the payload.
+// `platform` is legacy and no longer written; `percentage` replaced it.
 export async function submitDeHours(payload: {
   homebase_id: number;
   date: string;
   hours: string;
   module: string;
-  platform: string;
+  percentage?: number | null;
   verified: boolean;
 }): Promise<void> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/de_hours`, {
@@ -467,6 +476,7 @@ export async function submitGradeEntry(payload: {
   category: string;
   score: number;
   notes: string | null;
+  grade_type: GradeType;
 }): Promise<void> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/grades`, {
     method: 'POST',
@@ -504,10 +514,10 @@ export async function removeGradeEntry(id: number): Promise<void> {
 
 // A DE hours entry is a row in the `de_hours` table, targeted by its primary key
 // so only that exact record is touched — duplicate entries that share the same
-// date/module/platform are unaffected.
+// date/module/percentage are unaffected.
 export async function updateDeHoursEntry(
   id: number,
-  updates: Partial<{ hours: number; module: string; platform: string; verified: boolean, is_active: boolean }>
+  updates: Partial<{ hours: number; module: string; percentage: number | null; verified: boolean, is_active: boolean }>
 ): Promise<void> {
   const { error } = await supabase.from('de_hours').update(updates).eq('id', id);
   if (error) throw new Error('Failed to update DE hours entry');
@@ -860,14 +870,14 @@ export async function addTimeclockEntry(params: {
 export async function fetchAllGrades(): Promise<Record<number, GradeEntry[]>> {
   const { data, error } = await supabase
     .from('grades')
-    .select('id, homebase_id, date, project, category, score, notes')
+    .select('id, homebase_id, date, project, category, score, notes, grade_type')
     .eq('is_active', true)
     .order('date', { ascending: false });
   if (error) throw new Error('Failed to load grades');
   const result: Record<number, GradeEntry[]> = {};
   for (const row of (data ?? []) as Array<{ homebase_id: number } & GradeEntry>) {
     if (!result[row.homebase_id]) result[row.homebase_id] = [];
-    result[row.homebase_id].push({ id: row.id, date: row.date, project: row.project, category: row.category, score: row.score, notes: row.notes });
+    result[row.homebase_id].push({ id: row.id, date: row.date, project: row.project, category: row.category, score: row.score, notes: row.notes, grade_type: row.grade_type });
   }
   return result;
 }

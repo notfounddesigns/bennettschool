@@ -1,6 +1,6 @@
 import Alpine from 'alpinejs';
 import { fetchStudentDashboard, changeStudentPin, setStudentPin, studentHasPin, logAuditEvent, type StudentDashboard, type HourEntry, type DeEntry, type GradeEntry } from '../lib/api';
-import { fmtFloat, formatSimpleDate, scoreToLetter } from '../lib/helpers';
+import { fmtFloat, formatSimpleDate, scoreToLetter, escHtml } from '../lib/helpers';
 import type { AppStore } from '../lib/store';
 
 function app(): AppStore {
@@ -10,7 +10,7 @@ function app(): AppStore {
 // ── Store ─────────────────────────────────────────────────────────────────
 
 // TEMPORARY: hides the hour totals / graduation progress on the student
-// dashboard and disables the Hours and Grades buttons. Flip back to `true`
+// dashboard and disables the Hours and grades buttons. Flip back to `true`
 // to restore them — no other change is needed.
 const SHOW_STUDENT_METRICS = true;
 
@@ -70,7 +70,7 @@ export function createDashboardStore(): DashboardStore {
 export function dashboardDisplayData() {
   return {
     flipped: false,
-    activeTab: 'hours' as 'hours' | 'grades',
+    activeTab: 'hours' as DashboardTab,
 
     init() {
       // Show the front of the card again whenever the dashboard is (re)entered,
@@ -80,10 +80,14 @@ export function dashboardDisplayData() {
       });
     },
 
-    showTable(tab: 'hours' | 'grades') {
+    showTable(tab: DashboardTab) {
       if (!SHOW_STUDENT_METRICS) return;
       this.activeTab = tab;
       this.flipped = true;
+    },
+
+    get activeTabLabel() {
+      return DASHBOARD_TAB_LABELS[this.activeTab];
     },
 
     get hoursHtml() {
@@ -92,10 +96,22 @@ export function dashboardDisplayData() {
     },
     get gradesHtml() {
       const dash = Alpine.store('dashboard') as DashboardStore;
-      return renderGradesTable(dash.data?.grades ?? []);
+      return renderGradesTable(dash.data?.examGrades ?? []);
+    },
+    get wsGradesHtml() {
+      const dash = Alpine.store('dashboard') as DashboardStore;
+      return renderWsGradesTable(dash.data?.wsGrades ?? []);
     },
   };
 }
+
+type DashboardTab = 'hours' | 'grades' | 'ws_grades';
+
+const DASHBOARD_TAB_LABELS: Record<DashboardTab, string> = {
+  hours: 'Hours',
+  grades: 'Exam Grades',
+  ws_grades: 'WS Grades',
+};
 
 // ── HTML render helpers ───────────────────────────────────────────────────
 
@@ -233,8 +249,37 @@ export function changePinData() {
   };
 }
 
+// WS grades: same columns as exam grades, but the score is shown as a
+// percentage instead of a letter chip.
+export function renderWsGradesTable(grades: GradeEntry[]): string {
+  if (grades.length === 0) return '<p class="text-center py-8 text-muted text-sm">No WS grades recorded yet.</p>';
+
+  const rows = grades
+    .map(g => `<tr>
+        <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">${formatSimpleDate(g.date)}</td>
+        <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">${escHtml(g.project ?? '—')}</td>
+        <td class="px-4 py-2.5 text-[13px] text-charcoal border-b border-app-border">${escHtml(g.category ?? '—')}</td>
+        <td class="px-4 py-2.5 text-[13px] font-semibold tabular-nums border-b border-app-border ${g.score >= 90 ? 'text-sage' : g.score >= 60 ? 'text-charcoal' : 'text-app-error'}">${fmtFloat(g.score, 1)}%</td>
+        <td class="px-4 py-2.5 text-[13px] text-muted border-b border-app-border">${escHtml(g.notes ?? '—')}</td>
+      </tr>`)
+    .join('');
+
+  return `<table class="mgmt-table w-full border-collapse">
+    <thead>
+      <tr>
+        <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Date</th>
+        <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Project</th>
+        <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Category</th>
+        <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Percentage</th>
+        <th class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted px-4 py-2.5 text-left border-b border-app-border">Notes</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
 export function renderGradesTable(grades: GradeEntry[]): string {
-  if (grades.length === 0) return '<p class="text-center py-8 text-muted text-sm">No grades recorded yet.</p>';
+  if (grades.length === 0) return '<p class="text-center py-8 text-muted text-sm">No exam grades recorded yet.</p>';
 
   const rows = grades
     .map(g => {

@@ -281,7 +281,14 @@
             disabled
             :disabled="!$store.dashboard.showMetrics"
             class="px-5 h-8 flex-1 text-[13px] font-semibold border-r border-t border-b border-app-border text-muted transition-colors cursor-pointer hover:border-app-border-hover disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-app-border">
-            Grades
+            Exam Grades
+          </button>
+          <button
+            @click="showTable('ws_grades')"
+            disabled
+            :disabled="!$store.dashboard.showMetrics"
+            class="px-5 h-8 flex-1 text-[13px] font-semibold border-r border-t border-b border-app-border text-muted transition-colors cursor-pointer hover:border-app-border-hover disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-app-border">
+            WS Grades
           </button>
         </div>
         </div>
@@ -294,13 +301,16 @@
               class="inline-flex items-center justify-center h-8 text-[13px] font-semibold rounded-full text-muted transition-colors cursor-pointer hover:text-sage-hover">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 12H5M5 12L11 6M5 12L11 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <span class="ml-auto text-[13px] uppercase tracking-[0.08em] text-muted font-semibold" x-text="activeTab === 'hours' ? 'Hours' : 'Grades'"></span>
+            <span class="ml-auto text-[13px] uppercase tracking-[0.08em] text-muted font-semibold" x-text="activeTabLabel"></span>
           </div>
           <div x-show="activeTab === 'hours'" class="flex-1 min-h-0 overflow-auto">
             <div x-html="hoursHtml"></div>
           </div>
           <div x-show="activeTab === 'grades'" class="flex-1 min-h-0 overflow-auto">
             <div x-html="gradesHtml"></div>
+          </div>
+          <div x-show="activeTab === 'ws_grades'" class="flex-1 min-h-0 overflow-auto">
+            <div x-html="wsGradesHtml"></div>
           </div>
         </div>
 
@@ -441,10 +451,16 @@
                       <button @click="panelTab = 'grades'"
                         :class="panelTab === 'grades' ? 'border-sage text-sage' : 'border-transparent text-muted hover:text-cream'"
                         class="px-4 py-2 text-xs md:text-[13px] font-semibold border-b-2 -mb-px transition-colors cursor-pointer">
-                        Grades<span x-text="' - (' + g.grades.length + ')'" class=""></span>
+                        Exam Grades<span x-text="' - (' + g.examGrades.length + ')'" class=""></span>
+                      </button>
+                      <button @click="panelTab = 'ws_grades'"
+                        :class="panelTab === 'ws_grades' ? 'border-sage text-sage' : 'border-transparent text-muted hover:text-cream'"
+                        class="px-4 py-2 text-xs md:text-[13px] font-semibold border-b-2 -mb-px transition-colors cursor-pointer">
+                        WS Grades<span x-text="' - (' + g.wsGrades.length + ')'" class=""></span>
                       </button>
                     </div>
-                    <button @click="$dispatch('open-add-entry', { id: g.homebase_id, name: g.name })"
+                    <!-- New entry defaults to the type of the tab being viewed -->
+                    <button @click="$dispatch('open-add-entry', { id: g.homebase_id, name: g.name, type: ({ timeclock: 'timepunch', de: 'de_hours', grades: 'grades', ws_grades: 'ws_grades' })[panelTab] })"
                       class="inline-flex items-center gap-1 shrink-0 h-8 px-3 rounded-[8px] text-[12px] font-semibold cursor-pointer transition-colors bg-blush text-white hover:bg-blush-hover">
                       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       New
@@ -532,7 +548,7 @@
                           <tr>
                             <th class="text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Date</th>
                             <th class="text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Module</th>
-                            <th class="hidden md:table-cell text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Platform</th>
+                            <th class="hidden md:table-cell text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Percentage</th>
                             <th class="hidden md:table-cell text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Verified</th>
                             <th class="text-right text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">DE Hrs</th>
                             <th class="w-8 border-b border-app-border"></th>
@@ -543,7 +559,7 @@
                             <tr class="border-b border-app-border/50 last:border-b-0 hover:bg-[#f5f3f0] transition-colors">
                               <td class="px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="de.date.substring(0, 10)"></td>
                               <td class="px-3 py-2 text-charcoal max-w-40 truncate" x-text="de.module || '—'"></td>
-                              <td class="hidden md:table-cell px-3 py-2 text-muted max-w-40 truncate" x-text="de.platform || '—'"></td>
+                              <td class="hidden md:table-cell px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="de.percentage != null ? de.percentage + '%' : '—'"></td>
                               <td class="hidden md:table-cell px-3 py-2 text-muted whitespace-nowrap" x-text="de.verified ? 'Yes' : 'No'"></td>
                               <td class="px-3 py-2 tabular-nums text-charcoal text-right whitespace-nowrap" x-text="(de.hours ?? 0).toFixed(1) + ' hrs'"></td>
                               <td class="px-2 py-2 inline-flex items-center gap-0.5">
@@ -576,24 +592,28 @@
                     </template>
                   </div>
 
-                  <!-- Grades tab -->
-                  <div x-show="panelTab === 'grades'" style="display:none; scrollbar-width: thin;" class="flex-1 min-h-0 overflow-auto rounded-[8px] bg-white">
-                    <template x-if="g.grades.length === 0">
-                      <div class="flex items-center justify-center py-8 text-[12px] tracking-[0.07em] text-muted">No grade entries...</div>
+                  <!-- Exam Grades + WS Grades tabs: same table, different list -->
+                  <template x-for="gradeTab in [
+                      { key: 'grades', list: g.examGrades, empty: 'No exam grade entries...', scoreLabel: 'Score' },
+                      { key: 'ws_grades', list: g.wsGrades, empty: 'No WS grade entries...', scoreLabel: 'Percentage' },
+                    ]" :key="gradeTab.key">
+                  <div x-show="panelTab === gradeTab.key" style="display:none; scrollbar-width: thin;" class="flex-1 min-h-0 overflow-auto rounded-[8px] bg-white">
+                    <template x-if="gradeTab.list.length === 0">
+                      <div class="flex items-center justify-center py-8 text-[12px] tracking-[0.07em] text-muted" x-text="gradeTab.empty"></div>
                     </template>
-                    <template x-if="g.grades.length > 0">
+                    <template x-if="gradeTab.list.length > 0">
                       <table class="w-full border-collapse text-[12px]">
                         <thead class="sticky top-0 z-10 bg-cream">
                           <tr>
                             <th class="text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Date</th>
                             <th class="text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Project</th>
                             <th class="hidden md:table-cell text-left text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Category</th>
-                            <th class="text-right text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap">Score</th>
+                            <th class="text-right text-[10px] font-semibold uppercase tracking-[0.07em] text-muted px-3 py-2 border-b border-app-border whitespace-nowrap" x-text="gradeTab.scoreLabel"></th>
                             <th class="w-16 border-b border-app-border"></th>
                           </tr>
                         </thead>
                         <tbody>
-                          <template x-for="grade in g.grades" :key="grade.id">
+                          <template x-for="grade in gradeTab.list" :key="grade.id">
                             <tr class="border-b border-app-border/50 last:border-b-0 hover:bg-[#f5f3f0] transition-colors">
                               <td class="px-3 py-2 tabular-nums text-muted whitespace-nowrap" x-text="grade.date"></td>
                               <td class="px-3 py-2 text-charcoal max-w-40 truncate" x-text="grade.project || '—'"></td>
@@ -630,6 +650,7 @@
                       </table>
                     </template>
                   </div>
+                  </template>
                 </div>
               </div>
             </template>
@@ -1194,7 +1215,8 @@
             class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none">
             <option value="timepunch">Timepunch Hours</option>
             <option value="de_hours">DE Hours</option>
-            <option value="grades">Grade</option>
+            <option value="grades">Exam Grade</option>
+            <option value="ws_grades">WS Grade</option>
           </select>
         </div>
         <!-- Date (shared) -->
@@ -1260,11 +1282,11 @@
               class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
           </div>
           <div>
-            <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-platform">
-              Platform <span class="font-normal normal-case tracking-normal">(optional)</span>
+            <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-percentage">
+              Percentage <span class="font-normal normal-case tracking-normal">(optional)</span>
             </label>
-            <input id="add-entry-platform" type="text" x-model="platform" placeholder="Platform"
-              class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
+            <input id="add-entry-percentage" type="number" x-model="percentage" min="0" max="100" step="0.1" placeholder="100"
+              class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none placeholder:text-muted" />
           </div>
           <!-- Verified (edit mode only) -->
           <fieldset x-show="mode === 'edit'" style="display:none" class="border-none p-0 m-0">
@@ -1279,10 +1301,10 @@
             </div>
           </fieldset>
         </div>
-        <!-- Grades fields -->
-        <div x-show="type === 'grades'" style="display:none" class="flex flex-col gap-4">
+        <!-- Grades fields (exam and WS grades share them) -->
+        <div x-show="isGradeType" style="display:none" class="flex flex-col gap-4">
           <div>
-            <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-score">Score</label>
+            <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="add-entry-score" x-text="type === 'ws_grades' ? 'Percentage' : 'Score'">Score</label>
             <input id="add-entry-score" type="number" x-model="score" min="0" max="100" step="0.1" placeholder="100"
               class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none" />
           </div>
@@ -1445,9 +1467,9 @@
         </div>
 
         <div class="mb-4" x-show="typeId === '2'">
-          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-platform">Platform</label>
-          <input id="de-platform" type="text" x-model="platform" placeholder="Platform"
-            class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush placeholder:text-muted" />
+          <label class="block text-xs font-semibold uppercase tracking-[0.07em] text-muted mb-1.5" for="de-percentage">Percentage</label>
+          <input id="de-percentage" type="number" x-model="percentage" min="0" max="100" step="0.1" placeholder="100"
+            class="w-full px-3.5 py-2.5 border border-app-border rounded-[8px] bg-cream text-charcoal outline-none transition-colors focus:border-blush appearance-none placeholder:text-muted" />
         </div>
 
         <fieldset class="mb-4 border-none p-0 m-0" x-show="typeId === '2'">
@@ -1484,7 +1506,7 @@
       class="modal border-none rounded-card shadow-(--shadow-lg) p-0 w-[clamp(300px,92vw,480px)] max-h-[90vh] overflow-y-auto bg-modal-bg m-auto"
       aria-labelledby="grades-modal-title">
       <div class="flex items-center justify-between px-5.5 py-4.5 border-b border-app-border">
-        <span class="font-serif text-lg text-cream" id="grades-modal-title">Enter Grades</span>
+        <span class="font-serif text-lg text-cream" id="grades-modal-title">Enter Exam Grades</span>
         <button @click="closeModal()" aria-label="Close"
           class="bg-transparent border-none text-[22px] text-cream cursor-pointer leading-none px-1 transition-colors hover:text-charcoal">&times;</button>
       </div>
